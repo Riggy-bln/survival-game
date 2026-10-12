@@ -45,8 +45,10 @@ export default class RangedEnemy extends Enemy {
             return;
         }
 
-        // Spieler weit weg: nichts tun.
-        if (abstand > this.range) {
+        // Spieler weit weg: nichts tun. "Weit" gilt auch senkrecht: Wer in einem Tunnel
+        // unter oder auf einer anderen Etage steht, wird nicht durch die Wand beschossen.
+        const hoehenUnterschied = Math.abs(player.y - this.y);
+        if (abstand > this.range || hoehenUnterschied > 200) {
             this.body.setVelocityX(0);
             return;
         }

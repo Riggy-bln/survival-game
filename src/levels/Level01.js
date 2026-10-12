@@ -26,8 +26,22 @@ const rangedEnemies = [];
 const pickups = [];
 const signs = [];
 
-// Die Erde: eine dicke Platte von der Oberfläche bis ganz nach unten, über die ganze Welt.
-platforms.push({ x: 4500, y: BODEN + (HOEHE - BODEN) / 2, w: 9000, h: HOEHE - BODEN, color: 0x4b3b2a });
+// ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
+const BREITE = 9000;            // Breite der Welt
+const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
+const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
+const SCHACHT = 260;            // Breite eines Schachts
+const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
+const TUNNEL_BODEN = 990;       // y der Oberkante des Tunnelbodens (230 unter der Oberfläche)
+
+// erde: ein Erdblock von "links" bis "rechts" und von "oben" bis "unten" (alles Kanten, keine Mitte).
+const erde = (links, rechts, oben, unten, farbe = 0x4b3b2a) =>
+    platforms.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, color: farbe });
+
+erde(0, TUNNEL_LINKS, BODEN, HOEHE);                                              // Erde links vom Tunnel
+erde(TUNNEL_LINKS + SCHACHT, TUNNEL_RECHTS - SCHACHT, BODEN, BODEN + DECKE);      // Decke über dem Tunnel
+erde(TUNNEL_LINKS, TUNNEL_RECHTS, TUNNEL_BODEN, HOEHE);                           // Boden des Tunnels
+erde(TUNNEL_RECHTS, BREITE, BODEN, HOEHE);                                        // Erde rechts vom Tunnel
 
 // huegel: ein fester Block, der AUF DEM BODEN steht. Angabe: linke Kante, Höhe, Breite.
 // Aus der Höhe wird die Mitte berechnet (Rechtecke werden von ihrer Mitte aus gezeichnet).
@@ -65,6 +79,21 @@ const versorgungspunkt = (x) => {
     signs.push({ x: x, y: BODEN - 105, text: 'Versorgungspunkt' });
 };
 
+// Tunnelblock: ein fester Block, der auf dem TUNNELBODEN steht (Kisten, Stufen).
+const tunnelblock = (links, hoehe, breite, farbe = 0x6b5b3a) =>
+    platforms.push({ x: links + breite / 2, y: TUNNEL_BODEN - hoehe / 2, w: breite, h: hoehe, color: farbe });
+
+// treppe: Stufen, die nach RECHTS ansteigen. Jede Stufe ist "stufe" Pixel höher als die vorige.
+const treppe = (links, anzahl, breite, stufe) => {
+    for (let i = 0; i < anzahl; i++) {
+        tunnelblock(links + i * breite, (i + 1) * stufe, breite, 0x5a4d3a);
+    }
+};
+
+// dunkel: ein dunkles Rechteck als Hintergrund (Tunnelinneres), gezeichnet hinter allem.
+const dunkel = (links, rechts, oben, unten) =>
+    decor.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, color: 0x14181b });
+
 // =====================================================================
 // ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
 // =====================================================================
@@ -98,11 +127,33 @@ heilung(2560);
 munition(2640);
 
 // =====================================================================
-// ZONE D: Grabenanlage mit Terrassen (x 2900 bis 3900).
+// ZONE T: Tunnel unter der Erde (x 2740 bis 4220). Ein ALTERNATIVWEG unter Zone D.
+// Zwei Schächte (Löcher im Boden) führen hinunter. Unten ist ein dunkler Gang mit Deckung,
+// drei Gegnern und Beute. Wer unten bleibt, umgeht die Schützen auf den Terrassen.
+// Aus dem Tunnel kommt man über Stufen wieder hinauf (je Schacht 3 Stufen à 77 Pixel).
+// =====================================================================
+signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nder Schacht führt unter die Erde' });
+dunkel(TUNNEL_LINKS, TUNNEL_LINKS + SCHACHT, BODEN, TUNNEL_BODEN);                    // linker Schacht
+dunkel(TUNNEL_LINKS + SCHACHT, TUNNEL_RECHTS - SCHACHT, BODEN + DECKE, TUNNEL_BODEN);  // der Gang
+dunkel(TUNNEL_RECHTS - SCHACHT, TUNNEL_RECHTS, BODEN, TUNNEL_BODEN);                  // rechter Schacht
+for (let x = 3150; x < 3960; x += 250) {
+    decor.push({ x: x, y: BODEN + DECKE + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen
+}
+treppe(TUNNEL_LINKS + SCHACHT - 150, 3, 50, 77);       // Stufen im linken Schacht (x 2850 bis 3000)
+treppe(TUNNEL_RECHTS - 150, 3, 50, 77);                // Stufen im rechten Schacht (x 4070 bis 4220)
+tunnelblock(3480, 40, 80);                             // Kiste A als Deckung (x 3480 bis 3560)
+tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
+nahkaempfer(3200, 3080, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang des Gangs
+fernkaempfer(3640, 3590, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
+nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
+munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
+heilung(3950, TUNNEL_BODEN);                           // Beute vor den Stufen
+
+// =====================================================================
+// ZONE D: Grabenanlage mit Terrassen (x 3000 bis 3900), steht auf der Tunneldecke.
 // Der Graben liegt zwischen zwei Terrassen. Schützen oben, Nahkämpfer unten.
 // =====================================================================
-signs.push({ x: 2900, y: BODEN - 100, text: 'Gefahr voraus:\nSchützen auf den Terrassen' });
-huegel(2980, 40, 80, SAND);                      // Deckung am Eingang
+signs.push({ x: 3020, y: BODEN - 100, text: 'Gefahr voraus:\nSchützen auf den Terrassen' });
 huegel(3050, 90, 140);                           // linke Terrasse, untere Stufe (x 3050 bis 3190)
 huegel(3190, 180, 140);                          // linke Terrasse, obere Stufe  (x 3190 bis 3330)
 huegel(3530, 180, 140);                          // rechte Terrasse, obere Stufe (x 3530 bis 3670)
@@ -119,11 +170,11 @@ huegel(3900, 110, 30, GRAU);                     // hohe Mauer als Deckung
 // ZONE E: Bunker (x 4100 bis 5600). Eine Pyramide aus drei Etagen zum Überklettern,
 // danach ein offenes Feld mit Sandsack-Deckungen.
 // =====================================================================
-signs.push({ x: 4180, y: BODEN - 120, text: 'Bunker voraus:\nGegner auf mehreren Etagen' });
+signs.push({ x: 4290, y: BODEN - 130, text: 'Bunker voraus:\nGegner auf mehreren Etagen' });
 huegel(4300, 100, 480, BUNKER);                  // untere Etage (Oberkante 400), x 4300 bis 4780
 huegel(4400, 200, 300, BUNKER);                  // mittlere Etage (Oberkante 300), x 4400 bis 4700
 huegel(4500, 300, 100, BUNKER);                  // Dach (Oberkante 200), x 4500 bis 4600
-fernkaempfer(4550, 4515, 4585, 4, BODEN - 300);          // Scharfschütze auf dem Dach
+fernkaempfer(4550, 4520, 4580, 4, BODEN - 300);          // Scharfschütze auf dem Dach
 fernkaempfer(4650, 4625, 4680, 3, BODEN - 200);          // Schütze auf der mittleren Etage
 // Wichtig: Die Patrouille muss zu den freien Flächen passen. Ein Gegner hat 32 Pixel Breite,
 // also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Etage.

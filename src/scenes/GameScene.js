@@ -3,9 +3,11 @@ import Player from '../entities/Player.js';
 import Bullet from '../entities/Bullet.js';
 import Enemy from '../entities/Enemy.js';
 import Pickup from '../entities/Pickup.js';
+import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
-const WORLD_WIDTH = 4000;
+// Die Breite kommt jetzt aus der Level-Datei.
+const WORLD_WIDTH = level.width;
 const WORLD_HEIGHT = 540;
 
 // Die Szene baut die Welt auf und lässt die Spielobjekte zusammenarbeiten.
@@ -26,13 +28,11 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Boden und Plattformen ---
         this.platforms = [];
-        this.addPlatform(WORLD_WIDTH / 2, 520, WORLD_WIDTH, 40, 0x4b3b2a);  // Boden
-        this.addPlatform(700, 400, 200, 20, 0x6b5b4a);
-        this.addPlatform(1100, 320, 200, 20, 0x6b5b4a);
-        this.addPlatform(1600, 400, 300, 20, 0x6b5b4a);
-        this.addPlatform(2100, 330, 200, 20, 0x6b5b4a);
-        this.addPlatform(2500, 250, 200, 20, 0x6b5b4a);
-        this.addPlatform(3000, 380, 300, 20, 0x6b5b4a);
+        // Für jeden Eintrag der Liste in Level01.js eine Plattform bauen.
+        // "p" steht für einen Eintrag. Fehlt "color", gilt die Standardfarbe nach dem "??".
+        for (const p of level.platforms) {
+            this.addPlatform(p.x, p.y, p.w, p.h, p.color ?? 0x6b5b4a);
+        }
 
         // --- Spieler ---
         // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
@@ -41,23 +41,14 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Gegner ---
         // Jeder Gegner bekommt Startposition und Patrouillenbereich (links, rechts).
-        this.enemies = [
-            new Enemy(this, 900, 450, 750, 1050),
-            new Enemy(this, 1900, 450, 1750, 2150),
-        ];
+        // map() wandelt jeden Listeneintrag in ein fertiges Objekt um und liefert die neue Liste.
+        this.enemies = level.enemies.map(e => new Enemy(this, e.x, e.y, e.left, e.right));
         // Eine collider-Zeile für alle Gegner: Sie stehen auf Boden und Plattformen.
         this.physics.add.collider(this.enemies, this.platforms);
 
         // --- Gegenstände ---
-        // Auf dem Boden liegt y = 490 (Boden-Oberkante 500 minus halbe Höhe 10).
-        // Auf Plattformen lässt man sie knapp darüber liegen.
-        this.pickups = [
-            new Pickup(this, 600, 490, 'ammo'),
-            new Pickup(this, 1100, 300, 'health'),   // auf der Plattform bei x = 1100
-            new Pickup(this, 1450, 490, 'ammo'),
-            new Pickup(this, 2500, 230, 'health'),   // auf der hohen Plattform
-            new Pickup(this, 2800, 490, 'ammo'),
-        ];
+        // Die Positionen stehen in Level01.js (Boden: y = 490).
+        this.pickups = level.pickups.map(p => new Pickup(this, p.x, p.y, p.type));
 
         // --- Hubschrauber (Levelende) ---
         // Das Evakuierungsfeld: eine grün leuchtende Zone am Boden (220 breit, 120 hoch).

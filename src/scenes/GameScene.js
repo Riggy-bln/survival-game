@@ -26,6 +26,16 @@ export default class GameScene extends Phaser.Scene {
             this.add.rectangle(x, 500 - hoehe / 2, 80, hoehe, 0x2a3540);
         }
 
+        // --- Dekoration und Schilder aus der Level-Datei (ohne Physik) ---
+        for (const d of level.decor) {
+            this.add.rectangle(d.x, d.y, d.w, d.h, d.color);
+        }
+        for (const s of level.signs) {
+            this.add.text(s.x, s.y, s.text, {
+                fontSize: '16px', color: '#cfd8dc', align: 'center',
+            }).setOrigin(0.5);
+        }
+
         // --- Boden und Plattformen ---
         this.platforms = [];
         // Für jeden Eintrag der Liste in Level01.js eine Plattform bauen.

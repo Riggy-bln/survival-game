@@ -10,7 +10,10 @@ import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
 // Die Breite kommt jetzt aus der Level-Datei.
 const WORLD_WIDTH = level.width;
-const WORLD_HEIGHT = 540;
+// Die Welt ist jetzt höher als das Fenster (540): oben Platz für Gebäude, unten für Tunnel.
+// Die Kamera scrollt deshalb auch senkrecht. "boden" ist die Höhe der Oberfläche.
+const WORLD_HEIGHT = level.height;
+const BODEN = level.boden;
 
 // Die Szene baut die Welt auf und lässt die Spielobjekte zusammenarbeiten.
 export default class GameScene extends Phaser.Scene {
@@ -25,7 +28,7 @@ export default class GameScene extends Phaser.Scene {
         // --- Dekoration: Ruinen im Hintergrund (ohne Physik) ---
         for (let x = 300; x < WORLD_WIDTH; x += 450) {
             const hoehe = 100 + (x % 3) * 60;
-            this.add.rectangle(x, 500 - hoehe / 2, 80, hoehe, 0x2a3540);
+            this.add.rectangle(x, BODEN - hoehe / 2, 80, hoehe, 0x2a3540);
         }
 
         // --- Dekoration und Schilder aus der Level-Datei (ohne Physik) ---
@@ -48,7 +51,7 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Spieler ---
         // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
-        this.player = new Player(this, 200, 300);
+        this.player = new Player(this, 200, BODEN - 200);  // startet in der Luft und landet
         this.physics.add.collider(this.player, this.platforms);
 
         // --- Gegner ---
@@ -90,16 +93,17 @@ export default class GameScene extends Phaser.Scene {
         // hx = x-Mitte des Hubschraubers. Sie steht in der Level-Datei (goalX), alle Teile
         // werden relativ dazu platziert, damit das Ziel leicht verschoben werden kann.
         const hx = level.goalX;
-        this.helicopter = this.add.rectangle(hx, 440, 220, 120, 0x66ff99, 0.18)
+        // Alle Höhen sind relativ zu BODEN angegeben (BODEN - 60 = 60 Pixel über der Oberfläche).
+        this.helicopter = this.add.rectangle(hx, BODEN - 60, 220, 120, 0x66ff99, 0.18)
             .setStrokeStyle(2, 0x66ff99);
 
         // Der Hubschrauber selbst besteht aus mehreren Rechtecken (nur Optik, keine Physik).
-        this.add.rectangle(hx, 478, 90, 40, 0x6b7a4a);              // Rumpf (olivgrün)
-        this.add.rectangle(hx + 68, 470, 60, 10, 0x6b7a4a);         // Heckausleger
-        this.add.rectangle(hx + 92, 458, 8, 24, 0x6b7a4a);          // Heckflosse
-        this.add.rectangle(hx - 20, 470, 30, 20, 0x9fd3e6);         // Cockpitfenster
-        this.add.rectangle(hx, 452, 6, 12, 0x333333);               // Rotormast
-        const rotor = this.add.rectangle(hx, 446, 160, 6, 0x333333);  // Rotorblatt
+        this.add.rectangle(hx, BODEN - 22, 90, 40, 0x6b7a4a);       // Rumpf (olivgrün)
+        this.add.rectangle(hx + 68, BODEN - 30, 60, 10, 0x6b7a4a);  // Heckausleger
+        this.add.rectangle(hx + 92, BODEN - 42, 8, 24, 0x6b7a4a);   // Heckflosse
+        this.add.rectangle(hx - 20, BODEN - 30, 30, 20, 0x9fd3e6);  // Cockpitfenster
+        this.add.rectangle(hx, BODEN - 48, 6, 12, 0x333333);        // Rotormast
+        const rotor = this.add.rectangle(hx, BODEN - 54, 160, 6, 0x333333);  // Rotorblatt
 
         // Ein "Tween" verändert einen Wert über die Zeit. Hier schrumpft und wächst die
         // Breite des Rotors ständig (yoyo = hin und zurück, repeat -1 = endlos),
@@ -108,7 +112,7 @@ export default class GameScene extends Phaser.Scene {
             targets: rotor, scaleX: 0.15, duration: 90, yoyo: true, repeat: -1,
         });
 
-        this.evacLabel = this.add.text(hx, 350, 'EVAKUIERUNG', {
+        this.evacLabel = this.add.text(hx, BODEN - 150, 'EVAKUIERUNG', {
             fontSize: '28px', color: '#66ff99', fontStyle: 'bold',
         }).setOrigin(0.5);
         this.evacOpen = undefined;  // wird in update() gesetzt: offen (grün) oder gesperrt (rot)

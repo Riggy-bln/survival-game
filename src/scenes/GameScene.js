@@ -137,7 +137,8 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Zustand und Neustart ---
         this.gameOver = false;
-        this.restartKey = this.input.keyboard.addKey('R');
+        // Neustart auf Enter, denn R bedeutet jetzt Nachladen.
+        this.restartKey = this.input.keyboard.addKey('ENTER');
     }
 
     // Aktualisiert Breite, Farbe und Text des Lebensbalkens.
@@ -149,8 +150,15 @@ export default class GameScene extends Phaser.Scene {
         this.hpText.setText(`HP ${this.player.health} / ${this.player.maxHealth}`);
 
         // Munitionsanzeige; bei 0 rot, damit man es sofort merkt.
-        this.ammoText.setText(`Munition: ${this.player.ammo} / ${this.player.maxAmmo}`);
-        this.ammoText.setColor(this.player.ammo === 0 ? '#ff4444' : '#ffdd55');
+        const p = this.player;
+        if (p.isReloading()) {
+            this.ammoText.setText(`Nachladen...   Reserve: ${p.ammo}`);
+        } else {
+            this.ammoText.setText(`Magazin: ${p.magAmmo} / ${p.magSize}   Reserve: ${p.ammo}`);
+        }
+        // Rot, wenn gar keine Munition mehr da ist; orange bei leerem Magazin / beim Nachladen.
+        const leer = p.magAmmo === 0 && p.ammo === 0;
+        this.ammoText.setColor(leer ? '#ff4444' : (p.isReloading() || p.magAmmo === 0 ? '#ff9944' : '#ffdd55'));
     }
 
     // Zeigt die Lebensanzeige der Kreatur, solange sie lebt und erwacht ist.
@@ -188,7 +196,7 @@ export default class GameScene extends Phaser.Scene {
             .setOrigin(0, 0).setScrollFactor(0).setDepth(30);
         this.add.text(480, 220, titel, { fontSize: '72px', color: farbe })
             .setOrigin(0.5).setScrollFactor(0).setDepth(31);
-        this.add.text(480, 300, 'Drücke R für einen Neustart', { fontSize: '28px', color: '#ffffff' })
+        this.add.text(480, 300, 'Drücke Enter für einen Neustart', { fontSize: '28px', color: '#ffffff' })
             .setOrigin(0.5).setScrollFactor(0).setDepth(31);
     }
 
@@ -239,11 +247,11 @@ export default class GameScene extends Phaser.Scene {
         this.crosshair.setPosition(pointer.worldX, pointer.worldY);
 
         // --- Schießen (Maustaste gedrückt halten = Dauerfeuer) ---
-        // Schießen geht nur mit Munition (ammo > 0).
-        if (pointer.isDown && this.player.ammo > 0 &&
+        // Schießen geht nur mit Kugel im Magazin und nicht während des Nachladens.
+        if (pointer.isDown && this.player.canShoot() &&
             this.time.now - this.lastShot > this.fireDelay) {
             this.shoot(pointer.worldX, pointer.worldY);
-            this.player.ammo -= 1;  // jeder Schuss kostet eine Kugel
+            this.player.magAmmo -= 1;  // jeder Schuss kostet eine Kugel aus dem Magazin
             this.lastShot = this.time.now;
         }
 

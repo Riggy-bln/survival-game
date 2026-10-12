@@ -58,11 +58,21 @@ export default class GameScene extends Phaser.Scene {
         // "Gegner" mit update() und takeDamage(). Nur das Verhalten unterscheidet sich.
         // Die starke Kreatur merken wir uns zusätzlich einzeln (this.boss),
         // weil Lebensanzeige und Evakuierung sie brauchen. "? :" heißt: wenn vorhanden, dann ...
+        // Kleine Hilfsfunktion: baut einen Gegner der gegebenen Klasse aus einem Listeneintrag.
+        // Hat der Eintrag "hp", überschreibt das die Standard-Lebenspunkte (zähere Gegner).
+        const baue = (Klasse, e) => {
+            const gegner = new Klasse(this, e.x, e.y, e.left, e.right);
+            if (e.hp) {
+                gegner.health = e.hp;
+                gegner.maxHealth = e.hp;
+            }
+            return gegner;
+        };
         const b = level.boss;
-        this.boss = b ? new Boss(this, b.x, b.y, b.left, b.right) : null;
+        this.boss = b ? baue(Boss, b) : null;
         this.enemies = [
-            ...level.enemies.map(e => new Enemy(this, e.x, e.y, e.left, e.right)),
-            ...level.rangedEnemies.map(e => new RangedEnemy(this, e.x, e.y, e.left, e.right)),
+            ...level.enemies.map(e => baue(Enemy, e)),
+            ...level.rangedEnemies.map(e => baue(RangedEnemy, e)),
             ...(this.boss ? [this.boss] : []),
         ];
         this.enemyBullets = [];  // Kugeln der Gegner
@@ -77,16 +87,19 @@ export default class GameScene extends Phaser.Scene {
         // Das Evakuierungsfeld: eine grün leuchtende Zone am Boden (220 breit, 120 hoch).
         // Sie ist der eigentliche Auslöser: Wer sie berührt, gewinnt.
         // Die 0.18 am Ende ist die Durchsichtigkeit (0 = unsichtbar, 1 = deckend).
-        this.helicopter = this.add.rectangle(3800, 440, 220, 120, 0x66ff99, 0.18)
+        // hx = x-Mitte des Hubschraubers. Sie steht in der Level-Datei (goalX), alle Teile
+        // werden relativ dazu platziert, damit das Ziel leicht verschoben werden kann.
+        const hx = level.goalX;
+        this.helicopter = this.add.rectangle(hx, 440, 220, 120, 0x66ff99, 0.18)
             .setStrokeStyle(2, 0x66ff99);
 
         // Der Hubschrauber selbst besteht aus mehreren Rechtecken (nur Optik, keine Physik).
-        this.add.rectangle(3800, 478, 90, 40, 0x6b7a4a);            // Rumpf (olivgrün)
-        this.add.rectangle(3868, 470, 60, 10, 0x6b7a4a);            // Heckausleger
-        this.add.rectangle(3892, 458, 8, 24, 0x6b7a4a);             // Heckflosse
-        this.add.rectangle(3780, 470, 30, 20, 0x9fd3e6);            // Cockpitfenster
-        this.add.rectangle(3800, 452, 6, 12, 0x333333);             // Rotormast
-        const rotor = this.add.rectangle(3800, 446, 160, 6, 0x333333);  // Rotorblatt
+        this.add.rectangle(hx, 478, 90, 40, 0x6b7a4a);              // Rumpf (olivgrün)
+        this.add.rectangle(hx + 68, 470, 60, 10, 0x6b7a4a);         // Heckausleger
+        this.add.rectangle(hx + 92, 458, 8, 24, 0x6b7a4a);          // Heckflosse
+        this.add.rectangle(hx - 20, 470, 30, 20, 0x9fd3e6);         // Cockpitfenster
+        this.add.rectangle(hx, 452, 6, 12, 0x333333);               // Rotormast
+        const rotor = this.add.rectangle(hx, 446, 160, 6, 0x333333);  // Rotorblatt
 
         // Ein "Tween" verändert einen Wert über die Zeit. Hier schrumpft und wächst die
         // Breite des Rotors ständig (yoyo = hin und zurück, repeat -1 = endlos),
@@ -95,7 +108,7 @@ export default class GameScene extends Phaser.Scene {
             targets: rotor, scaleX: 0.15, duration: 90, yoyo: true, repeat: -1,
         });
 
-        this.evacLabel = this.add.text(3800, 350, 'EVAKUIERUNG', {
+        this.evacLabel = this.add.text(hx, 350, 'EVAKUIERUNG', {
             fontSize: '28px', color: '#66ff99', fontStyle: 'bold',
         }).setOrigin(0.5);
         this.evacOpen = undefined;  // wird in update() gesetzt: offen (grün) oder gesperrt (rot)

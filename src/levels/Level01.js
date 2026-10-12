@@ -1,98 +1,191 @@
-// Level 01: reine DATEN, keine Logik.
-// GameScene.js liest diese Listen und baut daraus die Welt.
-// Koordinaten: x = waagerecht, y = senkrecht (0 oben, 540 unten).
-// Bei allen Objekten ist (x, y) die MITTE. Die Boden-Oberkante liegt bei y = 500.
-// Faustregel: Ein Objekt der Höhe h, das auf dem Boden steht, hat y = 500 - h / 2.
-// Der Spieler springt etwa 150 Pixel hoch. Hindernisse zum Überspringen bleiben darunter.
+// Level 01: Verlassene Militärzone (9000 Pixel breit).
+// Die Datei enthält fast nur DATEN. Kleine Hilfsfunktionen sorgen dafür, dass wir
+// Hügel, Plattformen, Gegner und Gegenstände mit einfachen Angaben setzen können.
+//
+// Koordinaten: x = waagerecht, y = senkrecht (0 oben, 540 unten). Der Boden liegt bei y = 500.
+// Der Spieler springt etwa 150 Pixel hoch und rund 280 Pixel weit.
+// Deshalb gilt in diesem Level: Stufen sind höchstens 100 hoch, Lücken höchstens 150 breit.
+
+const BODEN = 500;   // Oberkante des Bodens
+
+// Farben
+const ERDE = 0x5b4a35;
+const BETON = 0x6a6f73;
+const BUNKER = 0x45494d;
+const SAND = 0x8a7a55;
+const GRAU = 0x5a5a5a;
+const OLIV = 0x4a5238;
+
+// Die Listen, die am Ende exportiert werden. Die Hilfsfunktionen füllen sie.
+const platforms = [];
+const decor = [];
+const enemies = [];
+const rangedEnemies = [];
+const pickups = [];
+const signs = [];
+
+// Der Boden über die ganze Welt.
+platforms.push({ x: 4500, y: 520, w: 9000, h: 40, color: 0x4b3b2a });
+
+// huegel: ein fester Block, der AUF DEM BODEN steht. Angabe: linke Kante, Höhe, Breite.
+// Aus der Höhe wird die Mitte berechnet (Rechtecke werden von ihrer Mitte aus gezeichnet).
+const huegel = (links, hoehe, breite, farbe = ERDE) =>
+    platforms.push({ x: links + breite / 2, y: BODEN - hoehe / 2, w: breite, h: hoehe, color: farbe });
+
+// schwebend: eine dünne Plattform in der Luft. Angabe: linke Kante, y der OBERKANTE, Breite.
+const schwebend = (links, oben, breite, farbe = BETON) =>
+    platforms.push({ x: links + breite / 2, y: oben + 10, w: breite, h: 20, color: farbe });
+
+// Gegner. "oben" = y der Fläche, auf der er steht (Standard: der Boden).
+// left/right begrenzen seine Patrouille, hp sind seine Lebenspunkte.
+const nahkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
+    enemies.push({ x, y: oben - 30, left: links, right: rechts, hp });
+const fernkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
+    rangedEnemies.push({ x, y: oben - 30, left: links, right: rechts, hp });
+
+// Gegenstände: "oben" = y der Fläche, auf der sie liegen.
+const munition = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'ammo' });
+const heilung = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'health' });
+
+// Dekoration (ohne Physik)
+const stacheldraht = (x) => {
+    decor.push({ x: x, y: 485, w: 6, h: 30, color: 0x555555 });
+    decor.push({ x: x + 60, y: 485, w: 6, h: 30, color: 0x555555 });
+    decor.push({ x: x + 30, y: 478, w: 60, h: 3, color: 0x999999 });
+    decor.push({ x: x + 30, y: 490, w: 60, h: 3, color: 0x999999 });
+};
+const versorgungspunkt = (x) => {
+    decor.push({ x: x, y: 480, w: 70, h: 40, color: 0x5b4a2e });        // Kiste
+    decor.push({ x: x, y: 480, w: 24, h: 6, color: 0xdd3333 });         // rotes Kreuz
+    decor.push({ x: x, y: 480, w: 6, h: 24, color: 0xdd3333 });
+    decor.push({ x: x, y: 440, w: 6, h: 40, color: 0x555555 });         // Fahnenmast
+    decor.push({ x: x + 16, y: 428, w: 26, h: 14, color: 0xdd3333 });   // Fahne
+    signs.push({ x: x, y: 395, text: 'Versorgungspunkt' });
+};
+
+// =====================================================================
+// ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
+// =====================================================================
+signs.push({ x: 150, y: 420, text: 'A / D: Laufen\nLeertaste: Springen\nR: Nachladen' });
+munition(180);                                   // früh: Einsammeln üben
+huegel(250, 30, 100, SAND);                      // Sandsäcke, niedrig
+huegel(350, 60, 100, SAND);                      // Sandsäcke, höher
+stacheldraht(470);                               // nur Dekoration
+huegel(600, 100, 30, GRAU);                      // zerstörte Mauer (100)
+huegel(760, 60, 220, OLIV);                      // ausgebranntes Fahrzeug
+signs.push({ x: 1000, y: 380, text: 'Maus: Zielen\nLinke Taste: Schießen' });
+nahkaempfer(1150, 1050, 1350, 3);                // der erste Gegner
+
+// =====================================================================
+// ZONE B: Ruine mit zwei Etagen (x 1450 bis 2300).
+// Oben (Deck) kämpft ein Schütze, darunter patrouilliert ein Nahkämpfer.
+// =====================================================================
+huegel(1450, 60, 160, BETON);                    // Stufe zum Deck
+schwebend(1600, 360, 360);                       // Deck (Oberkante 360), x 1600 bis 1960
+schwebend(2010, 260, 110);                       // kleines Versteck darüber (Oberkante 260)
+fernkaempfer(1780, 1660, 1900, 3, 360);          // Schütze auf dem Deck
+nahkaempfer(1800, 1650, 1930, 4);                // Nahkämpfer darunter
+heilung(2065, 260);                              // versteckte Heilung im Versteck
+nahkaempfer(2200, 2080, 2330, 3);
+
+// =====================================================================
+// ZONE C: Versorgungspunkt 1 (x 2450 bis 2750). Ruhig, ein Atemzug.
+// =====================================================================
+versorgungspunkt(2600);
+heilung(2560);
+munition(2640);
+
+// =====================================================================
+// ZONE D: Grabenanlage mit Terrassen (x 2900 bis 3900).
+// Der Graben liegt zwischen zwei Terrassen. Schützen oben, Nahkämpfer unten.
+// =====================================================================
+signs.push({ x: 2900, y: 400, text: 'Gefahr voraus:\nSchützen auf den Terrassen' });
+huegel(2980, 40, 80, SAND);                      // Deckung am Eingang
+huegel(3050, 90, 140);                           // linke Terrasse, untere Stufe (x 3050 bis 3190)
+huegel(3190, 180, 140);                          // linke Terrasse, obere Stufe  (x 3190 bis 3330)
+huegel(3530, 180, 140);                          // rechte Terrasse, obere Stufe (x 3530 bis 3670)
+huegel(3670, 90, 140);                           // rechte Terrasse, untere Stufe (x 3670 bis 3810)
+schwebend(3380, 300, 100, GRAU);                 // Brücke über dem Graben
+munition(3430, 300);                             // Belohnung auf der Brücke
+fernkaempfer(3270, 3215, 3305, 3, 320);          // Schütze links oben (Oberkante 320)
+fernkaempfer(3600, 3555, 3645, 3, 320);          // Schütze rechts oben
+fernkaempfer(3740, 3695, 3785, 3, 410);          // Schütze rechts unten (Oberkante 410)
+nahkaempfer(3430, 3350, 3510, 4);                // Nahkämpfer im Graben
+huegel(3900, 110, 30, GRAU);                     // hohe Mauer als Deckung
+
+// =====================================================================
+// ZONE E: Bunker (x 4100 bis 5600). Eine Pyramide aus drei Etagen zum Überklettern,
+// danach ein offenes Feld mit Sandsack-Deckungen.
+// =====================================================================
+signs.push({ x: 4180, y: 380, text: 'Bunker voraus:\nGegner auf mehreren Etagen' });
+huegel(4300, 100, 480, BUNKER);                  // untere Etage (Oberkante 400), x 4300 bis 4780
+huegel(4400, 200, 300, BUNKER);                  // mittlere Etage (Oberkante 300), x 4400 bis 4700
+huegel(4500, 300, 100, BUNKER);                  // Dach (Oberkante 200), x 4500 bis 4600
+fernkaempfer(4550, 4515, 4585, 4, 200);          // Scharfschütze auf dem Dach
+fernkaempfer(4650, 4625, 4680, 3, 300);          // Schütze auf der mittleren Etage
+// Wichtig: Die Patrouille muss zu den freien Flächen passen. Ein Gegner hat 32 Pixel Breite,
+// also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Etage.
+nahkaempfer(4350, 4320, 4380, 4, 400);           // Nahkämpfer unten links
+nahkaempfer(4740, 4725, 4760, 4, 400);           // Nahkämpfer unten rechts
+munition(4550, 200);                             // Belohnung auf dem Dach
+huegel(4900, 40, 80, SAND);                      // offenes Feld: drei Sandsack-Deckungen
+huegel(5100, 40, 80, SAND);
+huegel(5300, 40, 80, SAND);
+nahkaempfer(5040, 5000, 5080, 3);
+nahkaempfer(5240, 5200, 5280, 3);
+fernkaempfer(5470, 5400, 5560, 3);               // Schütze hinter den Deckungen
+stacheldraht(5560);
+
+// =====================================================================
+// ZONE F: Versorgungspunkt 2 (x 5700 bis 6000).
+// =====================================================================
+versorgungspunkt(5850);
+heilung(5810);
+munition(5890);
+
+// =====================================================================
+// ZONE G: Plateaus in verschiedenen Höhen (x 6100 bis 7350).
+// Oben Schützen auf Plattformen, unten Nahkämpfer. Man kann oben oder unten durchlaufen.
+// =====================================================================
+signs.push({ x: 6050, y: 420, text: 'Gegner oben UND unten' });
+schwebend(6150, 380, 160);
+schwebend(6420, 320, 160);
+schwebend(6690, 260, 160);
+schwebend(6960, 320, 160);
+schwebend(7200, 380, 120);
+munition(6230, 380);
+heilung(6770, 260);
+fernkaempfer(6500, 6445, 6555, 3, 320);
+fernkaempfer(6770, 6715, 6825, 4, 260);
+fernkaempfer(7040, 6985, 7095, 3, 320);
+nahkaempfer(6300, 6150, 6450, 4);
+nahkaempfer(6900, 6700, 7100, 4);
+
+// =====================================================================
+// ZONE H: Vor der Arena (x 7400 bis 7850). Hier rüstet man sich aus.
+// =====================================================================
+signs.push({ x: 7500, y: 400, text: 'Etwas Großes wartet voraus...' });
+heilung(7600);
+munition(7660);
+munition(7720);
+
+// =====================================================================
+// ZONE I: Arena der starken Kreatur (x 7900 bis 8700).
+// Drei Plattformen zum Ausweichen. Ihre Unterkante liegt über dem Kopf der Kreatur (Höhe 100),
+// sie kann darunter durchlaufen.
+// =====================================================================
+schwebend(8040, 380, 140);
+schwebend(8230, 330, 140);
+schwebend(8420, 380, 140);
+
 export default {
-    width: 4000,   // Breite der Welt in Pixeln
-
-    // Feste Flächen, auf denen man stehen kann. w = Breite, h = Höhe.
-    // "color" ist optional; ohne Angabe nimmt die Szene eine Standardfarbe.
-    platforms: [
-        { x: 2000, y: 520, w: 4000, h: 40, color: 0x4b3b2a },  // Boden über die ganze Welt
-
-        // ---- Abschnitt 1: Einstieg (x 0 bis 900) ----
-        { x: 300, y: 485, w: 100, h: 30, color: 0x8a7a55 },    // Sandsäcke, niedrig (30)
-        { x: 420, y: 470, w: 100, h: 60, color: 0x8a7a55 },    // Sandsäcke, höher (60)
-        { x: 620, y: 450, w: 30,  h: 100, color: 0x5a5a5a },   // zerstörte Mauer (100)
-        { x: 800, y: 470, w: 220, h: 60, color: 0x4a5238 },    // ausgebranntes Militärfahrzeug
-
-        // ---- Abschnitt 2: Erste Begegnung (x 900 bis 1400) ----
-        { x: 1200, y: 400, w: 160, h: 20 },                    // Plattform zum Ausweichen
-
-        // ---- Abschnitt 3: Versorgungspunkt (x 1500 bis 1800) ----
-        { x: 1750, y: 380, w: 120, h: 20 },                    // Versteck mit Extra-Munition
-
-        // ---- Abschnitt 4: Gefährlicherer Bereich (x 1950 bis 3100) ----
-        // Der "Graben" ist der Boden zwischen zwei Erdwällen (je 90 hoch, also überspringbar).
-        { x: 2010, y: 480, w: 80,  h: 40, color: 0x8a7a55 },   // Sandsäcke am Eingang (Deckung)
-        { x: 2200, y: 455, w: 200, h: 90, color: 0x5b4a35 },   // Erdwall links  (x 2100 bis 2300)
-        { x: 2600, y: 455, w: 200, h: 90, color: 0x5b4a35 },   // Erdwall rechts (x 2500 bis 2700)
-        { x: 2400, y: 330, w: 140, h: 20 },                    // Brücke über dem Graben (Umweg)
-        { x: 2900, y: 445, w: 30,  h: 110, color: 0x5a5a5a },  // hohe Mauer: Deckung vor dem Ende
-
-        // ---- Abschnitt 5: Arena der starken Kreatur (x 3250 bis 3680) ----
-        // Zwei Sprungplattformen zum Ausweichen vor dem Sturmangriff. Ihre Unterkante (390)
-        // liegt über dem Kopf der Kreatur (404), sie kann also darunter durchlaufen.
-        { x: 3360, y: 380, w: 120, h: 20 },
-        { x: 3580, y: 380, w: 120, h: 20 },
-    ],
-
-    // Dekoration OHNE Physik: nur zum Anschauen, man läuft hindurch.
-    // Reihenfolge = Zeichenreihenfolge (spätere liegen oben).
-    decor: [
-        // Stacheldraht (Abschnitt 1): zwei Pfosten und ein Draht dazwischen
-        { x: 500, y: 485, w: 6,  h: 30, color: 0x555555 },
-        { x: 560, y: 485, w: 6,  h: 30, color: 0x555555 },
-        { x: 530, y: 478, w: 60, h: 3,  color: 0x999999 },
-        { x: 530, y: 490, w: 60, h: 3,  color: 0x999999 },
-
-        // Versorgungspunkt (Abschnitt 3): Kiste mit rotem Kreuz
-        { x: 1620, y: 480, w: 70, h: 40, color: 0x5b4a2e },
-        { x: 1620, y: 480, w: 24, h: 6,  color: 0xdd3333 },
-        { x: 1620, y: 480, w: 6,  h: 24, color: 0xdd3333 },
-        { x: 1620, y: 440, w: 6,  h: 40, color: 0x555555 },    // Fahnenmast
-        { x: 1636, y: 428, w: 26, h: 14, color: 0xdd3333 },    // Fahne
-    ],
-
-    // Hinweisschilder (Text in der Welt) für die Lernphase
-    signs: [
-        { x: 1960, y: 400, text: 'Gefahr voraus:\nSchützen auf den Wällen' },
-        { x: 150,  y: 420, text: 'A / D: Laufen\nLeertaste: Springen' },
-        { x: 1000, y: 380, text: 'Maus: Zielen\nLinke Taste: Schießen' },
-        { x: 1620, y: 395, text: 'Versorgungspunkt' },
-        { x: 3200, y: 400, text: 'Etwas Großes wartet voraus...' },
-    ],
-
-    // Gegner. left und right sind die Grenzen ihrer Patrouille.
-    enemies: [
-        { x: 1150, y: 450, left: 1000, right: 1300 },   // Abschnitt 2: der erste Gegner
-        { x: 2400, y: 450, left: 2320, right: 2480 },   // Abschnitt 4: im Graben, zwischen den Wällen
-    ],
-
-    // Die starke Kreatur (Abschnitt 5). left/right begrenzen die Arena, in der sie bleibt.
-    boss: { x: 3480, y: 440, left: 3300, right: 3640 },
-
-    // Fernkämpfer: bleiben auf Abstand und schießen. left/right begrenzen, wohin sie ausweichen.
-    rangedEnemies: [
-        { x: 2600, y: 370, left: 2530, right: 2670 },   // Abschnitt 4: Schütze auf dem rechten Wall
-        { x: 3020, y: 450, left: 2960, right: 3100 },   // Abschnitt 4: Schütze hinter der hohen Mauer
-    ],
-
-    // Gegenstände zum Aufsammeln. type: 'ammo' (Munition) oder 'health' (Heilung).
-    pickups: [
-        { x: 200,  y: 490, type: 'ammo' },     // früh im Level: Einsammeln üben
-        { x: 1600, y: 490, type: 'health' },   // Versorgungspunkt
-        { x: 1680, y: 490, type: 'ammo' },     // Versorgungspunkt
-        { x: 1750, y: 350, type: 'ammo' },     // versteckt auf dem hohen Versteck
-        { x: 2400, y: 300, type: 'health' },   // auf der Brücke: Belohnung für den Umweg
-        { x: 2350, y: 490, type: 'ammo' },     // im Graben: riskant, aber lohnend
-        { x: 2800, y: 490, type: 'ammo' },     // zwischen Wall und hoher Mauer
-
-        // Vorbereitung vor der Arena (Abschnitt 5): Wer bis hierher kommt, soll gerüstet sein.
-        { x: 3140, y: 490, type: 'health' },
-        { x: 3180, y: 490, type: 'ammo' },
-        { x: 3220, y: 490, type: 'ammo' },
-    ],
+    width: 9000,     // Breite der Welt in Pixeln
+    goalX: 8800,     // Mitte des Evakuierungspunkts (Hubschrauber)
+    platforms,
+    decor,
+    signs,
+    enemies,
+    rangedEnemies,
+    boss: { x: 8250, y: 440, left: 7980, right: 8650, hp: 50 },
+    pickups,
 };

@@ -1,0 +1,263 @@
+// "import" holt Code aus anderen Dateien. So bleibt jede Datei klein und übersichtlich.
+import Player from '../entities/Player.js';
+import Bullet from '../entities/Bullet.js';
+import Enemy from '../entities/Enemy.js';
+import Pickup from '../entities/Pickup.js';
+
+// Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
+const WORLD_WIDTH = 4000;
+const WORLD_HEIGHT = 540;
+
+// Die Szene baut die Welt auf und lässt die Spielobjekte zusammenarbeiten.
+export default class GameScene extends Phaser.Scene {
+    constructor() {
+        super('GameScene');
+    }
+
+    // create() läuft einmal beim Start: hier bauen wir die Welt auf.
+    create() {
+        this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+        // --- Dekoration: Ruinen im Hintergrund (ohne Physik) ---
+        for (let x = 300; x < WORLD_WIDTH; x += 450) {
+            const hoehe = 100 + (x % 3) * 60;
+            this.add.rectangle(x, 500 - hoehe / 2, 80, hoehe, 0x2a3540);
+        }
+
+        // --- Boden und Plattformen ---
+        this.platforms = [];
+        this.addPlatform(WORLD_WIDTH / 2, 520, WORLD_WIDTH, 40, 0x4b3b2a);  // Boden
+        this.addPlatform(700, 400, 200, 20, 0x6b5b4a);
+        this.addPlatform(1100, 320, 200, 20, 0x6b5b4a);
+        this.addPlatform(1600, 400, 300, 20, 0x6b5b4a);
+        this.addPlatform(2100, 330, 200, 20, 0x6b5b4a);
+        this.addPlatform(2500, 250, 200, 20, 0x6b5b4a);
+        this.addPlatform(3000, 380, 300, 20, 0x6b5b4a);
+
+        // --- Spieler ---
+        // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
+        this.player = new Player(this, 200, 300);
+        this.physics.add.collider(this.player, this.platforms);
+
+        // --- Gegner ---
+        // Jeder Gegner bekommt Startposition und Patrouillenbereich (links, rechts).
+        this.enemies = [
+            new Enemy(this, 900, 450, 750, 1050),
+            new Enemy(this, 1900, 450, 1750, 2150),
+        ];
+        // Eine collider-Zeile für alle Gegner: Sie stehen auf Boden und Plattformen.
+        this.physics.add.collider(this.enemies, this.platforms);
+
+        // --- Gegenstände ---
+        // Auf dem Boden liegt y = 490 (Boden-Oberkante 500 minus halbe Höhe 10).
+        // Auf Plattformen lässt man sie knapp darüber liegen.
+        this.pickups = [
+            new Pickup(this, 600, 490, 'ammo'),
+            new Pickup(this, 1100, 300, 'health'),   // auf der Plattform bei x = 1100
+            new Pickup(this, 1450, 490, 'ammo'),
+            new Pickup(this, 2500, 230, 'health'),   // auf der hohen Plattform
+            new Pickup(this, 2800, 490, 'ammo'),
+        ];
+
+        // --- Hubschrauber (Levelende) ---
+        // Das Evakuierungsfeld: eine grün leuchtende Zone am Boden (220 breit, 120 hoch).
+        // Sie ist der eigentliche Auslöser: Wer sie berührt, gewinnt.
+        // Die 0.18 am Ende ist die Durchsichtigkeit (0 = unsichtbar, 1 = deckend).
+        this.helicopter = this.add.rectangle(3800, 440, 220, 120, 0x66ff99, 0.18)
+            .setStrokeStyle(2, 0x66ff99);
+
+        // Der Hubschrauber selbst besteht aus mehreren Rechtecken (nur Optik, keine Physik).
+        this.add.rectangle(3800, 478, 90, 40, 0x6b7a4a);            // Rumpf (olivgrün)
+        this.add.rectangle(3868, 470, 60, 10, 0x6b7a4a);            // Heckausleger
+        this.add.rectangle(3892, 458, 8, 24, 0x6b7a4a);             // Heckflosse
+        this.add.rectangle(3780, 470, 30, 20, 0x9fd3e6);            // Cockpitfenster
+        this.add.rectangle(3800, 452, 6, 12, 0x333333);             // Rotormast
+        const rotor = this.add.rectangle(3800, 446, 160, 6, 0x333333);  // Rotorblatt
+
+        // Ein "Tween" verändert einen Wert über die Zeit. Hier schrumpft und wächst die
+        // Breite des Rotors ständig (yoyo = hin und zurück, repeat -1 = endlos),
+        // das sieht aus wie ein sich drehender Rotor.
+        this.tweens.add({
+            targets: rotor, scaleX: 0.15, duration: 90, yoyo: true, repeat: -1,
+        });
+
+        this.add.text(3800, 350, 'EVAKUIERUNG', {
+            fontSize: '28px', color: '#66ff99', fontStyle: 'bold',
+        }).setOrigin(0.5);
+
+        // --- Kamera ---
+        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+
+        // --- Fadenkreuz ---
+        this.crosshair = this.add.circle(0, 0, 10).setStrokeStyle(2, 0xff4444);
+        this.crosshair.setDepth(10);
+        this.input.setDefaultCursor('none');
+
+        // --- Schießen ---
+        this.bullets = [];
+        this.lastShot = 0;
+        this.fireDelay = 150;
+
+        // --- Anzeige (Lebensbalken) ---
+        // setScrollFactor(0) heftet ein Objekt an den Bildschirm statt an die Welt.
+        // Es bleibt dann an derselben Stelle im Fenster, obwohl die Kamera scrollt.
+        this.hpBack = this.add.rectangle(20, 20, 204, 24, 0x000000).setOrigin(0, 0);
+        this.hpBar = this.add.rectangle(22, 22, 200, 20, 0x44cc44).setOrigin(0, 0);
+        this.hpText = this.add.text(30, 24, '', { fontSize: '16px', color: '#ffffff' });
+        // Alle drei Teile gemeinsam: am Bildschirm festhalten und über alles andere legen.
+        this.ammoText = this.add.text(22, 52, '', { fontSize: '16px', color: '#ffdd55' });
+        [this.hpBack, this.hpBar, this.hpText, this.ammoText].forEach(obj => {
+            obj.setScrollFactor(0).setDepth(20);
+        });
+
+        // --- Zustand und Neustart ---
+        this.gameOver = false;
+        this.restartKey = this.input.keyboard.addKey('R');
+    }
+
+    // Aktualisiert Breite, Farbe und Text des Lebensbalkens.
+    updateHealthBar() {
+        const anteil = this.player.health / this.player.maxHealth;  // 0 bis 1
+        this.hpBar.width = 200 * anteil;
+        // Unter 30 % wird der Balken rot.
+        this.hpBar.setFillStyle(anteil <= 0.3 ? 0xcc3333 : 0x44cc44);
+        this.hpText.setText(`HP ${this.player.health} / ${this.player.maxHealth}`);
+
+        // Munitionsanzeige; bei 0 rot, damit man es sofort merkt.
+        this.ammoText.setText(`Munition: ${this.player.ammo} / ${this.player.maxAmmo}`);
+        this.ammoText.setColor(this.player.ammo === 0 ? '#ff4444' : '#ffdd55');
+    }
+
+    // Zeigt den Endbildschirm (Sieg oder Niederlage) und hält das Spiel an.
+    // Titel und Farbe werden übergeben, damit eine Funktion für beide Fälle reicht.
+    showEndScreen(titel, farbe) {
+        this.gameOver = true;
+        this.physics.pause();                 // Physik anhalten: alles friert ein
+        this.input.setDefaultCursor('default');  // normalen Mauszeiger zurückholen
+        this.crosshair.setVisible(false);
+        this.player.setAlpha(1);
+
+        // Halbdurchsichtiger dunkler Schleier über dem ganzen Fenster
+        this.add.rectangle(0, 0, 960, 540, 0x000000, 0.65)
+            .setOrigin(0, 0).setScrollFactor(0).setDepth(30);
+        this.add.text(480, 220, titel, { fontSize: '72px', color: farbe })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(31);
+        this.add.text(480, 300, 'Drücke R für einen Neustart', { fontSize: '28px', color: '#ffffff' })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(31);
+    }
+
+    // Erzeugt eine feste Fläche und merkt sie sich in der Liste.
+    addPlatform(x, y, breite, hoehe, farbe) {
+        const rect = this.add.rectangle(x, y, breite, hoehe, farbe);
+        this.physics.add.existing(rect, true);  // true = statisch
+        this.platforms.push(rect);
+    }
+
+    // Erzeugt eine Kugel, die vom Spieler zum Ziel fliegt.
+    shoot(zielX, zielY) {
+        const winkel = Phaser.Math.Angle.Between(
+            this.player.x, this.player.y, zielX, zielY
+        );
+        const bullet = new Bullet(this, this.player.x, this.player.y, winkel, 900);
+
+        // Trifft die Kugel eine Plattform, verschwindet sie.
+        this.physics.add.collider(bullet, this.platforms, () => bullet.destroy());
+        this.bullets.push(bullet);
+    }
+
+    // update() läuft ca. 60-mal pro Sekunde.
+    update() {
+        // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
+        if (this.gameOver) {
+            // JustDown ist nur im Moment des Tastendrucks wahr, nicht dauerhaft.
+            if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
+                this.scene.restart();  // create() läuft komplett neu: alles startet frisch
+            }
+            return;
+        }
+
+        this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
+
+        // --- Zielen ---
+        // worldX/worldY = Mausposition in der Welt (nicht im Fenster).
+        const pointer = this.input.activePointer;
+        pointer.updateWorldPoint(this.cameras.main);
+        this.crosshair.setPosition(pointer.worldX, pointer.worldY);
+
+        // --- Schießen (Maustaste gedrückt halten = Dauerfeuer) ---
+        // Schießen geht nur mit Munition (ammo > 0).
+        if (pointer.isDown && this.player.ammo > 0 &&
+            this.time.now - this.lastShot > this.fireDelay) {
+            this.shoot(pointer.worldX, pointer.worldY);
+            this.player.ammo -= 1;  // jeder Schuss kostet eine Kugel
+            this.lastShot = this.time.now;
+        }
+
+        // --- Gegenstände aufsammeln ---
+        for (const pickup of this.pickups) {
+            if (!pickup.active) continue;
+            const beruehrt = Phaser.Geom.Intersects.RectangleToRectangle(
+                pickup.getBounds(), this.player.getBounds()
+            );
+            if (beruehrt) pickup.applyTo(this.player);
+        }
+        this.pickups = this.pickups.filter(p => p.active);
+
+        // --- Gegner bewegen ---
+        this.enemies.forEach(enemy => enemy.update());
+
+        // --- Nahkampf: Gegner berührt den Spieler ---
+        // takeDamage entscheidet selbst, ob der Schaden wirklich ankommt (Unverwundbarkeit).
+        for (const enemy of this.enemies) {
+            const beruehrt = Phaser.Geom.Intersects.RectangleToRectangle(
+                enemy.getBounds(), this.player.getBounds()
+            );
+            if (beruehrt) {
+                this.player.takeDamage(enemy.contactDamage, enemy.x);
+            }
+        }
+        this.updateHealthBar();
+        if (this.player.isDead()) {
+            this.showEndScreen('BESIEGT', '#ff4444');
+            return;
+        }
+
+        // --- Levelende: Hubschrauber erreicht? ---
+        const amZiel = Phaser.Geom.Intersects.RectangleToRectangle(
+            this.helicopter.getBounds(), this.player.getBounds()
+        );
+        if (amZiel) {
+            this.showEndScreen('EVAKUIERT!', '#66ff99');
+            return;
+        }
+
+        // --- Treffer prüfen ---
+        // Wir vergleichen jede Kugel mit jedem Gegner: Überlappen sich ihre Rechtecke?
+        // getBounds() liefert das umgebende Rechteck eines Objekts.
+        for (const bullet of this.bullets) {
+            for (const enemy of this.enemies) {
+                if (!bullet.active || !enemy.active) continue;  // schon zerstört? überspringen
+                const getroffen = Phaser.Geom.Intersects.RectangleToRectangle(
+                    bullet.getBounds(), enemy.getBounds()
+                );
+                if (getroffen) {
+                    bullet.destroy();
+                    enemy.takeDamage(1);
+                }
+            }
+        }
+        // Tote Gegner aus der Liste entfernen (nur die, die noch leben, bleiben).
+        this.enemies = this.enemies.filter(e => e.active);
+
+        // --- Aufräumen: zerstörte und weit entfernte Kugeln entfernen ---
+        this.bullets = this.bullets.filter(b => {
+            if (!b.active) return false;
+            if (b.isOutside(WORLD_WIDTH, WORLD_HEIGHT)) {
+                b.destroy();
+                return false;
+            }
+            return true;
+        });
+    }
+}

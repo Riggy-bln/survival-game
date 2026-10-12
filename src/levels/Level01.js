@@ -24,10 +24,13 @@ export default {
         // ---- Abschnitt 3: Versorgungspunkt (x 1500 bis 1800) ----
         { x: 1750, y: 380, w: 120, h: 20 },                    // Versteck mit Extra-Munition
 
-        // ---- weiter hinten (vorerst wie zuvor) ----
-        { x: 2100, y: 330, w: 200, h: 20 },
-        { x: 2500, y: 250, w: 200, h: 20 },
-        { x: 3000, y: 380, w: 300, h: 20 },
+        // ---- Abschnitt 4: Gefährlicherer Bereich (x 1950 bis 3100) ----
+        // Der "Graben" ist der Boden zwischen zwei Erdwällen (je 90 hoch, also überspringbar).
+        { x: 2010, y: 480, w: 80,  h: 40, color: 0x8a7a55 },   // Sandsäcke am Eingang (Deckung)
+        { x: 2200, y: 455, w: 200, h: 90, color: 0x5b4a35 },   // Erdwall links  (x 2100 bis 2300)
+        { x: 2600, y: 455, w: 200, h: 90, color: 0x5b4a35 },   // Erdwall rechts (x 2500 bis 2700)
+        { x: 2400, y: 330, w: 140, h: 20 },                    // Brücke über dem Graben (Umweg)
+        { x: 2900, y: 445, w: 30,  h: 110, color: 0x5a5a5a },  // hohe Mauer: Deckung vor dem Ende
     ],
 
     // Dekoration OHNE Physik: nur zum Anschauen, man läuft hindurch.
@@ -49,6 +52,7 @@ export default {
 
     // Hinweisschilder (Text in der Welt) für die Lernphase
     signs: [
+        { x: 1960, y: 400, text: 'Gefahr voraus:\nSchützen auf den Wällen' },
         { x: 150,  y: 420, text: 'A / D: Laufen\nLeertaste: Springen' },
         { x: 1000, y: 380, text: 'Maus: Zielen\nLinke Taste: Schießen' },
         { x: 1620, y: 395, text: 'Versorgungspunkt' },
@@ -57,13 +61,13 @@ export default {
     // Gegner. left und right sind die Grenzen ihrer Patrouille.
     enemies: [
         { x: 1150, y: 450, left: 1000, right: 1300 },   // Abschnitt 2: der erste Gegner
-        { x: 2150, y: 450, left: 2000, right: 2350 },
+        { x: 2400, y: 450, left: 2320, right: 2480 },   // Abschnitt 4: im Graben, zwischen den Wällen
     ],
 
     // Fernkämpfer: bleiben auf Abstand und schießen. left/right begrenzen, wohin sie ausweichen.
-    // Vorläufig einer zum Ausprobieren bei x = 2700; er bekommt später seinen Platz in Abschnitt 4.
     rangedEnemies: [
-        { x: 2750, y: 450, left: 2600, right: 2900 },
+        { x: 2600, y: 370, left: 2530, right: 2670 },   // Abschnitt 4: Schütze auf dem rechten Wall
+        { x: 3020, y: 450, left: 2960, right: 3100 },   // Abschnitt 4: Schütze hinter der hohen Mauer
     ],
 
     // Gegenstände zum Aufsammeln. type: 'ammo' (Munition) oder 'health' (Heilung).
@@ -72,7 +76,8 @@ export default {
         { x: 1600, y: 490, type: 'health' },   // Versorgungspunkt
         { x: 1680, y: 490, type: 'ammo' },     // Versorgungspunkt
         { x: 1750, y: 350, type: 'ammo' },     // versteckt auf dem hohen Versteck
-        { x: 2500, y: 230, type: 'health' },   // auf der hohen Plattform
-        { x: 2800, y: 490, type: 'ammo' },
+        { x: 2400, y: 300, type: 'health' },   // auf der Brücke: Belohnung für den Umweg
+        { x: 2350, y: 490, type: 'ammo' },     // im Graben: riskant, aber lohnend
+        { x: 2800, y: 490, type: 'ammo' },     // zwischen Wall und hoher Mauer
     ],
 };

@@ -3,6 +3,7 @@ import Player from '../entities/Player.js';
 import Bullet from '../entities/Bullet.js';
 import Enemy from '../entities/Enemy.js';
 import RangedEnemy from '../entities/RangedEnemy.js';
+import Boss from '../entities/Boss.js';
 import Pickup from '../entities/Pickup.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
@@ -55,9 +56,14 @@ export default class GameScene extends Phaser.Scene {
         // map() wandelt jeden Listeneintrag in ein fertiges Objekt um und liefert die neue Liste.
         // Nahkämpfer und Fernkämpfer landen in derselben Liste: Für die Szene sind beide
         // "Gegner" mit update() und takeDamage(). Nur das Verhalten unterscheidet sich.
+        // Die starke Kreatur merken wir uns zusätzlich einzeln (this.boss),
+        // weil Lebensanzeige und Evakuierung sie brauchen. "? :" heißt: wenn vorhanden, dann ...
+        const b = level.boss;
+        this.boss = b ? new Boss(this, b.x, b.y, b.left, b.right) : null;
         this.enemies = [
             ...level.enemies.map(e => new Enemy(this, e.x, e.y, e.left, e.right)),
             ...level.rangedEnemies.map(e => new RangedEnemy(this, e.x, e.y, e.left, e.right)),
+            ...(this.boss ? [this.boss] : []),
         ];
         this.enemyBullets = [];  // Kugeln der Gegner
         // Eine collider-Zeile für alle Gegner: Sie stehen auf Boden und Plattformen.
@@ -89,9 +95,10 @@ export default class GameScene extends Phaser.Scene {
             targets: rotor, scaleX: 0.15, duration: 90, yoyo: true, repeat: -1,
         });
 
-        this.add.text(3800, 350, 'EVAKUIERUNG', {
+        this.evacLabel = this.add.text(3800, 350, 'EVAKUIERUNG', {
             fontSize: '28px', color: '#66ff99', fontStyle: 'bold',
         }).setOrigin(0.5);
+        this.evacOpen = undefined;  // wird in update() gesetzt: offen (grün) oder gesperrt (rot)
 
         // --- Kamera ---
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -119,6 +126,15 @@ export default class GameScene extends Phaser.Scene {
             obj.setScrollFactor(0).setDepth(20);
         });
 
+        // --- Lebensanzeige der starken Kreatur (oben in der Mitte, erst sichtbar, wenn sie erwacht) ---
+        this.bossBack = this.add.rectangle(480, 28, 304, 18, 0x000000);
+        this.bossBar = this.add.rectangle(330, 28, 300, 14, 0xcc3333).setOrigin(0, 0.5);
+        this.bossLabel = this.add.text(480, 50, 'MUTIERTE KREATUR', {
+            fontSize: '14px', color: '#ffffff',
+        }).setOrigin(0.5);
+        this.bossUI = [this.bossBack, this.bossBar, this.bossLabel];
+        this.bossUI.forEach(obj => obj.setScrollFactor(0).setDepth(20).setVisible(false));
+
         // --- Zustand und Neustart ---
         this.gameOver = false;
         this.restartKey = this.input.keyboard.addKey('R');
@@ -135,6 +151,27 @@ export default class GameScene extends Phaser.Scene {
         // Munitionsanzeige; bei 0 rot, damit man es sofort merkt.
         this.ammoText.setText(`Munition: ${this.player.ammo} / ${this.player.maxAmmo}`);
         this.ammoText.setColor(this.player.ammo === 0 ? '#ff4444' : '#ffdd55');
+    }
+
+    // Zeigt die Lebensanzeige der Kreatur, solange sie lebt und erwacht ist.
+    updateBossBar() {
+        const boss = this.boss;
+        const sichtbar = !!boss && boss.active && boss.activated;  // !! macht daraus true/false
+        this.bossUI.forEach(obj => obj.setVisible(sichtbar));
+        if (sichtbar) {
+            this.bossBar.width = 300 * boss.health / boss.maxHealth;
+        }
+    }
+
+    // Der Hubschrauber ist gesperrt (rot), solange die Kreatur lebt, danach offen (grün).
+    updateEvacZone() {
+        const offen = !(this.boss && this.boss.active);
+        if (offen === this.evacOpen) return;  // nichts geändert, nichts zu tun
+        this.evacOpen = offen;
+        const farbe = offen ? 0x66ff99 : 0xff5555;
+        this.helicopter.setFillStyle(farbe, 0.18).setStrokeStyle(2, farbe);
+        this.evacLabel.setColor(offen ? '#66ff99' : '#ff5555');
+        this.evacLabel.setText(offen ? 'EVAKUIERUNG' : 'Erst die Kreatur besiegen!');
     }
 
     // Zeigt den Endbildschirm (Sieg oder Niederlage) und hält das Spiel an.
@@ -264,7 +301,10 @@ export default class GameScene extends Phaser.Scene {
         const amZiel = Phaser.Geom.Intersects.RectangleToRectangle(
             this.helicopter.getBounds(), this.player.getBounds()
         );
-        if (amZiel) {
+        this.updateEvacZone();
+        this.updateBossBar();
+        // Gewonnen ist nur, wer die Zone berührt UND die Kreatur besiegt hat.
+        if (amZiel && this.evacOpen) {
             this.showEndScreen('EVAKUIERT!', '#66ff99');
             return;
         }

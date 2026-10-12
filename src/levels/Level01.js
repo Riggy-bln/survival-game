@@ -31,6 +31,12 @@ export default {
         { x: 2600, y: 455, w: 200, h: 90, color: 0x5b4a35 },   // Erdwall rechts (x 2500 bis 2700)
         { x: 2400, y: 330, w: 140, h: 20 },                    // Brücke über dem Graben (Umweg)
         { x: 2900, y: 445, w: 30,  h: 110, color: 0x5a5a5a },  // hohe Mauer: Deckung vor dem Ende
+
+        // ---- Abschnitt 5: Arena der starken Kreatur (x 3250 bis 3680) ----
+        // Zwei Sprungplattformen zum Ausweichen vor dem Sturmangriff. Ihre Unterkante (390)
+        // liegt über dem Kopf der Kreatur (404), sie kann also darunter durchlaufen.
+        { x: 3360, y: 380, w: 120, h: 20 },
+        { x: 3580, y: 380, w: 120, h: 20 },
     ],
 
     // Dekoration OHNE Physik: nur zum Anschauen, man läuft hindurch.
@@ -56,6 +62,7 @@ export default {
         { x: 150,  y: 420, text: 'A / D: Laufen\nLeertaste: Springen' },
         { x: 1000, y: 380, text: 'Maus: Zielen\nLinke Taste: Schießen' },
         { x: 1620, y: 395, text: 'Versorgungspunkt' },
+        { x: 3200, y: 400, text: 'Etwas Großes wartet voraus...' },
     ],
 
     // Gegner. left und right sind die Grenzen ihrer Patrouille.
@@ -63,6 +70,9 @@ export default {
         { x: 1150, y: 450, left: 1000, right: 1300 },   // Abschnitt 2: der erste Gegner
         { x: 2400, y: 450, left: 2320, right: 2480 },   // Abschnitt 4: im Graben, zwischen den Wällen
     ],
+
+    // Die starke Kreatur (Abschnitt 5). left/right begrenzen die Arena, in der sie bleibt.
+    boss: { x: 3480, y: 440, left: 3300, right: 3640 },
 
     // Fernkämpfer: bleiben auf Abstand und schießen. left/right begrenzen, wohin sie ausweichen.
     rangedEnemies: [
@@ -79,5 +89,10 @@ export default {
         { x: 2400, y: 300, type: 'health' },   // auf der Brücke: Belohnung für den Umweg
         { x: 2350, y: 490, type: 'ammo' },     // im Graben: riskant, aber lohnend
         { x: 2800, y: 490, type: 'ammo' },     // zwischen Wall und hoher Mauer
+
+        // Vorbereitung vor der Arena (Abschnitt 5): Wer bis hierher kommt, soll gerüstet sein.
+        { x: 3140, y: 490, type: 'health' },
+        { x: 3180, y: 490, type: 'ammo' },
+        { x: 3220, y: 490, type: 'ammo' },
     ],
 };

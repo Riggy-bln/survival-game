@@ -2,6 +2,7 @@
 import Player from '../entities/Player.js';
 import Bullet from '../entities/Bullet.js';
 import Enemy from '../entities/Enemy.js';
+import RangedEnemy from '../entities/RangedEnemy.js';
 import Pickup from '../entities/Pickup.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
@@ -52,7 +53,13 @@ export default class GameScene extends Phaser.Scene {
         // --- Gegner ---
         // Jeder Gegner bekommt Startposition und Patrouillenbereich (links, rechts).
         // map() wandelt jeden Listeneintrag in ein fertiges Objekt um und liefert die neue Liste.
-        this.enemies = level.enemies.map(e => new Enemy(this, e.x, e.y, e.left, e.right));
+        // Nahkämpfer und Fernkämpfer landen in derselben Liste: Für die Szene sind beide
+        // "Gegner" mit update() und takeDamage(). Nur das Verhalten unterscheidet sich.
+        this.enemies = [
+            ...level.enemies.map(e => new Enemy(this, e.x, e.y, e.left, e.right)),
+            ...level.rangedEnemies.map(e => new RangedEnemy(this, e.x, e.y, e.left, e.right)),
+        ];
+        this.enemyBullets = [];  // Kugeln der Gegner
         // Eine collider-Zeile für alle Gegner: Sie stehen auf Boden und Plattformen.
         this.physics.add.collider(this.enemies, this.platforms);
 
@@ -167,6 +174,14 @@ export default class GameScene extends Phaser.Scene {
         this.bullets.push(bullet);
     }
 
+    // Erzeugt eine Gegner-Kugel. Wird vom Fernkämpfer aufgerufen.
+    spawnEnemyBullet(x, y, winkel, speed, damage) {
+        const bullet = new Bullet(this, x, y, winkel, speed, 0xff6644);  // orange-rot
+        bullet.damage = damage;  // Wir hängen den Schaden direkt an die Kugel
+        this.physics.add.collider(bullet, this.platforms, () => bullet.destroy());
+        this.enemyBullets.push(bullet);
+    }
+
     // update() läuft ca. 60-mal pro Sekunde.
     update() {
         // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
@@ -218,6 +233,27 @@ export default class GameScene extends Phaser.Scene {
                 this.player.takeDamage(enemy.contactDamage, enemy.x);
             }
         }
+        // --- Gegner-Kugeln treffen den Spieler ---
+        for (const kugel of this.enemyBullets) {
+            if (!kugel.active) continue;
+            const getroffen = Phaser.Geom.Intersects.RectangleToRectangle(
+                kugel.getBounds(), this.player.getBounds()
+            );
+            if (getroffen) {
+                this.player.takeDamage(kugel.damage, kugel.x);  // Unverwundbarkeit gilt auch hier
+                kugel.destroy();
+            }
+        }
+        // Zerstörte und weit entfernte Kugeln aussortieren.
+        this.enemyBullets = this.enemyBullets.filter(b => {
+            if (!b.active) return false;
+            if (b.isOutside(WORLD_WIDTH, WORLD_HEIGHT)) {
+                b.destroy();
+                return false;
+            }
+            return true;
+        });
+
         this.updateHealthBar();
         if (this.player.isDead()) {
             this.showEndScreen('BESIEGT', '#ff4444');

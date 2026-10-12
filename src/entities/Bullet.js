@@ -2,8 +2,10 @@
 // und kann alles, was ein Rechteck kann, plus unsere eigenen Fähigkeiten.
 export default class Bullet extends Phaser.GameObjects.Rectangle {
     // Der constructor läuft einmal, wenn wir "new Bullet(...)" schreiben.
-    constructor(scene, x, y, winkel, speed) {
-        super(scene, x, y, 14, 4, 0xffdd55);  // super(...) baut zuerst das Rechteck
+    // "color = 0xffdd55" ist ein Standardwert: Wer keine Farbe angibt, bekommt Gelb.
+    // Gegner-Kugeln übergeben eine andere Farbe.
+    constructor(scene, x, y, winkel, speed, color = 0xffdd55) {
+        super(scene, x, y, 14, 4, color);  // super(...) baut zuerst das Rechteck
         scene.add.existing(this);             // in die Szene aufnehmen (sichtbar machen)
         scene.physics.add.existing(this);     // Physik-Körper hinzufügen
 

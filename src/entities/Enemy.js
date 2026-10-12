@@ -12,6 +12,7 @@ export default class Enemy extends Phaser.GameObjects.Rectangle {
         this.direction = 1;    // 1 = nach rechts, -1 = nach links
         this.health = 3;       // so viele Treffer hält er aus
         this.contactDamage = 20;  // Schaden, wenn er den Spieler berührt
+        this.baseColor = 0xcc4444;  // Normalfarbe; Unterklassen können sie ändern
     }
 
     // Zieht Lebenspunkte ab. Gibt true zurück, wenn der Gegner dadurch gestorben ist.
@@ -28,7 +29,7 @@ export default class Enemy extends Phaser.GameObjects.Rectangle {
         // delayedCall führt eine Funktion nach 80 Millisekunden aus.
         this.scene.time.delayedCall(80, () => {
             // Der Gegner könnte in der Zwischenzeit zerstört worden sein.
-            if (this.active) this.setFillStyle(0xcc4444);
+            if (this.active) this.setFillStyle(this.baseColor);
         });
         return false;
     }

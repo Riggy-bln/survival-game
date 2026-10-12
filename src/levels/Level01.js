@@ -60,6 +60,12 @@ export default {
         { x: 2150, y: 450, left: 2000, right: 2350 },
     ],
 
+    // Fernkämpfer: bleiben auf Abstand und schießen. left/right begrenzen, wohin sie ausweichen.
+    // Vorläufig einer zum Ausprobieren bei x = 2700; er bekommt später seinen Platz in Abschnitt 4.
+    rangedEnemies: [
+        { x: 2750, y: 450, left: 2600, right: 2900 },
+    ],
+
     // Gegenstände zum Aufsammeln. type: 'ammo' (Munition) oder 'health' (Heilung).
     pickups: [
         { x: 200,  y: 490, type: 'ammo' },     // früh im Level: Einsammeln üben

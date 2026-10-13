@@ -211,7 +211,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
 export function decoratePlatforms(scene, platforms, boden) {
     const g = scene.add.graphics().setDepth(1);
     const rnd = new Phaser.Math.RandomDataGenerator(['boden']);
-    const TIEFE = 400;     // so tief wird die Erde detailliert gemalt: bis ganz nach unten (Erdblöcke sind höchstens 340 hoch)
+    const TIEFE = 760;     // so tief wird die Erde detailliert gemalt: bis ganz nach unten (Erdblöcke sind höchstens 740 hoch)
     const FELS = 0x5e5a55;                    // grauer Fels (Felsstufen am Höhleneingang)
     const ERDFARBEN = [0x5b4a35, 0x4b3b2a, FELS];
     let nr = 0;
@@ -274,6 +274,7 @@ function zeichneHoehle(r, rnd, h, lampen) {
     const farben = {
         tunnel: { basis: 0x251f1a, hell: 0x332b24, dunkel: 0x15110e },
         offen:  { basis: 0x3d3024, hell: 0x4d3d2d, dunkel: 0x2a2018 },
+        schacht:{ basis: 0x33281e, hell: 0x41342a, dunkel: 0x1f1812 },
         lager:  { basis: 0x2b3034, hell: 0x383e43, dunkel: 0x1b1f22 },
     }[h.art];
     const S = 8;
@@ -355,7 +356,7 @@ function zeichneHoehle(r, rnd, h, lampen) {
             r.rect(0xc9a227, l + x, t + hh - 10, 12, 6, 0.8); r.rect(0x1a1a1a, l + x + 12, t + hh - 10, 12, 6, 0.8);
         }
     }
-    if (h.art === 'offen') {
+    if (h.art === 'offen' || h.art === 'schacht') {
         // Himmelslicht fällt in senkrechten Streifen in den Graben
         for (let x = 0; x < w; x += 32) {
             r.rect(0xffe9b0, l + x + rnd.between(0, 10), t, rnd.pick([16, 24]), hh, 0.06);
@@ -381,6 +382,10 @@ function zeichneHoehle(r, rnd, h, lampen) {
     for (let i = 0; i < w / 150; i++) {
         const px = l + rnd.between(0, Math.max(0, w - 60)), len = rnd.between(30, 64);
         r.rect(0x5f7f90, px, t + hh - 5, len, 5, 0.45); r.rect(0x9fc6d6, px + 4, t + hh - 5, len / 2, 2, 0.5);
+    }
+    // Tiefe: im Schacht wird es nach unten immer dunkler
+    if (h.art === 'schacht') {
+        for (let y = 0; y < hh; y += 8) r.rect(0x000000, l, t + y, w, 8, 0.7 * y / hh);
     }
     // --- 10. Schatten an der Decke und an den Seiten, Tageslicht vom Eingang her ---
     for (let y = 0; y < hh * 0.4; y += 8) r.rect(0x000000, l, t + y, w, 8, 0.4 * (1 - y / (hh * 0.4)));

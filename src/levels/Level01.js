@@ -1,13 +1,13 @@
-// Level 01: Verlassene Militärzone (9000 Pixel breit).
+// Level 01: Verlassene Militärzone (13000 Pixel breit, 1500 hoch).
 // Die Datei enthält fast nur DATEN. Kleine Hilfsfunktionen sorgen dafür, dass wir
 // Hügel, Plattformen, Gegner und Gegenstände mit einfachen Angaben setzen können.
 //
-// Koordinaten: x = waagerecht, y = senkrecht (0 oben, 1100 unten). Die Oberfläche liegt bei y = BODEN.
+// Koordinaten: x = waagerecht, y = senkrecht (0 oben, 1500 unten). Die Oberfläche liegt bei y = BODEN.
 // Alle Höhen werden relativ zu BODEN angegeben: BODEN - 100 liegt 100 Pixel ÜBER der Oberfläche.
 // Der Spieler springt etwa 150 Pixel hoch und rund 280 Pixel weit.
 // Deshalb gilt in diesem Level: Stufen sind höchstens 100 hoch, Lücken höchstens 150 breit.
 
-const HOEHE = 1100;  // Höhe der ganzen Welt: oben Platz für Gebäude, unten für Tunnel
+const HOEHE = 1500;  // Höhe der ganzen Welt: oben Platz für Gebäude, unten für Tunnel und die tiefe Mine
 const BODEN = 760;   // Höhe der Oberfläche (Oberkante des Bodens)
 
 // Farben
@@ -30,7 +30,7 @@ const lampen = [];    // x-Positionen der Deckenlampen (für Lichtkegel)
 const signs = [];
 
 // ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
-const BREITE = 9000;            // Breite der Welt
+const BREITE = 13000;           // Breite der Welt
 const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
@@ -38,6 +38,19 @@ const EINGANG = TUNNEL_LINKS + 200;   // hier beginnt die Felsdecke: der Höhlen
 const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
 const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
 const TUNNEL_BODEN = 990;       // y der Oberkante des Tunnelbodens (230 unter der Oberfläche)
+
+// ---- Die tiefe Mine (zweite Ebene unter der Erde, siehe ZONE K) ----
+const V = 3600;                 // Verschiebung der Boss-Zonen H und I nach rechts (das Level ist länger geworden)
+const MINE_L = 7400;            // linke Kante des Förderschachts
+const MINE_R = 9900;            // rechte Kante des Ausgangsschachts
+const CHASM_L = 8400;           // Schlucht: linke Kante
+const CHASM_R = 8640;           // Schlucht: rechte Kante
+const KAV_R = 9300;             // Ende der großen Kaverne
+const SCHACHT2_L = 9640;        // linke Kante des Ausgangsschachts
+const MINE_BODEN = 1330;        // y des Minenbodens (570 unter der Oberfläche)
+const MINE_DECKE = 1160;        // Unterkante der Decke im Gang (170 Platz bis zum Boden)
+const KAV_DECKE = 960;          // Unterkante der Decke in der hohen Kaverne
+const HOLZ = 0x6b4a2a;          // Holz (Brücken, Absätze)
 
 // erde: ein Erdblock von "links" bis "rechts" und von "oben" bis "unten" (alles Kanten, keine Mitte).
 const erde = (links, rechts, oben, unten, farbe = 0x4b3b2a) =>
@@ -47,7 +60,12 @@ erde(0, TUNNEL_LINKS, BODEN, HOEHE);                                            
 erde(EINGANG, TUNNEL_RECHTS - SCHACHT, BODEN, BODEN + DECKE);                     // Decke über dem Tunnel (beginnt am Höhleneingang)
 erde(TUNNEL_LINKS, VERLIES_ENDE, TUNNEL_BODEN, HOEHE);                            // Boden des Tunnels (bis zur Waffenkammer)
 erde(TUNNEL_RECHTS, VERLIES_ENDE, BODEN, BODEN + DECKE);                          // Decke über der Waffenkammer
-erde(VERLIES_ENDE, BREITE, BODEN, HOEHE);                                         // Erde rechts hinter der Kammer
+erde(VERLIES_ENDE, MINE_L, BODEN, HOEHE);                                         // Erde rechts hinter der Kammer bis zum Förderschacht
+erde(MINE_L, MINE_R, MINE_BODEN, HOEHE);                                          // Boden der Mine
+erde(MINE_L + 260, CHASM_L, BODEN, MINE_DECKE);                                   // Decke des Minengangs (links der Schlucht)
+erde(CHASM_R, KAV_R, BODEN, KAV_DECKE);                                           // Decke der hohen Kaverne
+erde(KAV_R, SCHACHT2_L, BODEN, MINE_DECKE);                                       // Decke des Minengangs (rechts der Kaverne)
+erde(MINE_R, BREITE, BODEN, HOEHE);                                               // Erde hinter dem Ausgangsschacht
 
 // huegel: ein fester Block, der AUF DEM BODEN steht. Angabe: linke Kante, Höhe, Breite.
 // Aus der Höhe wird die Mitte berechnet (Rechtecke werden von ihrer Mitte aus gezeichnet).
@@ -105,6 +123,28 @@ const treppe = (links, anzahl, breite, stufe) => {
 // dunkel: ein dunkles Rechteck als Hintergrund (Tunnelinneres), gezeichnet hinter allem.
 const dunkel = (links, rechts, oben, unten, farbe = 0x14181b) =>
     decor.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, color: farbe });
+
+// kiste: ein fester Block auf dem Minenboden (Deckung). Angabe: linke Kante, Höhe, Breite.
+const kiste = (links, hoehe, breite, boden = MINE_BODEN) =>
+    platforms.push({ x: links + breite / 2, y: boden - hoehe / 2, w: breite, h: hoehe, color: 0x6b5b3a });
+// lampe: eine Deckenlampe unter der Decke "decke" (y der Unterkante); die Szene malt einen Lichtkegel dazu.
+const lampe = (x, decke) => {
+    decor.push({ x: x, y: decke + 8, w: 10, h: 8, color: 0xc9a94e });
+    lampen.push(x);
+};
+// stuetze: ein Holzpfosten vom Boden bis zur Decke (nur Dekoration).
+const stuetze = (x, decke, boden) => {
+    decor.push({ x: x, y: (decke + boden) / 2, w: 10, h: boden - decke, color: 0x6b4a2a });
+    decor.push({ x: x + 4, y: (decke + boden) / 2, w: 3, h: boden - decke, color: 0x4a331d });
+};
+// schacht: ein senkrechter Schacht mit Holzabsätzen im Zickzack (alle 95 Pixel). Oben liegen zwei
+// Bretter über dem Rand, dazwischen bleibt eine 80 Pixel breite Lücke zum Hinunterspringen.
+// Von unten springt man von Absatz zu Absatz wieder hinauf (95 < 150 Sprunghöhe).
+const schacht = (links, rechts) => {
+    schwebend(links, BODEN, 90, HOLZ);
+    schwebend(rechts - 90, BODEN, 90, HOLZ);
+    for (let i = 1; i <= 5; i++) schwebend(i % 2 === 1 ? links : rechts - 170, BODEN + 95 * i, 170, HOLZ);
+};
 
 // =====================================================================
 // ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
@@ -297,35 +337,129 @@ heilung(6430, BODEN - 300);                                              // Belo
 munition(6430, BODEN - 500);                                             // Belohnung auf Etage 5 (linkes Ende)
 
 // =====================================================================
-// ZONE H: Vor der Arena (x 7400 bis 7850). Hier rüstet man sich aus.
+// ZONE J: Steinbruch mit Schlucht (x 7300 bis 9640). Der Boden steigt in Stufen zu einer Klippe
+// (280 Pixel hoch), eine morsche Holzbrücke führt über eine Schlucht, dahinter geht es hinab.
+// Unter der Schlucht liegt die tiefe Mine (ZONE K). Alles hier ist die Hauptroute über Tage.
 // =====================================================================
-signs.push({ x: 7500, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
-schrotflinte(7800);                              // Alternative zum Gewehr für den Bosskampf
-granate(7500);                                   // vor dem Boss: Granaten aufsparen
-heilung(7600);
-munition(7660);
-munition(7720);
+signs.push({ x: 7250, y: BODEN - 110, text: 'Steinbruch:\nKlippen, eine Schlucht\nund ein Förderschacht' });
+nahkaempfer(7330, 7270, 7380, 3);                                         // vor dem Schacht
+signs.push({ x: 7530, y: BODEN - 70, text: 'Förderschacht\nzur Mine' });
+schacht(MINE_L, MINE_L + 260);                                             // Förderschacht (x 7400 bis 7660)
+huegel(7700, 70, 150, FELS);                                               // Klippe, aufsteigend (je 70 höher)
+huegel(7850, 140, 150, FELS);
+huegel(8000, 210, 150, FELS);
+huegel(8150, 280, 250, FELS);                                              // Plateau (Oberkante 480), x 8150 bis 8400
+schwebend(CHASM_L, BODEN - 280, 100, HOLZ);                                // morsche Brücke über die Schlucht
+schwebend(CHASM_R - 100, BODEN - 280, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
+huegel(CHASM_R, 280, 250, FELS);                                           // Plateau auf der anderen Seite, x 8640 bis 8890
+huegel(8890, 210, 150, FELS);                                              // Abstieg
+huegel(9040, 140, 150, FELS);
+huegel(9190, 70, 150, FELS);
+nahkaempfer(7925, 7870, 7980, 3, BODEN - 140);                             // auf der zweiten Stufe
+fernkaempfer(8075, 8030, 8120, 3, BODEN - 210);                            // auf der dritten Stufe
+fernkaempfer(8300, 8190, 8380, 4, BODEN - 280);                            // Scharfschütze auf dem Plateau
+fernkaempfer(8780, 8680, 8860, 4, BODEN - 280);                            // Schütze auf dem Plateau dahinter
+nahkaempfer(8965, 8910, 9020, 3, BODEN - 210);                             // auf dem Abstieg
+nahkaempfer(9480, 9380, 9600, 4);                                          // am Boden vor dem Ausgangsschacht
+heilung(8180, BODEN - 280);                                                // Belohnung auf dem Plateau
+munition(8700, BODEN - 280);                                               // Beute hinter der Brücke
+schacht(SCHACHT2_L, MINE_R);                                               // Ausgangsschacht (x 9640 bis 9900)
 
 // =====================================================================
-// ZONE I: Arena der starken Kreatur (x 7900 bis 8700).
+// ZONE K: Die tiefe Mine (y 1160 bis 1330, Kaverne bis y 960). Eine zweite Ebene unter der Erde.
+// Zugang: Förderschacht (links), die Schlucht (fällt direkt hinein) und der Ausgangsschacht (rechts).
+// Der Gang hat Deckung, die Kaverne hat drei Ebenen mit Beute auf dem obersten Steg.
+// =====================================================================
+hoehlen.push({ links: MINE_L, rechts: MINE_L + 260, oben: BODEN, unten: MINE_BODEN, art: 'schacht' });    // Förderschacht
+hoehlen.push({ links: MINE_L + 260, rechts: CHASM_L, oben: MINE_DECKE, unten: MINE_BODEN, art: 'tunnel' }); // Gang 1
+hoehlen.push({ links: CHASM_L, rechts: CHASM_R, oben: BODEN, unten: MINE_BODEN, art: 'schacht' });          // Schlucht
+hoehlen.push({ links: CHASM_R, rechts: KAV_R, oben: KAV_DECKE, unten: MINE_BODEN, art: 'tunnel' });         // Kaverne
+hoehlen.push({ links: KAV_R, rechts: SCHACHT2_L, oben: MINE_DECKE, unten: MINE_BODEN, art: 'tunnel' });     // Gang 2
+hoehlen.push({ links: SCHACHT2_L, rechts: MINE_R, oben: BODEN, unten: MINE_BODEN, art: 'schacht' });        // Ausgangsschacht
+[7780, 7990, 8210].forEach(x => lampe(x, MINE_DECKE));
+[8800, 9050].forEach(x => lampe(x, KAV_DECKE));
+lampe(9440, MINE_DECKE);
+[7700, 7920, 8160, 8340].forEach(x => stuetze(x, MINE_DECKE, MINE_BODEN));
+[9340, 9560].forEach(x => stuetze(x, MINE_DECKE, MINE_BODEN));
+decor.push({ x: (MINE_L + 260 + CHASM_L) / 2, y: MINE_DECKE + 5, w: CHASM_L - MINE_L - 260, h: 10, color: 0x5a3d22 });   // Deckenbalken
+decor.push({ x: (CHASM_R + KAV_R) / 2, y: KAV_DECKE + 5, w: KAV_R - CHASM_R, h: 10, color: 0x5a3d22 });
+decor.push({ x: (KAV_R + SCHACHT2_L) / 2, y: MINE_DECKE + 5, w: SCHACHT2_L - KAV_R, h: 10, color: 0x5a3d22 });
+signs.push({ x: 7780, y: MINE_BODEN - 110, text: 'Mine 3\n"Nicht allein hinuntergehen."' });
+
+// Gang 1 (x 7660 bis 8400)
+kiste(7800, 50, 80);                                                       // Deckung
+kiste(8060, 70, 80);
+nahkaempfer(7970, 7900, 8040, 4, MINE_BODEN);                              // zwischen den Kisten
+fernkaempfer(8250, 8200, 8330, 3, MINE_BODEN);                             // hinter der zweiten Kiste
+munition(8100, MINE_BODEN - 70);                                           // Beute auf Kiste 2
+// Unter der Schlucht (x 8400 bis 8640): hier landet, wer hineinfällt
+heilung(8520, MINE_BODEN);
+// Kaverne (x 8640 bis 9300): drei Ebenen, Steg ganz oben
+schwebend(8700, MINE_BODEN - 100, 160, HOLZ);                              // Ebene 1 (Oberkante 1230)
+schwebend(8880, MINE_BODEN - 200, 160, HOLZ);                              // Ebene 2 (Oberkante 1130)
+schwebend(9060, MINE_BODEN - 280, 230, HOLZ);                              // Ebene 3, der Steg (Oberkante 1050)
+nahkaempfer(8950, 8700, 9250, 8, MINE_BODEN);                              // der schwere Wächter am Boden
+fernkaempfer(8780, 8720, 8840, 3, MINE_BODEN - 100);                       // Schütze auf Ebene 1
+fernkaempfer(9150, 9090, 9270, 4, MINE_BODEN - 280);                       // Schütze auf dem Steg
+munition(8960, MINE_BODEN - 200);                                          // Beute auf Ebene 2
+heilung(9100, MINE_BODEN - 280);                                           // Belohnung auf dem Steg
+granate(9230, MINE_BODEN - 280);
+// Gang 2 (x 9300 bis 9640)
+kiste(9480, 50, 80);
+nahkaempfer(9400, 9320, 9460, 4, MINE_BODEN);
+munition(9360, MINE_BODEN);
+
+// =====================================================================
+// ZONE L: Funkturm (x 9950 bis 10900). Ein freiwilliger Aufstieg auf einen hohen Turm
+// (Plattformen im Wechsel links und rechts, 105 Pixel auseinander). Oben liegt Beute.
+// =====================================================================
+versorgungspunkt(10030);
+heilung(9990);
+munition(10070);
+signs.push({ x: 10250, y: BODEN - 130, text: 'Funkturm:\nein Aufstieg lohnt sich' });
+for (let k = 1; k <= 5; k++) schwebend(k % 2 === 1 ? 10250 : 10420, BODEN - 105 * k, 100, HOLZ);
+schwebend(10330, BODEN - 630, 260, BETON);                                 // Aussichtsdeck (Oberkante 130)
+decor.push({ x: 10335, y: BODEN - 700, w: 6, h: 70, color: 0x3a4046 });    // Antennenmast
+decor.push({ x: 10335, y: BODEN - 745, w: 24, h: 6, color: 0x3a4046 });
+decor.push({ x: 10335, y: BODEN - 765, w: 40, h: 6, color: 0x3a4046 });
+heilung(10360, BODEN - 630);
+granate(10450, BODEN - 630);
+munition(10540, BODEN - 630);
+fernkaempfer(10520, 10430, 10570, 5, BODEN - 630);                         // Scharfschütze auf dem Deck
+nahkaempfer(10200, 10120, 10300, 4);                                       // am Fuß des Turms
+nahkaempfer(10650, 10560, 10760, 4);
+fernkaempfer(10850, 10780, 10920, 3);
+
+// =====================================================================
+// ZONE H: Vor der Arena (x 11000 bis 11450). Hier rüstet man sich aus.
+// =====================================================================
+signs.push({ x: 11100, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
+schrotflinte(11400);                              // Alternative zum Gewehr für den Bosskampf
+granate(11100);                                   // vor dem Boss: Granaten aufsparen
+heilung(11200);
+munition(11260);
+munition(11320);
+
+// =====================================================================
+// ZONE I: Arena der starken Kreatur (x 11500 bis 12300).
 // Drei Plattformen zum Ausweichen. Ihre Unterkante liegt über dem Kopf der Kreatur (Höhe 100),
 // sie kann darunter durchlaufen.
 // =====================================================================
-schwebend(8040, BODEN - 120, 140);
-schwebend(8230, BODEN - 170, 140);
-schwebend(8420, BODEN - 120, 140);
+schwebend(11640, BODEN - 120, 140);
+schwebend(11830, BODEN - 170, 140);
+schwebend(12020, BODEN - 120, 140);
 
 export default {
-    width: 9000,     // Breite der Welt in Pixeln
+    width: BREITE,   // Breite der Welt in Pixeln
     height: HOEHE,   // Höhe der Welt in Pixeln
     boden: BODEN,    // Höhe der Oberfläche
-    goalX: 8800,     // Mitte des Evakuierungspunkts (Hubschrauber)
+    goalX: 8800 + V, // Mitte des Evakuierungspunkts (Hubschrauber)
     platforms,
     decor,
     signs,
     enemies,
     rangedEnemies,
-    boss: { x: 8250, y: BODEN - 60, left: 7980, right: 8650, hp: 50 },
+    boss: { x: 8250 + V, y: BODEN - 60, left: 7980 + V, right: 8650 + V, hp: 50 },
     pickups,
     hoehlen,
     lampen,

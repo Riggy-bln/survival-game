@@ -209,6 +209,34 @@ function zeichneTruemmer(r, rnd, w, h) {
     zeichneTuft(r, rnd, 26, 14);
 }
 
+
+// Ein ausgebranntes Panzerfahrzeug: flacher Rumpf (man kann darauf stehen), Turmluke, abgeknicktes Rohr,
+// Sichtschlitze, ein platter Reifen, Rußflecken, Einschüsse und Bewuchs.
+function zeichnePanzer(r, rnd, w, h) {
+    const hull = rnd.pick([0x4a5238, 0x555a44, 0x4a4f3a]);
+    r.rect(variiere(hull, -14), 4, 6, w - 8, h - 22);                          // Rumpf
+    r.rect(variiere(hull, 14), 4, 6, w - 8, 4);                                // Oberkante (hell, Standfläche)
+    r.rect(0x000000, 4, h - 20, w - 8, 4, 0.3);                                // Schatten unten
+    for (let k = 0; k < 4; k++) r.rect(variiere(hull, -14 + k * 3), w - 10 + k * 2 - 8, 10 + k * 8, 10 - k * 2, 8);   // schräge Frontplatte
+    r.rect(variiere(hull, -30), w * 0.42, 0, 46, 10);                          // Turm
+    r.rect(variiere(hull, -4), w * 0.42 + 6, 2, 34, 4);
+    r.rect(0x2a2a2a, w * 0.42 + 46, 3, 36, 6);                                 // Rohr
+    r.rect(0x2a2a2a, w * 0.42 + 78, 6, 12, 6);                                 // geknickte Mündung
+    for (let k = 0; k < 4; k++) r.rect(0x101214, 18 + k * 30, 22, 18, 5);      // Sichtschlitze
+    for (const wx of [14, 66, 118, w - 52]) {                                  // Räder
+        r.rect(0x1a1a1a, wx, h - 22, 28, 22);
+        r.rect(0x3a3a3a, wx + 9, h - 14, 10, 8);
+    }
+    r.rect(0x1a1a1a, 66, h - 15, 28, 15, 0.9);                                 // ein Reifen ist platt
+    for (let i = 0; i < 5; i++) r.rect(0x1b1612, rnd.between(8, w - 30), rnd.between(8, 22), rnd.between(12, 26), 6, 0.35);   // Ruß
+    for (let i = 0; i < 6; i++) { const bx = rnd.between(10, w - 12), by = rnd.between(12, h - 26); r.rect(0x0c0e10, bx, by, 4, 4); r.rect(0x8a7a5a, bx - 1, by - 1, 6, 1, 0.6); }   // Einschüsse
+    for (let i = 0; i < 8; i++) r.rect(rnd.pick(ROST), rnd.between(6, w - 8), rnd.between(10, h - 22), 2, rnd.between(6, 14), 0.7);   // Rost
+    laub(r, rnd, w * 0.78, 6, 16, 6);                                          // Moos/Gebüsch auf dem Heck
+    for (let x = 6; x < w - 6; x += rnd.between(24, 44)) r.rect(rnd.pick(GRUEN.slice(0, 3)), x, 3, rnd.between(8, 16), 4);   // Moos auf der Oberkante
+    for (let i = 0; i < 3; i++) ranke(r, rnd, rnd.between(10, w - 14), 10, rnd.between(10, 24));
+    zeichneTuft(r, rnd, 26, 14);
+}
+
 function erzeugeTexturen(scene) {
     [[150, 230], [210, 310], [130, 170], [240, 350], [180, 260], [120, 210]].forEach(([w, h], i) =>
         textur(scene, `ruine_${i}`, w, h, (r, rnd) => zeichneRuine(r, rnd, w, h)));
@@ -302,7 +330,7 @@ export function buildStuetzen(scene, level) {
         return y;
     };
     // Hier gibt es schon eine eigene Gebäude-Rückwand, ein Gerüst oder einen Schacht: keine Stützen
-    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800], [2730, 3200]];
+    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800], [2730, 3170]];
     const WAND_MAX = 320;
     for (const p of level.platforms.filter(q => q.h < 40 && !q.kollision)) {
         if (sperre.some(([a, b]) => p.x >= a && p.x <= b)) continue;
@@ -474,6 +502,12 @@ export function buildLandscape(scene, level) {
     buildStuetzen(scene, level);   // Säulen und Mauerreste unter bzw. auf den schwebenden Plattformen
     buildBruecken(scene, level);   // Fachwerk, Seile und Autobahn-Reste
     buildTreppen(scene, level);    // Metalltreppe am Höhleneingang
+    // Fahrzeugwracks, die in Level01.js als begehbare Blöcke stehen
+    for (const w of level.wracks ?? []) {
+        const key = `wrack_${w.w}_${w.h}`;
+        textur(scene, key, w.w, w.h, (r, rnd) => zeichnePanzer(r, rnd, w.w, w.h));
+        scene.add.image(w.x, w.y + 1, key).setOrigin(0.5, 1).setDepth(3);
+    }
     // 3. Hohes Gras im Vordergrund (vor dem Spieler, sehr niedrig, damit es nichts verdeckt)
     for (let x = 20; x < level.width - 20; x += rnd.between(60, 130)) {
         const y = oben(x);

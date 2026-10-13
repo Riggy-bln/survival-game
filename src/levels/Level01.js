@@ -38,7 +38,7 @@ const BREITE = 15400;           // Breite der Welt
 const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
-const EINGANG = TUNNEL_LINKS + 260;   // hier beginnt die Felsdecke: der Höhleneingang (x 3000)
+const EINGANG = TUNNEL_LINKS + 200;   // hier beginnt die Felsdecke: der Höhleneingang (x 2940)
 const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
 const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
 const TUNNEL_BODEN = 1048;      // y der Oberkante des Tunnelbodens (288 unter der Oberfläche): der Gang ist 228 hoch
@@ -78,6 +78,12 @@ erde(12800, BREITE, BODEN, HOEHE);
 
 // huegel: ein fester Block, der AUF DEM BODEN steht. Angabe: linke Kante, Höhe, Breite.
 // Aus der Höhe wird die Mitte berechnet (Rechtecke werden von ihrer Mitte aus gezeichnet).
+// wrack: ein Fahrzeugwrack (unsichtbarer Block zum Draufstehen; die Landschaft malt das Fahrzeug darüber).
+const wracks = [];
+const wrack = (links, hoehe, breite) => {
+    platforms.push({ x: links + breite / 2, y: BODEN - hoehe / 2, w: breite, h: hoehe, color: OLIV, kollision: true });
+    wracks.push({ x: links + breite / 2, y: BODEN, w: breite, h: hoehe });
+};
 const huegel = (links, hoehe, breite, farbe = ERDE) =>
     platforms.push({ x: links + breite / 2, y: BODEN - hoehe / 2, w: breite, h: hoehe, color: farbe });
 
@@ -265,8 +271,8 @@ munition(180);                                   // früh: Einsammeln üben
 stacheldraht(40);                                // nur Dekoration, am Start
 huegel(392, 126, 96, SAND);                      // Sandsäcke auf dem ersten Hügel (30 über der Kuppe)
 huegel(488, 156, 64, SAND);                      // Sandsäcke, höher (60 über der Kuppe)
-huegel(716, 100, 30, GRAU);                      // zerstörte Mauer (100) in der Senke
-huegel(760, 60, 220, OLIV);                      // ausgebranntes Fahrzeug
+huegel(692, 64, 64, SAND);                       // Sandsack-Barrikade in der Senke
+wrack(764, 60, 216);                             // ausgebranntes Panzerfahrzeug (begehbar, Oberkante 60)
 signs.push({ x: 1000, y: BODEN - 130, text: 'Maus: Zielen\nLinke Taste: Schießen' });
 nahkaempfer(1200, 1104, 1296, 3, BODEN - 96);    // der erste Gegner, oben auf dem zweiten Hügel
 
@@ -300,8 +306,8 @@ granate(1850, BODEN - 140);                     // im Versteck der Ruine
 // =====================================================================
 signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\nein Höhleneingang\nführt unter die Erde' });
 // ---- Der Höhleneingang: ein Graben mit Stufen führt zu einem Felsüberhang ----
-// Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 3000) über einen felsigen Abstieg
-// hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 3000) beginnt.
+// Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 2940) über einen felsigen Abstieg
+// hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
 // Über dem Eingang ragt eine Felsstufe auf; vom Rand der Oberfläche führt eine Sprungstrecke von
 // 200 Pixeln über den Graben (möglich bis ca. 280).
 // Ein natürlicher, felsiger Abstieg: unterschiedlich breite und hohe Absätze, eine Plattform zum Verschnaufen,
@@ -309,15 +315,15 @@ signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\nein Höhleneingang\nf�
 //             von    bis   Oberkante
 const abstieg = [[2740, 2804, 792],    // erste Kante, 32 unter der Oberfläche
                  [2804, 2836, 824],    // kleiner Absatz
-                 [2836, 2932, 856],    // Plattform zum Verschnaufen
-                 [2932, 2996, 920],    // Kante: 64 tief (unter freiem Himmel), hinauf springen
-                 [2996, 3060, 952],    // hier beginnt die Felsdecke (x 3000)
-                 [3060, 3124, 984],
-                 [3124, 3188, 1016]];  // letzte Stufe, danach der Tunnelboden (1048)
-// Wichtig: Direkt am Eingang (Decke ab x 3000, Unterkante 820) muss der Boden mindestens 868 tief liegen,
-// sonst stößt der Kopf des Spielers (48 hoch) an die Decke. Hier sind es 952, also 132 Platz.
+                 [2836, 2868, 856],    // Absatz
+                 [2868, 2932, 888],    // Plattform zum Verschnaufen (64 breit)
+                 [2932, 2996, 920],    // hier beginnt die Felsdecke (x 2940)
+                 [2996, 3060, 952],
+                 [3060, 3092, 984],
+                 [3092, 3156, 1016]];  // letzte Stufe, danach der Tunnelboden (1048)
+// Wichtig: Der Boden muss schon vor dem Eingang (Decke ab x 2940, Unterkante 820) auf mindestens 868 abgesunken
+// sein, sonst stößt der Kopf des Spielers (48 hoch) an die Deckenkante. Hier ist das ab x 2868 der Fall (888).
 for (const [von, bis, oben] of abstieg) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
-gelaendeAusWerten(EINGANG + 4, [32, 64, 32], true);                       // Felsbrocken auf der Decke über dem Eingang
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
 hoehlen.push({ links: EINGANG, rechts: TUNNEL_RECHTS - SCHACHT, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
 lampen.push(EINGANG + 70);
@@ -351,7 +357,7 @@ decor.push({ x: 3264, y: TUNNEL_BODEN - 8, w: 11, h: 11, color: 0x222222 });
 decor.push({ x: 3240, y: TUNNEL_BODEN - 44, w: 16, h: 8, color: 0x8c8474 });                  // Gesteinsbrocken im Wagen
 decor.push({ x: 3262, y: TUNNEL_BODEN - 46, w: 12, h: 10, color: 0x77716a });
 // Felsbrocken und Geröll auf dem Abstieg (Dekoration)
-for (const [bx, by, bw, bh] of [[2820, 824, 22, 14], [2870, 856, 30, 18], [2970, 920, 26, 16], [3090, 984, 22, 14], [2760, 792, 20, 12]]) {
+for (const [bx, by, bw, bh] of [[2820, 824, 22, 14], [2900, 888, 30, 18], [2970, 920, 26, 16], [3075, 984, 22, 14], [2760, 792, 20, 12]]) {
     decor.push({ x: bx, y: by - bh / 2, w: bw, h: bh, color: 0x77716a });
     decor.push({ x: bx - bw / 4, y: by - bh * 0.8, w: bw / 2, h: bh / 2, color: 0x948c7c });
 }
@@ -388,34 +394,32 @@ munition(4540, TUNNEL_BODEN);
 waffe(4690, TUNNEL_BODEN - 50);                                // das Sturmgewehr auf dem Tisch
 
 // =====================================================================
-// ZONE D: Grabenanlage mit Terrassen (x 3000 bis 3900), steht auf der Tunneldecke.
-// Der Graben liegt zwischen zwei Terrassen. Schützen oben, Nahkämpfer unten.
+// ZONE D: Der Hügel über der Höhle (x 2940 bis 3770). Die Höhle ist in diesen Hügel hineingegraben: Der Eingang
+// liegt an seinem Fuß (x 2940), der Hang steigt über Absätze zum Gipfel (192) und fällt auf der anderen Seite ab.
+// Auf den Absätzen sitzen Schützen, auf dem Gipfel wartet ein Nahkämpfer mit Munition.
 // =====================================================================
-signs.push({ x: 3100, y: BODEN - 140, text: 'Gefahr voraus:\nSchützen auf den Terrassen' });
-gelaende(3050, [[0, 0], [192, 160], [288, 160]]);         // linke Terrasse: Rampe auf 160, oben flach (x 3050 bis 3338)
-gelaende(3520, [[0, 160], [96, 160], [320, 0]]);           // rechte Terrasse: flach oben, dann Rampe hinab (x 3520 bis 3840)
-schwebend(3380, BODEN - 200, 100, GRAU);                 // Brücke über dem Graben
-munition(3430, BODEN - 200);                             // Belohnung auf der Brücke
-fernkaempfer(3290, 3260, 3320, 3, BODEN - 160);          // Schütze links oben
-fernkaempfer(3568, 3538, 3598, 3, BODEN - 160);          // Schütze rechts oben
-fernkaempfer(3868, 3856, 3880, 3);                       // Schütze am Boden hinter der Terrasse
-nahkaempfer(3430, 3362, 3498, 4);                // Nahkämpfer im Graben
-huegel(3900, 110, 30, GRAU);                     // hohe Mauer als Deckung
+signs.push({ x: 3000, y: BODEN - 170, text: 'Gefahr voraus:\nSchützen am Hang' });
+gelaende(EINGANG, [[0, 0], [160, 96], [256, 96], [384, 192], [512, 192], [640, 96], [736, 96], [832, 0]]);
+fernkaempfer(3148, 3116, 3180, 3, BODEN - 96);           // Schütze auf dem ersten Absatz
+nahkaempfer(3388, 3340, 3436, 4, BODEN - 192);           // Nahkämpfer auf dem Gipfel
+munition(3410, BODEN - 192);                             // Belohnung auf dem Gipfel
+fernkaempfer(3628, 3596, 3660, 3, BODEN - 96);           // Schütze auf dem zweiten Absatz
 
 // =====================================================================
 // ZONE E: Bunkerhügel (x 4290 bis 4870) und offenes Feld mit Hügeln (x 4900 bis 5600).
 // Der Bunker ist kein Betonklotz mehr, sondern ein gestufter Felshügel aus 32er-Blöcken (wie die Höhle):
-// Rampe, Absatz (64), Rampe, Absatz (128), Rampe, Dach (192). Hinter dem Dach geht es über einen Absatz (96)
-// hinab, damit man auch zurück hinaufkommt (mehr als 150 hoch springt niemand).
+// Ein begrünter Erdwall mit einem Bunker obenauf: Rampe, Absatz (64), Rampe, Absatz (128), Rampe, Dach (192).
+// Hinter dem Dach geht es über einen Absatz (96) hinab, damit man auch zurück hinaufkommt (mehr als 150 springt niemand).
 // =====================================================================
-signs.push({ x: 4262, y: BODEN - 130, text: 'Bunkerhügel voraus:\nGegner auf mehreren Etagen' });
-gelaende(4290, [[0, 0], [96, 64], [192, 64], [288, 128], [384, 128], [480, 192], [576, 192], [580, 96], [672, 96], [676, 0]], 'fels');
+signs.push({ x: 4262, y: BODEN - 130, text: 'Bunker voraus:\nGegner auf mehreren Absätzen' });
+gelaende(4290, [[0, 0], [96, 64], [192, 64], [288, 128], [384, 128], [480, 192], [576, 192], [580, 96], [672, 96], [676, 0]]);   // Erdwall
+huegel(4770, 240, 96, BUNKER);                               // der Betonbunker auf dem Wall (Oberkante 240)
 nahkaempfer(4434, 4402, 4466, 4, BODEN - 64);                // Nahkämpfer auf dem ersten Absatz
 fernkaempfer(4626, 4594, 4658, 4, BODEN - 128);              // Schütze auf dem zweiten Absatz
-fernkaempfer(4818, 4786, 4850, 4, BODEN - 192);              // Scharfschütze auf dem Dach
+fernkaempfer(4818, 4786, 4850, 4, BODEN - 240);              // Scharfschütze auf dem Bunkerdach
 // Wichtig: Die Patrouille muss zu den ebenen Flächen passen. Ein Gegner hat 32 Pixel Breite,
 // also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Stufe.
-munition(4800, BODEN - 192);                                 // Belohnung auf dem Dach
+munition(4800, BODEN - 240);                                 // Belohnung auf dem Bunkerdach
 granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)
 // Das Feld: zwei Hügel mit einer Senke dazwischen
 gelaende(4900, [[0, 0], [128, 64], [256, 64], [352, 0], [448, 0], [576, 96], [672, 96], [704, 0]]);
@@ -471,13 +475,13 @@ signs.push({ x: 7250, y: BODEN - 110, text: 'Steinbruch:\nKlippen, eine Schlucht
 nahkaempfer(7330, 7270, 7380, 3);                                         // vor dem Schacht
 signs.push({ x: 7530, y: BODEN - 70, text: 'Förderschacht\nzur Mine' });
 schacht(MINE_L, MINE_L + 260);                                             // Förderschacht (x 7400 bis 7660)
-gelaende(7696, [[0, 0], [160, 96], [256, 96], [512, 288], [704, 288]], 'fels');   // Klippe: Rampe, Absatz (96), Rampe, Plateau (288) bis x 8400
+gelaende(7696, [[0, 0], [160, 96], [256, 96], [512, 288], [704, 288]]);   // Klippe: Rampe, Absatz (96), Rampe, Plateau (288) bis x 8400
 schwebend(CHASM_L, BODEN - 288, 100, HOLZ);                                // morsche Brücke über die Schlucht
 schwebend(CHASM_R - 100, BODEN - 288, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
 felsnase(CHASM_L, 880, 64, 1); felsnase(CHASM_L, 1040, 96, 1);      // Felsnasen in der Schluchtwand links
 felsnase(CHASM_R, 820, 96, -1); felsnase(CHASM_R, 910, 64, -1);        // und rechts
 bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 288], [CHASM_R - 100, CHASM_R, BODEN - 288]] });   // Seile und Pfosten
-gelaende(CHASM_R, [[0, 288], [192, 288], [416, 160], [512, 160], [768, 0]], 'fels');   // Plateau, Rampe, Absatz (160), Rampe hinab bis x 9408
+gelaende(CHASM_R, [[0, 288], [192, 288], [416, 160], [512, 160], [768, 0]]);   // Plateau, Rampe, Absatz (160), Rampe hinab bis x 9408
 nahkaempfer(7905, 7874, 7934, 3, BODEN - 96);                              // auf dem Absatz der Klippe
 fernkaempfer(8310, 8245, 8380, 4, BODEN - 288);                            // Scharfschütze auf dem Plateau
 fernkaempfer(8750, 8665, 8815, 4, BODEN - 288);                            // Schütze auf dem Plateau dahinter
@@ -626,7 +630,7 @@ schwebend(14420, BODEN - 120, 140);
 fass(1240, BODEN - 96);                      // Zone A, beim ersten Gegner
 fass(1850, BODEN - 140);                     // Zone B, auf dem Deck beim Schützen
 fass(2150);
-fass(3440, BODEN);                           // Zone D, im Graben beim Nahkämpfer
+fass(3430, BODEN - 192);                     // Zone D, auf dem Gipfel
 fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
 fass(5100, BODEN - 64); fass(5330);          // Zone E, auf dem offenen Feld
 fass(6250);                                  // Zone G, vor dem Hochhaus
@@ -652,6 +656,7 @@ export default {
     faesser,
     bruecken,
     treppen,
+    wracks,
     huegelformen,
     hoehlen,
     lampen,

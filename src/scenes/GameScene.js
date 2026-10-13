@@ -729,7 +729,7 @@ export default class GameScene extends Phaser.Scene {
         if (this.time.now > this.naechsterStaub) {
             this.naechsterStaub = this.time.now + 1400;
             for (const p of this.platforms) {
-                if (p.brechbar && p.active && Math.abs(p.x - this.player.x) < 700 && Math.abs(p.y - this.player.y) < 400) {
+                if (p.brechbar && p.active && Math.random() < 0.15 && Math.abs(p.x - this.player.x) < 700 && Math.abs(p.y - this.player.y) < 400) {
                     this.fx.staubE.explode(1, p.x + Phaser.Math.Between(-14, 14), p.y + Phaser.Math.Between(-14, 14));
                 }
             }

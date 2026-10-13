@@ -438,14 +438,19 @@ signs.push({ x: 2870, y: 806, text: 'EINSTURZ-\nGEFAHR' });
 // zur Oberfläche. Es gibt hier nichts Künstliches mehr: keine Träger, keine Platten. Wer oben über den Hügel kommt,
 // springt einfach in den Krater und steigt auf der anderen Seite den Hang wieder hinauf.
 // Unter dem Hang liegt ein verschütteter Gang zur Waffenkammer. Sein Eingang ist von einem Felssturz zugeschüttet:
-// einem Haufen aus brüchigen, rissigen Erdbrocken. Man kann ihn mit Schüssen (je Brocken 2 Treffer) oder mit einer
-// Granate wegräumen. Wer das nicht tut, springt auf den Haufen (96 hoch) und geht den Hang hinauf nach draußen.
+// einer breiten Füllung aus zerstörbaren Erdblöcken. Man muss sich mit Schüssen hindurchgraben (oder eine Granate
+// benutzen). Wer das nicht tut, springt auf den Haufen (bis 96 hoch) und geht den Hang hinauf nach draußen.
 hoehlen.push({ links: TUNNEL_ENDE, rechts: KRATER_ENDE, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });   // Krater: Himmel scheint herein
 gelaende(4060, [[0, 128], [64, 128], [256, 288], [288, 288]], 'erde', 0.8, TUNNEL_BODEN, TUNNEL_BODEN - 96);   // der Hang: oben die Kruste, darunter 96 Platz für den Gang
-// Der Felssturz: fünf brüchige Brocken (32 mal 32), vorn niedriger (64), am Hangfuß höher (96), wie ein Schutthaufen.
-//   Spalte x 3996: zwei Brocken übereinander; Spalte x 4028: drei Brocken (sie verschließen den Gang unter dem Hang)
-for (const [bx, by] of [[3996, 1016], [3996, 984], [4028, 1016], [4028, 984], [4028, 952]]) {
-    platforms.push({ x: bx + 16, y: by + 16, w: 32, h: 32, color: 0x7a5a3c, brechbar: true, hp: 2 });
+// Der Felssturz: eine breite Füllung aus zerstörbaren Erdblöcken (je 32 mal 32), insgesamt 7 Spalten (224 Pixel).
+// Die drei vorderen Spalten liegen unter freiem Himmel und sind niedriger (64 bis 96, wie ein Schutthaufen, je Block
+// 2 Treffer). Die vier hinteren füllen den ganzen Gang unter dem Hang aus (96 hoch, je Block 1 Treffer).
+// Um hindurchzukommen, muss man mindestens die beiden unteren Reihen jeder Spalte wegschießen: etwa 14 Blöcke.
+const sturzSpalten = [[3964, 2, 2], [3996, 2, 2], [4028, 3, 2], [4060, 3, 1], [4092, 3, 1], [4124, 3, 1], [4156, 3, 1]];   // [x, Reihen, Treffer]
+for (const [bx, reihen, treffer] of sturzSpalten) {
+    for (let r = 0; r < reihen; r++) {
+        platforms.push({ x: bx + 16, y: TUNNEL_BODEN - 16 - r * 32, w: 32, h: 32, color: 0x7a5a3c, brechbar: true, hp: treffer });
+    }
 }
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     if (x > TUNNEL_ENDE - 20 && x < 4440) continue;                                      // im Krater und im Gang unter dem Hang hängen keine Lampen

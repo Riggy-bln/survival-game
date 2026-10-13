@@ -206,7 +206,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
 export function decoratePlatforms(scene, platforms, boden) {
     const g = scene.add.graphics().setDepth(1);
     const rnd = new Phaser.Math.RandomDataGenerator(['boden']);
-    const TIEFE = 152;     // so tief wird die Erde detailliert gemalt (darunter bleibt die Grundfarbe)
+    const TIEFE = 400;     // so tief wird die Erde detailliert gemalt: bis ganz nach unten (Erdblöcke sind höchstens 340 hoch)
     const ERDFARBEN = [0x5b4a35, 0x4b3b2a];
     let nr = 0;
 

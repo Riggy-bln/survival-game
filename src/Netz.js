@@ -12,12 +12,15 @@
 //   spielerGeaendert(liste)   Spielerliste hat sich geändert: [{ nr, name, ping }]
 //   ping(nr, ms)              neue Laufzeitmessung
 //   nachricht(vonNr, daten)   eine Spielnachricht ist angekommen
-//   getrennt(nr)              ein Spieler hat die Verbindung verloren (Gast: der Gastgeber, nr = 1)
+//   verloren(nr)              die Verbindung zu einem Spieler ist abgerissen; es wird bis zu 20 Sekunden neu versucht
+//   wieder(nr)                die Verbindung steht wieder
+//   getrennt(nr)              ein Spieler ist endgültig weg (Gast: der Gastgeber, nr = 1)
 //   fehler(text)              etwas ist schiefgegangen (Text für den Spieler)
 const VORSILBE = 'survivalgame-';
 const ZEICHEN = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // ohne I, O, 0, 1: sie verwechselt man leicht
 export const CODE_LAENGE = 4;
 export const MAX_SPIELER = 4;
+const GNADENFRIST = 20000;     // so lange (ms) wird auf eine abgerissene Verbindung gewartet, bevor ein Spieler als weg gilt
 
 const zufallscode = () => Array.from({ length: CODE_LAENGE }, () => ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)]).join('');
 
@@ -36,6 +39,9 @@ export default class Netz {
         this.geschlossen = false;
         this.pingTimer = null;
         this.zeitTimer = null;
+        this.token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);   // Erkennungszeichen eines Gastes, damit der Gastgeber ihn nach einem Abriss wiedererkennt
+        this.neuTimer = null;
+        this.neuVersuche = 0;
     }
 
     on(name, funktion) { this.rufe[name] = funktion; return this; }
@@ -63,22 +69,47 @@ export default class Netz {
 
     neueVerbindung(conn) {
         conn.on('open', () => {
+            // Kennen wir diesen Gast schon (gleiches Erkennungszeichen)? Dann hat er sich nach einem Abriss neu verbunden.
+            const token = conn.metadata && conn.metadata.token;
+            for (const [altNr, alt] of this.spieler) {
+                if (token && alt.token === token && altNr !== 1) {
+                    clearTimeout(alt.frist);
+                    alt.conn = conn;
+                    alt.abwesend = false;
+                    conn.on('data', (daten) => this.empfange(altNr, daten));
+                    conn.on('close', () => this.verbindungAbgerissen(altNr, conn));
+                    conn.send({ t: 'willkommen', nr: altNr });
+                    this.sendeListe();
+                    this.ruf('wieder', altNr);
+                    return;
+                }
+            }
             const nr = this.gesperrt ? 0 : this.freieNummer();
             if (!nr) {                                               // Raum voll oder Spiel läuft schon
                 conn.send({ t: this.gesperrt ? 'laeuft' : 'voll' });
                 setTimeout(() => conn.close(), 300);
                 return;
             }
-            this.spieler.set(nr, { name: `Spieler ${nr}`, conn, ping: 0 });
+            this.spieler.set(nr, { name: `Spieler ${nr}`, conn, ping: 0, token, abwesend: false, frist: null });
             conn.send({ t: 'willkommen', nr });
             conn.on('data', (daten) => this.empfange(nr, daten));
-            conn.on('close', () => {
-                this.spieler.delete(nr);
-                this.sendeListe();
-                this.ruf('getrennt', nr);
-            });
+            conn.on('close', () => this.verbindungAbgerissen(nr, conn));
             this.sendeListe();
         });
+    }
+
+    // Eine Gastverbindung ist abgerissen. Der Platz bleibt 20 Sekunden reserviert: Kommt der Gast zurück, spielt er weiter.
+    verbindungAbgerissen(nr, conn) {
+        const s = this.spieler.get(nr);
+        if (!s || s.conn !== conn || this.geschlossen) return;     // veraltete Meldung einer ersetzten Verbindung
+        s.abwesend = true;
+        this.ruf('verloren', nr);
+        s.frist = setTimeout(() => {
+            if (!this.spieler.get(nr) || !this.spieler.get(nr).abwesend) return;
+            this.spieler.delete(nr);
+            this.sendeListe();
+            this.ruf('getrennt', nr);
+        }, GNADENFRIST);
     }
 
     freieNummer() {
@@ -102,19 +133,51 @@ export default class Netz {
         this.zeitTimer = setTimeout(() => {
             if (!this.verbunden && !this.geschlossen) this.ruf('fehler', 'Keine Antwort. Stimmt der Code, und ist der Raum noch offen?');
         }, 12000);
-        this.peer.on('open', () => {
-            const conn = this.peer.connect(VORSILBE + this.code, { reliable: true });
-            this.hostConn = conn;
-            conn.on('open', () => {
-                this.verbunden = true;
-                clearTimeout(this.zeitTimer);
-                this.starteMessung();
-            });
-            conn.on('data', (daten) => this.empfange(1, daten));
-            conn.on('close', () => { if (!this.geschlossen) this.ruf('getrennt', 1); });
-            conn.on('error', () => this.ruf('fehler', 'Die Verbindung zum Raum ist fehlgeschlagen.'));
+        this.peer.on('open', () => this.verbindeMitHost(false));
+        this.peer.on('error', (err) => {
+            // Mitten im Spiel sind manche Meldungen nur Hinweise (zum Beispiel "Raum nicht gefunden" bei einem Neuversuch)
+            if (this.verbunden && err.type === 'peer-unavailable') return;
+            this.ruf('fehler', this.fehlertext(err));
         });
-        this.peer.on('error', (err) => this.ruf('fehler', this.fehlertext(err)));
+        this.peer.on('disconnected', () => { if (!this.geschlossen) { try { this.peer.reconnect(); } catch (e) { /* egal */ } } });
+    }
+
+    // Baut die Verbindung zum Gastgeber auf (beim Neuversuch mit demselben Erkennungszeichen).
+    verbindeMitHost(neuVersuch) {
+        const conn = this.peer.connect(VORSILBE + this.code, { reliable: true, metadata: { token: this.token } });
+        this.hostConn = conn;
+        conn.on('open', () => {
+            this.verbunden = true;
+            clearTimeout(this.zeitTimer);
+            clearInterval(this.neuTimer);
+            this.neuVersuche = 0;
+            this.starteMessung();
+            if (neuVersuch) this.ruf('wieder', 1);
+        });
+        conn.on('data', (daten) => this.empfange(1, daten));
+        conn.on('close', () => {
+            if (this.geschlossen || this.endgueltig || conn !== this.hostConn) return;
+            this.verbindungZumHostVerloren();
+        });
+        conn.on('error', () => { if (!this.verbunden) this.ruf('fehler', 'Die Verbindung zum Raum ist fehlgeschlagen.'); });
+    }
+
+    // Die Verbindung zum Gastgeber ist abgerissen: bis zu 20 Sekunden lang alle 2 Sekunden neu versuchen.
+    verbindungZumHostVerloren() {
+        if (this.neuTimer) return;
+        this.ruf('verloren', 1);
+        this.neuVersuche = 0;
+        this.neuTimer = setInterval(() => {
+            this.neuVersuche++;
+            if (this.neuVersuche > GNADENFRIST / 2000 || this.geschlossen) {
+                clearInterval(this.neuTimer);
+                this.neuTimer = null;
+                if (!this.geschlossen) this.ruf('getrennt', 1);
+                return;
+            }
+            if (this.peer && this.peer.disconnected) { try { this.peer.reconnect(); } catch (e) { /* egal */ } }
+            if (this.peer && !this.peer.destroyed) this.verbindeMitHost(true);
+        }, 2000);
     }
 
     // ---------- gemeinsam ----------
@@ -126,7 +189,7 @@ export default class Netz {
     // Sendet an alle (Gastgeber) bzw. an den Gastgeber (Gast).
     sende(daten) {
         if (this.rolle === 'host') {
-            for (const [nr, s] of this.spieler) if (s.conn && s.conn.open) s.conn.send(daten);
+            for (const [nr, s] of this.spieler) if (s.conn && s.conn.open && !s.abwesend) s.conn.send(daten);
         } else if (this.hostConn && this.hostConn.open) {
             this.hostConn.send(daten);
         }
@@ -134,7 +197,7 @@ export default class Netz {
 
     // Sendet an alle Gäste außer an einen (nur Gastgeber): für das Weiterleiten von Zuständen.
     sendeAnAlleAusser(nrAusnahme, daten) {
-        for (const [nr, s] of this.spieler) if (nr !== nrAusnahme && s.conn && s.conn.open) s.conn.send(daten);
+        for (const [nr, s] of this.spieler) if (nr !== nrAusnahme && s.conn && s.conn.open && !s.abwesend) s.conn.send(daten);
     }
 
     // Sendet nur an einen bestimmten Spieler (nur Gastgeber).
@@ -150,6 +213,16 @@ export default class Netz {
             case 'spieler': this.gastListe = daten.liste; this.ruf('spielerGeaendert', daten.liste); break;
             case 'voll': this.ruf('fehler', 'Der Raum ist voll.'); break;
             case 'laeuft': this.ruf('fehler', 'Das Spiel läuft bereits.'); break;
+            case 'ende':                                          // der Gastgeber beendet das Spiel absichtlich
+                this.endgueltig = true;
+                clearInterval(this.neuTimer);
+                this.ruf('getrennt', 1);
+                break;
+            case 'tschuess': {                                    // ein Gast verlässt das Spiel absichtlich: sofort entfernen, keine Wartezeit
+                const s = this.spieler.get(vonNr);
+                if (s) { clearTimeout(s.frist); this.spieler.delete(vonNr); this.sendeListe(); this.ruf('getrennt', vonNr); }
+                break;
+            }
             case 'ping': this.antworte(vonNr, { t: 'pong', zeit: daten.zeit }); break;
             case 'pong': {
                 const ms = Math.round(performance.now() - daten.zeit);
@@ -175,6 +248,23 @@ export default class Netz {
         }, 1000);
     }
 
+    // Kurzer Zustandstext für die Anzeige im Spiel (hilft bei der Fehlersuche): Verbindungsstatus des Browsers.
+    zustandsText() {
+        try {
+            if (this.rolle === 'gast') {
+                const pc = this.hostConn && this.hostConn.peerConnection;
+                return pc ? `Verbindung: ${pc.iceConnectionState}` : 'Verbindung: -';
+            }
+            const teile = [];
+            for (const [nr, s] of this.spieler) {
+                if (nr === 1) continue;
+                const pc = s.conn && s.conn.peerConnection;
+                teile.push(`Spieler ${nr}: ${s.abwesend ? 'abwesend' : (pc ? pc.iceConnectionState : '-')}`);
+            }
+            return teile.join('   ');
+        } catch (e) { return ''; }
+    }
+
     fehlertext(err) {
         switch (err.type) {
             case 'peer-unavailable': return 'Raum nicht gefunden. Prüfe den Code.';
@@ -187,10 +277,15 @@ export default class Netz {
     }
 
     schliesse() {
+        // Erst den anderen Bescheid sagen, damit sie nicht 20 Sekunden auf einen "Abriss" warten
+        try { this.sende({ t: this.rolle === 'host' ? 'ende' : 'tschuess' }); } catch (e) { /* egal */ }
+        const peer = this.peer;
         this.geschlossen = true;
         clearInterval(this.pingTimer);
+        clearInterval(this.neuTimer);
         clearTimeout(this.zeitTimer);
-        try { if (this.peer) this.peer.destroy(); } catch (e) { /* egal */ }
+        for (const s of this.spieler.values()) clearTimeout(s.frist);
+        setTimeout(() => { try { if (peer) peer.destroy(); } catch (e) { /* egal */ } }, 300);    // kurz warten, damit die Abschiedsnachricht noch rausgeht
         this.peer = null;
     }
 }

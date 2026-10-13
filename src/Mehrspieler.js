@@ -24,13 +24,43 @@ export default class Mehrspieler {
             .on('getrennt', (nr) => this.getrennt(nr))
             .on('spielerGeaendert', () => this.aktualisiereAnzeige())
             .on('ping', () => {})
+            .on('verloren', (nr) => this.verloren(nr))
+            .on('wieder', (nr) => this.wieder(nr))
             .on('fehler', (text) => scene.showMessage(text));
 
         this.anzeige = scene.add.text(scene.scale.width - 20, 20, '', {
             fontSize: '14px', color: '#cfd8dc', align: 'right', lineSpacing: 4,
         }).setOrigin(1, 0).setScrollFactor(0).setDepth(20);
+        // Banner bei Verbindungsproblemen und eine kleine Diagnosezeile unten links
+        this.banner = scene.add.text(scene.scale.width / 2, 70, '', {
+            fontSize: '22px', color: '#ffffff', backgroundColor: '#aa2222cc', padding: { x: 14, y: 8 }, align: 'center',
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(30).setVisible(false);
+        this.diagnose = scene.add.text(14, scene.scale.height - 24, '', { fontSize: '12px', color: '#8fa0ab' }).setScrollFactor(0).setDepth(20);
+        this.naechsteDiagnose = 0;
         this.aktualisiereAnzeige();
         scene.showMessage(`Mehrspieler: Du bist Spieler ${netz.meineNr}`);
+    }
+
+    // Eigene Verbindung (Gast) oder die eines Mitspielers (Gastgeber) ist abgerissen.
+    verloren(nr) {
+        if (this.netz.rolle === 'gast') {
+            this.banner.setText('Verbindung zum Gastgeber unterbrochen.\nVersuche, sie neu aufzubauen ...').setVisible(true);
+        } else {
+            const r = this.fern.get(nr);
+            if (r) { r.getrennt = true; r.label.setText(`Spieler ${nr} (Verbindung?)`); }
+            this.scene.showMessage(`Verbindung zu Spieler ${nr} unterbrochen ...`);
+        }
+    }
+
+    wieder(nr) {
+        if (this.netz.rolle === 'gast') {
+            this.banner.setVisible(false);
+            this.scene.showMessage('Wieder verbunden.');
+        } else {
+            const r = this.fern.get(nr);
+            if (r) { r.getrennt = false; r.label.setText(`Spieler ${nr}`); }
+            this.scene.showMessage(`Spieler ${nr} ist wieder da.`);
+        }
     }
 
     // Die Liste oben rechts: Wer ist dabei?
@@ -50,6 +80,10 @@ export default class Mehrspieler {
         if (jetzt >= this.naechsteSendung) {
             this.naechsteSendung = jetzt + SENDEPAUSE;
             this.sendeZustand(jetzt);
+        }
+        if (jetzt >= this.naechsteDiagnose) {
+            this.naechsteDiagnose = jetzt + 1000;
+            this.diagnose.setText(`Netz: ${this.netz.zustandsText()}`);
         }
         const zeit = performance.now();
         for (const r of this.fern.values()) {

@@ -38,6 +38,9 @@ export default class RangedEnemy extends Enemy {
                 // wird verfehlt. Das macht den Angriff fair.
                 const winkel = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
                 this.scene.spawnEnemyBullet(this.x, this.y, winkel, this.bulletSpeed, this.bulletDamage);
+                // Mündungsfeuer an der Waffe (Schulter y - 6, Arm 12 + Waffe 26) und Rückstoß für die Zeichnung
+                this.scene.fx.muzzleFlash(this.x + Math.cos(winkel) * 38, this.y - 6 + Math.sin(winkel) * 38, winkel, 0.9, 0xff7744);
+                this.lastShotTime = now;
                 this.aimingUntil = 0;
                 this.nextShot = now + this.fireDelay;
                 this.setFillStyle(this.baseColor);

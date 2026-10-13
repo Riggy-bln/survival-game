@@ -18,6 +18,9 @@ const WORLD_WIDTH = level.width;
 const WORLD_HEIGHT = level.height;
 const BODEN = level.boden;
 
+// Länge der Waffe in Pixeln (vom Griff bis zur Mündung) für die Zeichnung und das Mündungsfeuer
+const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28 };
+
 // Die Szene baut die Welt auf und lässt die Spielobjekte zusammenarbeiten.
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -246,8 +249,11 @@ export default class GameScene extends Phaser.Scene {
         // Arme und Waffe
         const schulter = { x, y: y - 6 };
         if (o.aim !== undefined) {
-            const dx = Math.cos(o.aim), dy = Math.sin(o.aim);
-            const handX = schulter.x + dx * 12, handY = schulter.y + dy * 12;
+            // Rückstoß: Die Waffe hebt sich leicht (Drehung) und der Arm zieht sich zurück
+            const rueck = o.rueck ?? 0;
+            const ang = o.aim + (Math.cos(o.aim) >= 0 ? -1 : 1) * rueck * 0.025;
+            const dx = Math.cos(ang), dy = Math.sin(ang);
+            const handX = schulter.x + dx * (12 - rueck), handY = schulter.y + dy * (12 - rueck);
             g.lineStyle(6, o.skin, a).beginPath().moveTo(schulter.x, schulter.y).lineTo(handX, handY).strokePath();
             g.lineStyle(6, 0x2a2a2a, a).beginPath().moveTo(handX - dx * 6, handY - dy * 6)
                 .lineTo(handX + dx * o.gun, handY + dy * o.gun).strokePath();
@@ -324,9 +330,11 @@ export default class GameScene extends Phaser.Scene {
         const p = this.player;
         const pointer = this.input.activePointer;
         const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
+        // Rückstoß: Nach einem Schuss ruckt die Waffe zurück und hebt sich, dann kehrt sie in 130 ms zurück.
+        const rueck = Math.max(0, 1 - (this.time.now - (p.lastShotTime ?? -999)) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[p.weapon] ?? 4);
         this.drawHumanoid(g, p.x, p.y, {
-            facing: Math.cos(winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: 0x4f7a3a, skin: 0xe0b890,
-            head: 'bandana', strap: true, aim: winkel, gun: { pistol: 18, rifle: 32, shotgun: 28 }[p.weapon] ?? 18,
+            facing: Math.cos(winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: 0x4f7a3a, skin: 0xe0b890, rueck,
+            head: 'bandana', strap: true, aim: winkel, gun: WAFFENLAENGE[p.weapon] ?? 18,
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
 
@@ -343,6 +351,7 @@ export default class GameScene extends Phaser.Scene {
                 moving: Math.abs(e.body.velocity.x) > 10, air: !e.body.blocked.down,
                 aim: fern ? Phaser.Math.Angle.Between(e.x, e.y, p.x, p.y) : undefined,
                 gun: 26, reach: !fern,
+                rueck: Math.max(0, 1 - (this.time.now - (e.lastShotTime ?? -999)) / 160) * 6,
             });
         }
     }
@@ -453,8 +462,17 @@ export default class GameScene extends Phaser.Scene {
         const winkel = Phaser.Math.Angle.Between(
             this.player.x, this.player.y, zielX, zielY
         );
-        this.fx.muzzle(this.player.x + Math.cos(winkel) * 30, this.player.y - 2 + Math.sin(winkel) * 30);
-        if (this.player.weapon === 'shotgun') this.cameras.main.shake(90, 0.004);
+        // Mündung: Schulter (y - 6) + 12 Pixel Arm + Waffenlänge in Zielrichtung
+        const p = this.player;
+        const abstand = 12 + (WAFFENLAENGE[p.weapon] ?? 18);
+        const mx = p.x + Math.cos(winkel) * abstand, my = p.y - 6 + Math.sin(winkel) * abstand;
+        const gross = { pistol: 1, rifle: 1.1, shotgun: 1.7 }[p.weapon] ?? 1;
+        this.fx.muzzleFlash(mx, my, winkel, gross);
+        this.fx.sparks(mx, my, 3);
+        this.fx.huelse(p.x, p.y - 6, Math.cos(winkel) >= 0 ? 1 : -1);          // Hülse fliegt nach hinten
+        if (p.weapon === 'shotgun') { this.fx.muendungsrauch(mx, my); this.cameras.main.shake(110, 0.006); }
+        else this.cameras.main.shake(50, 0.0015);
+        p.lastShotTime = this.time.now;                                         // für den Rückstoß der Waffe
         sfx.play(this.player.weapon);  // Geräusch heißt wie die Waffe: pistol, rifle, shotgun
         // Eine Schrotflinte feuert mehrere Kugeln, jede mit zufälliger Abweichung (Streuung).
         for (let i = 0; i < this.player.pellets; i++) {
@@ -561,7 +579,7 @@ export default class GameScene extends Phaser.Scene {
         this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
 
         // Schaden kommt irgendwo später im Frame an; wir vergleichen deshalb mit dem Wert des letzten Frames.
-        if (this.player.health < (this.letzteHP ?? this.player.health)) this.fx.blood(this.player.x, this.player.y, 10);
+        if (this.player.health < (this.letzteHP ?? this.player.health)) { this.fx.blood(this.player.x, this.player.y, 10); this.cameras.main.shake(150, 0.007); this.cameras.main.flash(90, 140, 0, 0); }
         this.letzteHP = this.player.health;
 
         // --- Zielen ---
@@ -598,6 +616,10 @@ export default class GameScene extends Phaser.Scene {
             if (beruehrt) pickup.applyTo(this.player);
         }
         this.pickups = this.pickups.filter(p => p.active);
+
+        // --- Leuchtspur hinter allen Kugeln ---
+        this.bullets.forEach(b => { if (b.active) this.fx.spur(b.x, b.y, true); });
+        this.enemyBullets.forEach(b => { if (b.active) this.fx.spur(b.x, b.y, false); });
 
         // --- Gegner bewegen ---
         // Nur lebende Gegner bewegen: Eine Granate kann einen Gegner schon in diesem Frame zerstört haben.

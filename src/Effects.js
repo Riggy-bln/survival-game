@@ -458,9 +458,56 @@ export default class Effects {
         this.rauchE = emitter({ lifespan: { min: 600, max: 1400 }, speed: { min: 20, max: 90 },
             angle: { min: 240, max: 300 }, gravityY: -40, scale: { start: 3, end: 6 }, alpha: { start: 0.45, end: 0 },
             tint: [0x333333, 0x555555] });
+        // Leuchtspur: ein kurzlebiger Punkt pro Frame hinter jeder Kugel (bildet einen Schweif)
+        this.spurSpielerE = emitter({ lifespan: 140, speed: 0, scale: { start: 1.6, end: 0 },
+            alpha: { start: 0.9, end: 0 }, tint: [0xffee99, 0xffcc55] });
+        this.spurGegnerE = emitter({ lifespan: 180, speed: 0, scale: { start: 2, end: 0 },
+            alpha: { start: 0.8, end: 0 }, tint: [0xff8844, 0xff5533] });
+        // Patronenhülsen: fliegen nach hinten oben aus der Waffe und fallen mit der Schwerkraft
+        this.huelseLE = emitter({ lifespan: { min: 500, max: 800 }, speed: { min: 70, max: 140 },
+            angle: { min: 200, max: 250 }, gravityY: 900, rotate: { start: 0, end: 360 },
+            scale: 1.3, tint: [0xd9b84a, 0xc9a227] });
+        this.huelseRE = emitter({ lifespan: { min: 500, max: 800 }, speed: { min: 70, max: 140 },
+            angle: { min: 290, max: 340 }, gravityY: 900, rotate: { start: 0, end: -360 },
+            scale: 1.3, tint: [0xd9b84a, 0xc9a227] });
         this.staubE = emitter({ lifespan: { min: 200, max: 450 }, speed: { min: 30, max: 120 },
             angle: { min: 200, max: 340 }, gravityY: 100, scale: { start: 1.6, end: 0 }, alpha: { start: 0.6, end: 0 },
             tint: [0xb09a7a, 0x8a7a60] });
+    }
+
+    // Mündungsfeuer: ein heller Zacken in Schussrichtung, zwei kleine seitliche Zacken und ein Lichtschein.
+    // groesse: 1 = Pistole, größer = stärkere Waffe. Nach 80 Millisekunden ist alles weg.
+    muzzleFlash(x, y, winkel, groesse = 1, farbe = 0xffdd55) {
+        const scene = this.scene;
+        const g = scene.add.graphics({ x, y }).setDepth(8).setRotation(winkel);
+        g.fillStyle(farbe, 0.95).fillTriangle(0, -5 * groesse, 0, 5 * groesse, 30 * groesse, 0);   // Hauptflamme
+        g.fillStyle(farbe, 0.8)
+            .fillTriangle(2, 0, 11 * groesse, -11 * groesse, 13 * groesse, -1)                      // Zacken oben
+            .fillTriangle(2, 0, 11 * groesse, 11 * groesse, 13 * groesse, 1);                       // Zacken unten
+        g.fillStyle(0xffffff, 1).fillTriangle(0, -2.5 * groesse, 0, 2.5 * groesse, 18 * groesse, 0); // heißer Kern
+        scene.tweens.add({ targets: g, alpha: 0, scaleX: 1.5, duration: 80, onComplete: () => g.destroy() });
+        const licht = scene.add.circle(x, y, 26 * groesse, farbe, 0.35).setDepth(8).setBlendMode(Phaser.BlendModes.ADD);
+        scene.tweens.add({ targets: licht, alpha: 0, scale: 1.7, duration: 110, onComplete: () => licht.destroy() });
+    }
+
+    // Patronenhülse auswerfen. richtung: 1 = Schütze schaut nach rechts (Hülse fliegt nach links hinten).
+    huelse(x, y, richtung) {
+        (richtung > 0 ? this.huelseLE : this.huelseRE).emitParticleAt(x, y, 1);
+    }
+
+    // Leuchtspur-Punkt an der Position einer Kugel
+    spur(x, y, vomSpieler) {
+        (vomSpieler ? this.spurSpielerE : this.spurGegnerE).emitParticleAt(x, y, 1);
+    }
+
+    // Rauchwolke an der Mündung (stärkere Waffen)
+    muendungsrauch(x, y) { this.rauchE.explode(3, x, y); }
+
+    // Druckwelle am Boden: ein flacher Streifen, der sich nach beiden Seiten ausbreitet, dazu Staub.
+    druckwelle(x, y) {
+        const w = this.scene.add.rectangle(x, y, 40, 8, 0xffe0a0, 0.8).setDepth(8);
+        this.scene.tweens.add({ targets: w, scaleX: 12, alpha: 0, duration: 350, onComplete: () => w.destroy() });
+        this.staubE.explode(10, x - 30, y); this.staubE.explode(10, x + 30, y);
     }
 
     blood(x, y, anzahl = 8) { this.blutE.explode(anzahl, x, y); }

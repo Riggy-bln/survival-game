@@ -7,6 +7,7 @@ import Boss from '../entities/Boss.js';
 import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
 import { sfx } from '../Sound.js';
+import Effects, { buildSky, buildSkyline, decoratePlatforms } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
@@ -26,6 +27,11 @@ export default class GameScene extends Phaser.Scene {
     // create() läuft einmal beim Start: hier bauen wir die Welt auf.
     create() {
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+        // --- Himmel und Hintergrund-Schichten (Parallax: weiter weg = langsamer) ---
+        buildSky(this);
+        buildSkyline(this, WORLD_WIDTH, BODEN, 0.12, 0x6b4a52, 120, 260, 'fern');
+        buildSkyline(this, WORLD_WIDTH, BODEN, 0.3, 0x453a47, 90, 230, 'mitte');
 
         // --- Dekoration: Ruinen im Hintergrund (ohne Physik) ---
         for (let x = 300; x < WORLD_WIDTH; x += 450) {
@@ -50,6 +56,9 @@ export default class GameScene extends Phaser.Scene {
         for (const p of level.platforms) {
             this.addPlatform(p.x, p.y, p.w, p.h, p.color ?? 0x6b5b4a);
         }
+
+        decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
+        this.fx = new Effects(this);                       // Partikel
 
         // --- Spieler ---
         // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
@@ -332,6 +341,8 @@ export default class GameScene extends Phaser.Scene {
         const winkel = Phaser.Math.Angle.Between(
             this.player.x, this.player.y, zielX, zielY
         );
+        this.fx.muzzle(this.player.x + Math.cos(winkel) * 30, this.player.y - 2 + Math.sin(winkel) * 30);
+        if (this.player.weapon === 'shotgun') this.cameras.main.shake(90, 0.004);
         sfx.play(this.player.weapon);  // Geräusch heißt wie die Waffe: pistol, rifle, shotgun
         // Eine Schrotflinte feuert mehrere Kugeln, jede mit zufälliger Abweichung (Streuung).
         for (let i = 0; i < this.player.pellets; i++) {
@@ -341,7 +352,7 @@ export default class GameScene extends Phaser.Scene {
             if (this.player.range > 0) bullet.diesAt = this.time.now + this.player.range;
 
             // Trifft die Kugel eine Plattform, verschwindet sie.
-            this.physics.add.collider(bullet, this.platforms, () => bullet.destroy());
+            this.physics.add.collider(bullet, this.platforms, () => { this.fx.sparks(bullet.x, bullet.y, 3); bullet.destroy(); });
             this.bullets.push(bullet);
         }
     }
@@ -371,11 +382,13 @@ export default class GameScene extends Phaser.Scene {
         });
         this.cameras.main.shake(200, 0.01);
         sfx.play('explosion');
+        this.fx.explosion(x, y);
 
         for (const enemy of this.enemies) {
             if (!enemy.active) continue;
             if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) <= radius) {
-                if (enemy.takeDamage(6)) this.kills += 1;
+                if (enemy.takeDamage(6)) { this.kills += 1; this.fx.death(enemy.x, enemy.y); }
+                else this.fx.blood(enemy.x, enemy.y);
             }
         }
         if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius) {
@@ -388,7 +401,7 @@ export default class GameScene extends Phaser.Scene {
         sfx.play('enemyShot');
         const bullet = new Bullet(this, x, y, winkel, speed, 0xff6644);  // orange-rot
         bullet.damage = damage;  // Wir hängen den Schaden direkt an die Kugel
-        this.physics.add.collider(bullet, this.platforms, () => bullet.destroy());
+        this.physics.add.collider(bullet, this.platforms, () => { this.fx.sparks(bullet.x, bullet.y, 3); bullet.destroy(); });
         this.enemyBullets.push(bullet);
     }
 
@@ -415,7 +428,19 @@ export default class GameScene extends Phaser.Scene {
             this.showMessage(sfx.toggle() ? 'Ton aus (N)' : 'Ton an (N)');
         }
 
+        // Landestaub: Wenn der Spieler schnell fallend aufkommt.
+        const boden = this.player.body.blocked.down;
+        if (boden && !this.warAmBoden && this.letzteFallgeschw > 350) {
+            this.fx.dust(this.player.x, this.player.y + 24);
+        }
+        this.warAmBoden = boden;
+        this.letzteFallgeschw = this.player.body.velocity.y;
+
         this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
+
+        // Schaden kommt irgendwo später im Frame an; wir vergleichen deshalb mit dem Wert des letzten Frames.
+        if (this.player.health < (this.letzteHP ?? this.player.health)) this.fx.blood(this.player.x, this.player.y, 10);
+        this.letzteHP = this.player.health;
 
         // --- Zielen ---
         // worldX/worldY = Mausposition in der Welt (nicht im Fenster).
@@ -517,7 +542,8 @@ export default class GameScene extends Phaser.Scene {
                 if (getroffen) {
                     bullet.destroy();
                     // takeDamage meldet true zurück, wenn der Gegner dadurch gestorben ist.
-                    if (enemy.takeDamage(1)) this.kills += 1;
+                    if (enemy.takeDamage(1)) { this.kills += 1; this.fx.death(enemy.x, enemy.y); }
+                    else this.fx.blood(bullet.x, bullet.y, 5);
                 }
             }
         }

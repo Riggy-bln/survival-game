@@ -87,7 +87,7 @@ export default class Boss extends Enemy {
         this.scene.zeigeEffekt('druckwelle', this.x, this.y + 46);
         const zahl = (this.phase() === 2 ? 3 : 4) + (this.scene.anzahlSpieler() - 1);
         this.brut = this.scene.weckeBrut(zahl);
-        this.scene.showMessage(this.phase() === 2 ? 'Die Kreatur ruft ihre Brut!\nSolange sie lebt, ist die Kreatur geschützt.' : 'Eine zweite Brut!\nBesiege sie, dann ist die Kreatur verwundbar.');
+        this.scene.showMessage(this.phase() === 2 ? 'The creature calls its brood!\nWhile they live, the creature is shielded.' : 'A second brood!\nDefeat them to make the creature vulnerable.');
     }
 
     // Wählt zufällig den nächsten Angriff aus einer Liste (je nach Phase).
@@ -113,7 +113,7 @@ export default class Boss extends Enemy {
             body.setVelocityX(0);
             this.setPhase('tired', 2500, 0x9fb8a6);
             sfx.play('heal');
-            this.scene.showMessage('Das Schild ist gefallen!\nJetzt zuschlagen!');
+            this.scene.showMessage('The shield is down!\nStrike now!');
         }
 
         switch (this.state) {

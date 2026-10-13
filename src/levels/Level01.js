@@ -499,14 +499,14 @@ const wachturm = (x, hoehe, ladeSeite = 1) => {
 // Der Einstieg ist kein flacher Boden mehr, sondern ein Auf und Ab: Startfläche, ein Hügel mit Sandsack-Deckung,
 // eine Senke mit Wrack und Mauer, dann ein zweiter Hügel mit dem ersten Gegner. (Plateaus bleiben eben.)
 gelaende(0, [[0, 0], [224, 0], [352, 96], [576, 96], [704, 0], [960, 0], [1088, 96], [1312, 96], [1440, 0]]);
-signs.push({ x: 150, y: BODEN - 80, text: 'A / D: Laufen\nLeertaste: Springen\nR: Nachladen\nH: Verbandskasten benutzen' });
+signs.push({ x: 150, y: BODEN - 80, text: 'A / D: Move\nSpace: Jump\nR: Reload\nH: Use medkit' });
 munition(180);                                   // früh: Einsammeln üben
 stacheldraht(40);                                // nur Dekoration, am Start
 huegel(392, 126, 96, SAND);                      // Sandsäcke auf dem ersten Hügel (30 über der Kuppe)
 huegel(488, 156, 64, SAND);                      // Sandsäcke, höher (60 über der Kuppe)
 huegel(692, 64, 64, SAND);                       // Sandsack-Barrikade in der Senke
 wrack(764, 60, 216);                             // ausgebranntes Panzerfahrzeug (begehbar, Oberkante 60)
-signs.push({ x: 1000, y: BODEN - 130, text: 'Maus: Zielen\nLinke Taste: Schießen' });
+signs.push({ x: 1000, y: BODEN - 130, text: 'Mouse: Aim\nLeft click: Shoot' });
 nahkaempfer(1200, 1104, 1296, 3, BODEN - 96);    // der erste Gegner, oben auf dem zweiten Hügel
 nahkaempfer(870, 800, 940, 3, BODEN - 60);       // ein Wächter auf dem Dach des Wracks
 
@@ -523,7 +523,7 @@ nahkaempfer(1800, 1650, 1930, 4);                // Nahkämpfer darunter
 heilung(2065, BODEN - 240);                              // versteckte Heilung im Versteck
 nahkaempfer(2170, 2080, 2250, 3);
 sprossenleiter(1988, BODEN - 240, BODEN, 1, 'holz', 28);      // Leiter vom Boden zum Versteck (Oberkante 520)
-signs.push({ x: 1925, y: BODEN - 95, text: 'Leitern:\nW / S oder\nPfeiltasten' });
+signs.push({ x: 1925, y: BODEN - 95, text: 'Ladders:\nW / S or\narrow keys' });
 
 // =====================================================================
 // ZONE C: Versorgungspunkt 1 (x 2450 bis 2750). Ruhig, ein Atemzug.
@@ -540,7 +540,7 @@ granate(1850, BODEN - 140);                     // im Versteck der Ruine
 // drei Gegnern und Beute. Wer unten bleibt, umgeht die Schützen auf den Terrassen.
 // Aus dem Tunnel kommt man über Stufen wieder hinauf (je Schacht 3 Stufen à 77 Pixel).
 // =====================================================================
-signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\nein Höhleneingang\nführt unter die Erde' });
+signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\na cave entrance\nleads underground' });
 // ---- Der Höhleneingang: ein Graben mit Stufen führt zu einem Felsüberhang ----
 // Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 2940) über einen felsigen Abstieg
 // hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
@@ -596,7 +596,7 @@ for (const [bx, by, bw, bh] of [[2820, 824, 22, 14], [2900, 888, 30, 18], [2970,
     decor.push({ x: bx, y: by - bh / 2, w: bw, h: bh, color: 0x77716a });
     decor.push({ x: bx - bw / 4, y: by - bh * 0.8, w: bw / 2, h: bh / 2, color: 0x948c7c });
 }
-signs.push({ x: 2870, y: 806, text: 'EINSTURZ-\nGEFAHR' });
+signs.push({ x: 2870, y: 806, text: 'DANGER:\nCAVE-IN' });
 // ---- Der Ausgang des Tunnels: ein Einsturzkrater mit einem natürlichen Berghang nach oben ----
 // Am Ende des Tunnels ist die Decke eingestürzt (x 3900 bis 4348): Von dort führt ein Hang aus Erdreich
 // zur Oberfläche. Es gibt hier nichts Künstliches mehr: keine Träger, keine Platten. Wer oben über den Hügel kommt,
@@ -632,7 +632,7 @@ munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
 // Wer die brüchige Erdwand durchschießt und dem Gang unter dem Hang folgt, findet ein verlassenes Lager:
 // ein SCHWERER WÄCHTER (8 Lebenspunkte), Heilung, Munition und das STURMGEWEHR.
 hoehlen.push({ links: 4060, rechts: VERLIES_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'lager' });     // Gang unter dem Hang und Raum der Kammer
-signs.push({ x: 4490, y: TUNNEL_BODEN - 150, text: 'Lager 7\n"Aufgegeben. Sie kamen von unten."' });
+signs.push({ x: 4490, y: TUNNEL_BODEN - 150, text: 'Depot 7\n"Abandoned. They came from below."' });
 decor.push({ x: 4440, y: TUNNEL_BODEN - 70, w: 44, h: 32, color: 0x1d5a3a });           // Terminal (Bildschirm)
 decor.push({ x: 4440, y: TUNNEL_BODEN - 45, w: 8, h: 18, color: 0x333333 });            // Terminal (Ständer)
 decor.push({ x: 4440, y: TUNNEL_BODEN - 30, w: 70, h: 8, color: 0x55482f });            // Tisch
@@ -667,8 +667,8 @@ hoehlen.push({ links: 3000, rechts: SCH2_L, oben: GAL_O, unten: GAL_B, art: 'tun
 hoehlen.push({ links: SCH2_R, rechts: 4060, oben: GAL_O, unten: GAL_B, art: 'tunnel', eigeneLampen: true });
 hoehlen.push({ links: 4060, rechts: 4380, oben: GAL_O, unten: GAL_B, art: 'lager', regale: false, eigeneLampen: true });
 [3100, 3640, 3880, 4180, 4320].forEach(x => hoehlenlampe(galerie, x));
-signs.push({ x: 3380, y: TUNNEL_BODEN - 100, text: 'Wartungsschacht\n(führt in die Tiefe)' });
-signs.push({ x: 4180, y: GAL_B - 150, text: 'Waffenkammer 2\n"Für den Nahkampf, wenn\ndie Munition ausgeht."' });
+signs.push({ x: 3380, y: TUNNEL_BODEN - 100, text: 'Maintenance shaft\n(leads down)' });
+signs.push({ x: 4180, y: GAL_B - 150, text: 'Armory 2\n"For close combat when\nthe ammo runs out."' });
 // Vorratsraum im Westen
 heilung(3070, GAL_B);
 munition(3130, GAL_B);
@@ -752,7 +752,7 @@ munition(5890, BODEN - 64);
 //   gerade Etagen   (2, 4, 6): x 6520 bis 6900, Lücke links
 // Von der 4. Etage führt eine Skybridge nach rechts, ein Abkürzungsweg über den Bodenkämpfen.
 // =====================================================================
-signs.push({ x: 6015, y: BODEN - 110, text: 'Wandsprung:\ngegen eine hohe Wand\nlaufen und springen' });
+signs.push({ x: 6015, y: BODEN - 110, text: 'Wall jump:\nrun into a high wall\nand jump' });
 // Das Hochhaus ist in einen Berg hineingebaut: Im Westen und Osten steigen Felsberge auf, die sein Erdgeschoss und die unteren
 // Etagen verschlucken. Durch beide Berge führt ein Tunnel auf Bodenhöhe (160 hoch) ins Gebäude; über die Berge führen Absätze
 // (und Leitern), die auf die Etagen münden. Der westliche Tunnel enthält den Ausgangsschacht der Katakomben.
@@ -810,7 +810,7 @@ aushoehlen(5320, 5580, BODEN, KAT_O);                        // Einsturzloch
 aushoehlen(6100, 6360, BODEN, KAT_O);                        // Ausgangsschacht
 schacht(5320, 5580);                                         // Bretter am Rand und Absätze im Zickzack (alle 95 Pixel)
 schacht(6100, 6360);
-signs.push({ x: 5290, y: BODEN - 90, text: 'Einsturzloch:\nein Weg in die Katakomben' });
+signs.push({ x: 5290, y: BODEN - 90, text: 'Sinkhole:\na way into the catacombs' });
 hoehlen.push({ links: 4990, rechts: 5320, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
 hoehlen.push({ links: 5320, rechts: 5580, oben: BODEN, unten: KAT_B, art: 'schacht', eigeneLampen: true });
 hoehlen.push({ links: 5580, rechts: 5780, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
@@ -887,7 +887,7 @@ hoehlen.push({ links: SCHACHT2_L, rechts: MINE_R, oben: BODEN, unten: MINE_BODEN
 lampe(9440, MINE_DECKE);
 [7700, 7920, 8160, 8340].forEach(x => stuetze(x, MINE_DECKE, MINE_BODEN));
 [9340, 9560].forEach(x => stuetze(x, MINE_DECKE, MINE_BODEN));
-signs.push({ x: 7780, y: MINE_BODEN - 110, text: 'Mine 3\n"Nicht allein hinuntergehen."' });
+signs.push({ x: 7780, y: MINE_BODEN - 110, text: 'Mine 3\n"Do not go down alone."' });
 
 // Gang 1 (x 7660 bis 8400)
 kiste(7800, 50, 80);                                                       // Deckung
@@ -1061,7 +1061,7 @@ fernkaempfer(14916, 14884, 14948, 3, BODEN - 160);
 sprossenleiter(14098, BODEN - 320, BODEN - 224, 1, 'holz', 28);
 sprossenleiter(14454, BODEN - 544, BODEN - 448, 1, 'holz', 28);
 sprossenleiter(14662, BODEN - 544, BODEN - 352, -1, 'holz', 28);
-signs.push({ x: 14575, y: BODEN - 544 - 70, text: 'Seilbahn zum Boss\nE: einhängen' });
+signs.push({ x: 14575, y: BODEN - 544 - 70, text: 'Zipline to the boss\nE: hook on' });
 // Versorgung am Endturm der Seilbahn: Wer fährt, überspringt die Vorräte vor der Arena und findet sie hier.
 decor.push({ x: 16160, y: BODEN - 14, w: 64, h: 28, color: 0x5b4a2e });                   // Kiste
 decor.push({ x: 16160, y: BODEN - 14, w: 20, h: 6, color: 0xdd3333 });                    // rotes Kreuz
@@ -1082,7 +1082,7 @@ stacheldraht(15500);
     const f = insel.flach(6);
     const xs = (k) => f.x0 + (f.x1 - f.x0) * (k + 0.5) / 3;                    // drei Gegenstände gleichmäßig auf der ebenen Strecke
     heilung(xs(0), f.top); munition(xs(1), f.top); granate(xs(2), f.top);
-    signs.push({ x: 2350, y: BODEN - 250, text: 'Eine Leiter führt\nzu einer Insel in der Luft' });
+    signs.push({ x: 2350, y: BODEN - 250, text: 'A ladder leads\nto an island in the air' });
 }
 {   // Insel 2: über dem ersten Hügel im Tal der Brücken (Scharfschütze und Beute)
     const insel = schwebeinsel(11160, 256, BODEN - 470, 208, 19, false);

@@ -56,7 +56,7 @@ export default class Netz {
     erstelleRaum(versuch = 0) {
         this.rolle = 'host';
         this.meineNr = 1;
-        this.spieler = new Map([[1, { name: saubererName(this.meinName) || 'Spieler 1', conn: null, ping: 0 }]]);
+        this.spieler = new Map([[1, { name: saubererName(this.meinName) || 'Player 1', conn: null, ping: 0 }]]);
         this.code = zufallscode();
         this.peer = new Peer(VORSILBE + this.code);
         this.peer.on('open', () => { this.ruf('bereit', this.code); this.starteMessung(); });
@@ -95,7 +95,7 @@ export default class Netz {
                 setTimeout(() => conn.close(), 300);
                 return;
             }
-            const name = saubererName(conn.metadata && conn.metadata.name) || `Spieler ${nr}`;
+            const name = saubererName(conn.metadata && conn.metadata.name) || `Player ${nr}`;
             this.spieler.set(nr, { name, conn, ping: 0, token, abwesend: false, frist: null });
             conn.send({ t: 'willkommen', nr });
             conn.on('data', (daten) => this.empfange(nr, daten));
@@ -137,7 +137,7 @@ export default class Netz {
         this.peer = new Peer();
         // Nach 12 Sekunden ohne Verbindung aufgeben und eine verständliche Meldung zeigen
         this.zeitTimer = setTimeout(() => {
-            if (!this.verbunden && !this.geschlossen) this.ruf('fehler', 'Keine Antwort. Stimmt der Code, und ist der Raum noch offen?');
+            if (!this.verbunden && !this.geschlossen) this.ruf('fehler', 'No answer. Is the code correct and the room still open?');
         }, 12000);
         this.peer.on('open', () => this.verbindeMitHost(false));
         this.peer.on('error', (err) => {
@@ -165,7 +165,7 @@ export default class Netz {
             if (this.geschlossen || this.endgueltig || conn !== this.hostConn) return;
             this.verbindungZumHostVerloren();
         });
-        conn.on('error', () => { if (!this.verbunden) this.ruf('fehler', 'Die Verbindung zum Raum ist fehlgeschlagen.'); });
+        conn.on('error', () => { if (!this.verbunden) this.ruf('fehler', 'The connection to the room failed.'); });
     }
 
     // Die Verbindung zum Gastgeber ist abgerissen: bis zu 20 Sekunden lang alle 2 Sekunden neu versuchen.
@@ -190,14 +190,14 @@ export default class Netz {
     // Der Anzeigename eines Spielers (Standard: "Spieler N").
     nameVon(nr) {
         const s = this.liste().find((x) => x.nr === nr);
-        return (s && s.name) || `Spieler ${nr}`;
+        return (s && s.name) || `Player ${nr}`;
     }
 
     // Gastgeber: den eigenen Namen ändern und allen mitteilen.
     setzeMeinenNamen(name) {
         this.meinName = saubererName(name);
         const s = this.rolle === 'host' && this.spieler.get(1);
-        if (s) { s.name = this.meinName || 'Spieler 1'; this.sendeListe(); }
+        if (s) { s.name = this.meinName || 'Player 1'; this.sendeListe(); }
     }
 
     liste() {
@@ -230,8 +230,8 @@ export default class Netz {
         switch (daten.t) {
             case 'willkommen': this.meineNr = daten.nr; this.ruf('willkommen', daten.nr); break;
             case 'spieler': this.gastListe = daten.liste; this.ruf('spielerGeaendert', daten.liste); break;
-            case 'voll': this.ruf('fehler', 'Der Raum ist voll.'); break;
-            case 'laeuft': this.ruf('fehler', 'Das Spiel läuft bereits.'); break;
+            case 'voll': this.ruf('fehler', 'The room is full.'); break;
+            case 'laeuft': this.ruf('fehler', 'The game is already running.'); break;
             case 'ende':                                          // der Gastgeber beendet das Spiel absichtlich
                 this.endgueltig = true;
                 clearInterval(this.neuTimer);
@@ -272,13 +272,13 @@ export default class Netz {
         try {
             if (this.rolle === 'gast') {
                 const pc = this.hostConn && this.hostConn.peerConnection;
-                return pc ? `Verbindung: ${pc.iceConnectionState}` : 'Verbindung: -';
+                return pc ? `Connection: ${pc.iceConnectionState}` : 'Connection: -';
             }
             const teile = [];
             for (const [nr, s] of this.spieler) {
                 if (nr === 1) continue;
                 const pc = s.conn && s.conn.peerConnection;
-                teile.push(`Spieler ${nr}: ${s.abwesend ? 'abwesend' : (pc ? pc.iceConnectionState : '-')}`);
+                teile.push(`Player ${nr}: ${s.abwesend ? 'away' : (pc ? pc.iceConnectionState : '-')}`);
             }
             return teile.join('   ');
         } catch (e) { return ''; }
@@ -286,12 +286,12 @@ export default class Netz {
 
     fehlertext(err) {
         switch (err.type) {
-            case 'peer-unavailable': return 'Raum nicht gefunden. Prüfe den Code.';
+            case 'peer-unavailable': return 'Room not found. Check the code.';
             case 'network': case 'server-error': case 'socket-error': case 'socket-closed':
-                return 'Keine Verbindung zum Vermittlungsserver. Prüfe dein Internet.';
-            case 'browser-incompatible': return 'Dieser Browser unterstützt keine direkten Verbindungen.';
-            case 'webrtc': return 'Die direkte Verbindung konnte nicht aufgebaut werden (Netzwerk blockiert?).';
-            default: return `Verbindungsfehler (${err.type}).`;
+                return 'No connection to the matchmaking server. Check your internet.';
+            case 'browser-incompatible': return 'This browser does not support direct connections.';
+            case 'webrtc': return 'The direct connection could not be established (network blocked?).';
+            default: return `Connection error (${err.type}).`;
         }
     }
 

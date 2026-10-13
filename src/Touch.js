@@ -132,7 +132,7 @@ export default class Touch {
         if (name === 'nachladen') p.touchEin.nachladen = true;
         else if (name === 'granate') {
             if (p.grenades > 0 && !p.tot) this.granatenZiel = { id, x: 0, y: 0 };      // zielen: ziehen, loslassen wirft
-            else s.showMessage('Keine Granaten mehr!');
+            else s.showMessage('No grenades left!');
         }
         else if (name === 'heilen') p.touchEin.heilen = true;
         else if (name === 'interaktion') this.eTipp = true;

@@ -1,7 +1,7 @@
 {
-  "name": "Survival Game",
-  "short_name": "Survival",
-  "description": "2D-Action-Survival in einer verlassenen Kriegswelt",
+  "name": "BrokRun",
+  "short_name": "BrokRun",
+  "description": "2D action survival game in an abandoned war zone",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

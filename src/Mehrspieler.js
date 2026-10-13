@@ -55,7 +55,7 @@ export default class Mehrspieler {
         this.diagnose = scene.add.text(14, scene.scale.height - 24, '', { fontSize: '12px', color: '#8fa0ab' }).setScrollFactor(0).setDepth(20);
         this.naechsteDiagnose = 0;
         this.aktualisiereAnzeige();
-        scene.showMessage(`Mehrspieler: Du bist Spieler ${netz.meineNr}`);
+        scene.showMessage(`Multiplayer: You are Player ${netz.meineNr}`);
     }
 
     // ---------- Senden ----------
@@ -74,10 +74,10 @@ export default class Mehrspieler {
     aktualisiereAnzeige() {
         if (!this.anzeige || !this.anzeige.active) return;
         const zeilen = this.netz.liste().map((s) => {
-            const ich = s.nr === this.netz.meineNr ? ' (du)' : '';
-            const host = s.nr === 1 ? ' [Gastgeber]' : '';
+            const ich = s.nr === this.netz.meineNr ? ' (you)' : '';
+            const host = s.nr === 1 ? ' [Host]' : '';
             const r = this.fern.get(s.nr);
-            const unten = (s.nr === this.netz.meineNr ? this.scene.player.tot : (r && r.tot)) ? ' - am Boden' : '';
+            const unten = (s.nr === this.netz.meineNr ? this.scene.player.tot : (r && r.tot)) ? ' - down' : '';
             return `${s.name}${host}${ich}${unten}`;
         });
         this.anzeige.setText(zeilen.join('\n'));
@@ -86,22 +86,22 @@ export default class Mehrspieler {
     // Eigene Verbindung (Gast) oder die eines Mitspielers (Gastgeber) ist abgerissen.
     verloren(nr) {
         if (this.netz.rolle === 'gast') {
-            this.banner.setText('Verbindung zum Gastgeber unterbrochen.\nVersuche, sie neu aufzubauen ...').setVisible(true);
+            this.banner.setText('Connection to the host lost.\nTrying to reconnect ...').setVisible(true);
         } else {
             const r = this.fern.get(nr);
-            if (r) { r.getrennt = true; r.label.setText(`${this.netz.nameVon(nr)} (Verbindung?)`); }
-            this.scene.showMessage(`Verbindung zu ${this.netz.nameVon(nr)} unterbrochen ...`);
+            if (r) { r.getrennt = true; r.label.setText(`${this.netz.nameVon(nr)} (connection?)`); }
+            this.scene.showMessage(`Connection to ${this.netz.nameVon(nr)} lost ...`);
         }
     }
 
     wieder(nr) {
         if (this.netz.rolle === 'gast') {
             this.banner.setVisible(false);
-            this.scene.showMessage('Wieder verbunden.');
+            this.scene.showMessage('Reconnected.');
         } else {
             const r = this.fern.get(nr);
             if (r) { r.getrennt = false; r.label.setText(this.netz.nameVon(nr)); }
-            this.scene.showMessage(`${this.netz.nameVon(nr)} ist wieder da.`);
+            this.scene.showMessage(`${this.netz.nameVon(nr)} is back.`);
         }
     }
 
@@ -115,7 +115,7 @@ export default class Mehrspieler {
         }
         if (jetzt >= this.naechsteDiagnose) {
             this.naechsteDiagnose = jetzt + 1000;
-            this.diagnose.setText(`Netz: ${this.netz.zustandsText()}`);
+            this.diagnose.setText(`Net: ${this.netz.zustandsText()}`);
             this.aktualisiereAnzeige();
         }
         const zeit = performance.now();
@@ -299,7 +299,7 @@ export default class Mehrspieler {
     // Enter auf dem Endbildschirm: Nur der Gastgeber startet das Spiel für alle neu.
     neustartWunsch() {
         if (!this.istHost) {
-            this.scene.showMessage('Nur der Gastgeber kann neu starten.');
+            this.scene.showMessage('Only the host can restart.');
             return;
         }
         this.netz.sende({ t: 'neustart' });
@@ -366,14 +366,14 @@ export default class Mehrspieler {
 
     getrennt(nr) {
         const r = this.fern.get(nr);
-        const name = r ? r.name : `Spieler ${nr}`;                 // der Name steht nach dem Abgang nicht mehr in der Liste
+        const name = r ? r.name : `Player ${nr}`;                 // der Name steht nach dem Abgang nicht mehr in der Liste
         if (r) { r.label.destroy(); this.fern.delete(nr); }
         this.aktualisiereAnzeige();
         if (nr === 1 && this.netz.rolle === 'gast') {
-            this.scene.showMessage('Der Gastgeber hat das Spiel verlassen.');
+            this.scene.showMessage('The host has left the game.');
             this.scene.time.delayedCall(2200, () => this.beende());
         } else {
-            this.scene.showMessage(`${name} hat das Spiel verlassen.`);
+            this.scene.showMessage(`${name} has left the game.`);
         }
     }
 
@@ -391,7 +391,7 @@ export default class Mehrspieler {
         const jetzt = this.scene.time.now;
         if (jetzt < this.escBis) { this.beende(); return; }
         this.escBis = jetzt + 2000;
-        this.scene.showMessage('Nochmal drücken (Esc oder Pause-Knopf),\num das Spiel zu verlassen.');
+        this.scene.showMessage('Press again (Esc or pause button)\nto leave the game.');
     }
 
     beende() {

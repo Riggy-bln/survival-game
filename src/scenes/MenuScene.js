@@ -16,14 +16,14 @@ export default class MenuScene extends Phaser.Scene {
         // Das Menü ist für 960 x 540 gebaut; die Kamera zoomt nach der Höhe und bleibt auch nach Größenänderungen (Vollbild) mittig.
         zentriere(this);
         this.hintergrund = baueHintergrund(this);
-        this.titel = baueTitel(this, 'SURVIVAL GAME', 96, 8);
+        this.titel = baueTitel(this, 'BROKRUN', 96, 7);
 
         // Band mit dem Levelnamen unter dem Titel
         const band = this.add.graphics().setDepth(9);
         band.fillStyle(0x000000, 0.45).fillRect(MITTE_X - 215, 139, 430, 30);
         band.fillStyle(0xd9501c).fillRect(MITTE_X - 215, 136, 430, 28).fillStyle(0xff9a3c).fillRect(MITTE_X - 215, 136, 430, 5);
         band.fillStyle(0xd9501c).fillTriangle(MITTE_X - 215, 136, MITTE_X - 235, 150, MITTE_X - 215, 164).fillTriangle(MITTE_X + 215, 136, MITTE_X + 235, 150, MITTE_X + 215, 164);
-        pixelText(this, 'LEVEL 01 - VERLASSENE MILITÄRZONE', 2, 0xfff3d0, 0x5a1e08).setPosition(MITTE_X, 150).setDepth(10);
+        pixelText(this, 'LEVEL 01 - ABANDONED MILITARY ZONE', 2, 0xfff3d0, 0x5a1e08).setPosition(MITTE_X, 150).setDepth(10);
 
         this.untertitel = pixelLabel(this, MITTE_X, 196, 3, 0xffdd55);
         this.beschreibung = pixelLabel(this, MITTE_X, 428, 2, 0xe8dcc8);
@@ -39,8 +39,8 @@ export default class MenuScene extends Phaser.Scene {
             }
         });
         // Oben links und rechts, gleich weit vom Rand: Ton und Vollbild
-        this.tonKnopf = oberKnopf(this, 24, 26, sfx.muted ? 'TON: AUS  [N]' : 'TON: AN  [N]', () => this.tonUmschalten(), true, 'TON: AUS  [N]');
-        this.vollbildKnopf = oberKnopf(this, 936, 26, 'VOLLBILD', () => this.vollbildUmschalten(), false, 'TON: AUS  [N]');
+        this.tonKnopf = oberKnopf(this, 24, 26, sfx.muted ? 'SOUND: OFF  [N]' : 'SOUND: ON  [N]', () => this.tonUmschalten(), true, 'SOUND: OFF  [N]');
+        this.vollbildKnopf = oberKnopf(this, 936, 26, 'FULLSCREEN', () => this.vollbildUmschalten(), false, 'SOUND: OFF  [N]');
 
         this.knoepfe = [];
         this.eintraege = [];
@@ -53,13 +53,13 @@ export default class MenuScene extends Phaser.Scene {
 
     tonUmschalten() {
         const aus = sfx.toggle();
-        this.tonKnopf.setText(aus ? 'TON: AUS  [N]' : 'TON: AN  [N]');
+        this.tonKnopf.setText(aus ? 'SOUND: OFF  [N]' : 'SOUND: ON  [N]');
         if (!aus) sfx.play('pickup');
     }
 
     vollbildUmschalten() {
         if (!this.scale.fullscreen.available) {
-            this.beschreibung.setText('Vollbild geht in diesem Browser nicht.\niPhone: Teilen-Symbol, dann "Zum Home-Bildschirm"\nund von dort öffnen.', 0xffdd55);
+            this.beschreibung.setText('Fullscreen is not available in this browser.\niPhone: tap the Share icon, then "Add to Home Screen"\nand open the game from there.', 0xffdd55);
             return;
         }
         try {
@@ -80,28 +80,28 @@ export default class MenuScene extends Phaser.Scene {
         let eintraege;
         if (name === 'haupt') {
             eintraege = [
-                { text: 'EIN SPIELER', info: 'Allein durch die Militärzone.', farbe: GRUEN, aktion: () => this.starte('einzel') },
-                { text: 'MEHRSPIELER', info: 'Gemeinsam mit anderen spielen.', farbe: BLAU, aktion: () => this.zeigeMenue('mehrspieler') },
+                { text: 'SINGLE PLAYER', info: 'Alone through the military zone.', farbe: GRUEN, aktion: () => this.starte('einzel') },
+                { text: 'MULTIPLAYER', info: 'Play together with others.', farbe: BLAU, aktion: () => this.zeigeMenue('mehrspieler') },
             ];
         } else if (name === 'mehrspieler') {
             eintraege = [
-                { text: 'ONLINE SPIELEN', info: 'Über das Internet mit Freunden: Raum erstellen, Code weitergeben.', farbe: ORANGE, aktion: () => this.zeigeMenue('online') },
-                { text: 'LOKAL (2 SPIELER)', info: 'Zu zweit an einer Tastatur.', farbe: BLAU, demnaechst: true, aktion: meldung('Lokaler Mehrspieler ist noch in Planung.') },
-                { text: 'ZURÜCK', info: '', farbe: GRAU, aktion: () => this.zeigeMenue('haupt') },
+                { text: 'PLAY ONLINE', info: 'Over the internet with friends: create a room and share the code.', farbe: ORANGE, aktion: () => this.zeigeMenue('online') },
+                { text: 'LOCAL (2 PLAYERS)', info: 'Two players on one keyboard.', farbe: BLAU, demnaechst: true, aktion: meldung('Local multiplayer is still planned.') },
+                { text: 'BACK', info: '', farbe: GRAU, aktion: () => this.zeigeMenue('haupt') },
             ];
         } else {
             eintraege = [
-                { text: 'RAUM ERSTELLEN', info: 'Du bist der Gastgeber und bekommst einen Code für deine Freunde.', farbe: GRUEN, aktion: () => this.scene.start('LobbyScene', { rolle: 'host' }) },
-                { text: 'RAUM BEITRETEN', info: 'Gib den Code deines Freundes ein.', farbe: BLAU, aktion: () => this.scene.start('LobbyScene', { rolle: 'gast' }) },
-                { text: 'ZURÜCK', info: '', farbe: GRAU, aktion: () => this.zeigeMenue('mehrspieler') },
+                { text: 'CREATE ROOM', info: 'You are the host and get a code for your friends.', farbe: GRUEN, aktion: () => this.scene.start('LobbyScene', { rolle: 'host' }) },
+                { text: 'JOIN ROOM', info: "Enter your friend's code.", farbe: BLAU, aktion: () => this.scene.start('LobbyScene', { rolle: 'gast' }) },
+                { text: 'BACK', info: '', farbe: GRAU, aktion: () => this.zeigeMenue('mehrspieler') },
             ];
         }
         this.eintraege = eintraege;
-        this.untertitel.setText(name === 'haupt' ? '' : (name === 'online' ? '- ONLINE -' : '- MEHRSPIELER -'));
+        this.untertitel.setText(name === 'haupt' ? '' : (name === 'online' ? '- ONLINE -' : '- MULTIPLAYER -'));
 
         const abstand = 64, y0 = name === 'haupt' ? 268 : 262 - (eintraege.length - 2) * 12;
         eintraege.forEach((e, i) => {
-            const k = pixelKnopf(this, MITTE_X, y0 + i * abstand, 440, 50, e.text + (e.demnaechst ? '  (bald)' : ''), e.farbe, () => { this.waehle(i); this.bestaetige(); },
+            const k = pixelKnopf(this, MITTE_X, y0 + i * abstand, 440, 50, e.text + (e.demnaechst ? '  (soon)' : ''), e.farbe, () => { this.waehle(i); this.bestaetige(); },
                 { px: 3, deaktiviert: !!e.demnaechst });
             k.beiHover = () => this.waehle(i);
             this.knoepfe.push(k);

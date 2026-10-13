@@ -3,12 +3,12 @@ import { sfx } from '../Sound.js';
 // 'health' (Heilung), 'ammo' (Munition) oder 'rifle' (die Waffe Sturmgewehr).
 // Er braucht keine Physik: Er liegt nur da, und die Szene prüft, ob der Spieler ihn berührt.
 const TYPES = {
-    health: { color: 0x44ff88, amount: 0, label: '+1 Verbandskasten' },                // grün: Verbandskasten (wird mit H benutzt)
-    ammo:   { color: 0xddaa33, amount: 15, label: '+15 Munition' },               // gelb: gibt 15 Schuss
-    rifle:  { color: 0xff7a3d, amount: 0, w: 38, h: 14, weapon: 'rifle', label: 'Sturmgewehr!', msg: 'Sturmgewehr gefunden!\nSchneller feuern, 30 Schuss pro Magazin' },  // orange und länglich wie eine Waffe
-    shotgun:{ color: 0xb5452a, amount: 0, w: 42, h: 14, weapon: 'shotgun', label: 'Schrotflinte!', msg: 'Schrotflinte gefunden!\nSechs Kugeln pro Schuss: stark auf kurze Distanz\n(ersetzt deine bisherige Waffe)' },
-    sword:  { color: 0xcfd8e0, amount: 0, w: 36, h: 36, label: 'Schwert!' },        // silbern: Nahkampfwaffe, versteckt in den Höhlen
-    grenade:{ color: 0x556b2f, amount: 2, w: 16, h: 16, label: '+2 Granaten' },  // olivgrün: 2 Granaten
+    health: { color: 0x44ff88, amount: 0, label: '+1 Medkit' },                // grün: Verbandskasten (wird mit H benutzt)
+    ammo:   { color: 0xddaa33, amount: 15, label: '+15 Ammo' },               // gelb: gibt 15 Schuss
+    rifle:  { color: 0xff7a3d, amount: 0, w: 38, h: 14, weapon: 'rifle', label: 'Assault rifle!', msg: 'Assault rifle found!\nFaster fire, 30 rounds per magazine' },  // orange und länglich wie eine Waffe
+    shotgun:{ color: 0xb5452a, amount: 0, w: 42, h: 14, weapon: 'shotgun', label: 'Shotgun!', msg: 'Shotgun found!\nSix pellets per shot: strong at close range\n(replaces your current weapon)' },
+    sword:  { color: 0xcfd8e0, amount: 0, w: 36, h: 36, label: 'Sword!' },        // silbern: Nahkampfwaffe, versteckt in den Höhlen
+    grenade:{ color: 0x556b2f, amount: 2, w: 16, h: 16, label: '+2 Grenades' },  // olivgrün: 2 Granaten
 };
 
 export default class Pickup extends Phaser.GameObjects.Rectangle {
@@ -51,19 +51,19 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
     applyTo(player) {
         if (this.type === 'health') {
             // Der Verbandskasten kommt ins Inventar. Ist der Rucksack voll, bleibt er liegen.
-            if (player.medkits >= player.maxMedkits) return this.meldeVoll('Verbandskasten-Rucksack voll (H zum Benutzen)');
+            if (player.medkits >= player.maxMedkits) return this.meldeVoll('Medkit pouch full (H to use)');
             player.medkits += 1;
         } else if (this.type === 'ammo') {
-            if (player.ammo >= player.maxAmmo) return this.meldeVoll('Munition voll');
+            if (player.ammo >= player.maxAmmo) return this.meldeVoll('Ammo full');
             player.ammo = Math.min(player.maxAmmo, player.ammo + this.amount);
         } else if (this.type === 'grenade') {
-            if (player.grenades >= player.maxGrenades) return this.meldeVoll('Granaten voll');
+            if (player.grenades >= player.maxGrenades) return this.meldeVoll('Grenades full');
             player.grenades = Math.min(player.maxGrenades, player.grenades + this.amount);
         } else if (this.type === 'sword') {
             if (player.hatSchwert) return false;
             player.hatSchwert = true;
             player.waehle(2);
-            this.scene.showMessage('Schwert gefunden!\nTaste 2 oder Mausrad: auswählen, Linksklick: zuschlagen\nKeine Munition nötig, wehrt Kugeln ab');
+            this.scene.showMessage('Sword found!\nKey 2 or mouse wheel: select, left click: strike\nNo ammo needed, deflects bullets');
         } else if (TYPES[this.type].weapon) {
             const waffe = TYPES[this.type].weapon;
             if (player.weapon === waffe) return false;  // schon ausgerüstet

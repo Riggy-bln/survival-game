@@ -32,8 +32,8 @@ export default class PauseScene extends Phaser.Scene {
         this.input.keyboard.once('keydown-M', menue);
         // Knöpfe zum Antippen (Handy) oder Anklicken
         this.knoepfe = [
-            pixelKnopf(this, MITTE_X, 290, 320, 46, 'WEITER (ESC)', 0x58c06a, weiter, { px: 3 }),
-            pixelKnopf(this, MITTE_X, 350, 320, 46, 'HAUPTMENÜ (M)', 0x8a96a0, menue, { px: 3 }),
+            pixelKnopf(this, MITTE_X, 290, 320, 46, 'RESUME (ESC)', 0x58c06a, weiter, { px: 3 }),
+            pixelKnopf(this, MITTE_X, 350, 320, 46, 'MAIN MENU (M)', 0x8a96a0, menue, { px: 3 }),
         ];
     }
 

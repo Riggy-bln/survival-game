@@ -19,7 +19,7 @@ export default class LobbyScene extends Phaser.Scene {
         zentriere(this);                                  // Kamera nach der Höhe, auch nach Vollbild mittig
         this.hintergrund = baueHintergrund(this);
         const host = this.rolle === 'host';
-        this.titelAnim = baueTitel(this, host ? 'RAUM ERSTELLEN' : 'RAUM BEITRETEN', 50, 5);
+        this.titelAnim = baueTitel(this, host ? 'CREATE ROOM' : 'JOIN ROOM', 50, 5);
         this.knoepfe = [];
         const schrift = (groesse, farbe, extra = {}) => ({ fontSize: `${groesse}px`, fontFamily: 'monospace', color: farbe, stroke: '#14101f', strokeThickness: 3, ...extra });
         // Tafeln hinter den Texten (dunkel, mit farbigem Rand)
@@ -34,15 +34,15 @@ export default class LobbyScene extends Phaser.Scene {
         tafel(MITTE_X, 376, 470, 142, 0x4aa3ff);
 
         this.hinweis = this.add.text(MITTE_X, 108, host
-            ? 'Gib diesen Code deinen Freunden. Sie wählen "Raum beitreten".'
-            : 'Tippe den Raumcode ein und drücke Enter.',
+            ? 'Give this code to your friends. They choose "Join room".'
+            : 'Type the room code and press Enter.',
             schrift(15, '#e8dcc8', { align: 'center' })).setOrigin(0.5).setDepth(10);
         this.codeText = this.add.text(MITTE_X, 202, host ? '...' : '', schrift(76, '#ffdd55', { fontStyle: 'bold', stroke: '#7a2a0a', strokeThickness: 5 })).setOrigin(0.5).setDepth(10);
         this.status = this.add.text(MITTE_X, 283, '', schrift(16, '#cfd8dc', { align: 'center' })).setOrigin(0.5).setDepth(10);
         this.listeText = this.add.text(MITTE_X, 376, '', schrift(19, '#e6edf2', { align: 'center', lineSpacing: 8 })).setOrigin(0.5).setDepth(10);
         this.unten = this.add.text(MITTE_X, 484, host
-            ? 'Enter: Spiel starten      C: Code kopieren      Tab: Name      Esc: Zurück'
-            : 'Tab: Name      Esc: Zurück', schrift(12, '#b8a898')).setOrigin(0.5).setDepth(10);
+            ? 'Enter: start game      C: copy code      Tab: name      Esc: back'
+            : 'Tab: name      Esc: back', schrift(12, '#b8a898')).setOrigin(0.5).setDepth(10);
 
         // Dein Name: Tab zum Ändern. Er wird im Browser gemerkt.
         let gemerkt = '';
@@ -54,14 +54,14 @@ export default class LobbyScene extends Phaser.Scene {
 
         // Knöpfe (für Handy und Maus)
         if (host) {
-            this.knopf(MITTE_X - 250, 516, 'SPIEL STARTEN', () => this.hostStart(), 200, 0x58c06a);
-            this.knopf(MITTE_X, 516, 'NAME ÄNDERN', () => this.nameAbfragen(), 200, 0x4aa3ff);
-            this.knopf(MITTE_X + 250, 516, 'ZURÜCK', () => this.zurueck(), 200, 0x8a96a0);
+            this.knopf(MITTE_X - 250, 516, 'START GAME', () => this.hostStart(), 200, 0x58c06a);
+            this.knopf(MITTE_X, 516, 'CHANGE NAME', () => this.nameAbfragen(), 200, 0x4aa3ff);
+            this.knopf(MITTE_X + 250, 516, 'BACK', () => this.zurueck(), 200, 0x8a96a0);
         } else {
-            this.knopf(MITTE_X - 285, 516, 'CODE EINGEBEN', () => this.codeAbfragen(), 180, 0xffc933);
-            this.knopf(MITTE_X - 95, 516, 'BEITRETEN', () => this.verbinde(), 180, 0x58c06a);
-            this.knopf(MITTE_X + 95, 516, 'NAME ÄNDERN', () => this.nameAbfragen(), 180, 0x4aa3ff);
-            this.knopf(MITTE_X + 285, 516, 'ZURÜCK', () => this.zurueck(), 180, 0x8a96a0);
+            this.knopf(MITTE_X - 285, 516, 'ENTER CODE', () => this.codeAbfragen(), 180, 0xffc933);
+            this.knopf(MITTE_X - 95, 516, 'JOIN', () => this.verbinde(), 180, 0x58c06a);
+            this.knopf(MITTE_X + 95, 516, 'CHANGE NAME', () => this.nameAbfragen(), 180, 0x4aa3ff);
+            this.knopf(MITTE_X + 285, 516, 'BACK', () => this.zurueck(), 180, 0x8a96a0);
         }
 
         this.pingZumHost = null;
@@ -84,11 +84,11 @@ export default class LobbyScene extends Phaser.Scene {
         this.netz
             .on('bereit', (code) => {
                 this.codeText.setText(code.split('').join(' '));
-                this.setzeStatus('Raum offen. Warte auf Mitspieler ...', '#9fd89f');
+                this.setzeStatus('Room open. Waiting for players ...', '#9fd89f');
                 this.zeigeListe();
             })
             .on('willkommen', (nr) => {
-                this.setzeStatus(`Verbunden! Du bist Spieler ${nr}. Warte, bis der Gastgeber startet.`, '#9fd89f');
+                this.setzeStatus(`Connected! You are Player ${nr}. Waiting for the host to start.`, '#9fd89f');
                 sfx.play('pickup');
                 this.zeigeListe();
             })
@@ -96,7 +96,7 @@ export default class LobbyScene extends Phaser.Scene {
             .on('spielerGeaendert', () => { this.zeigeListe(); })
             .on('ping', (vonNr, ms) => { if (this.rolle === 'gast') this.pingZumHost = ms; this.zeigeListe(); })
             .on('getrennt', (nr) => {
-                if (this.rolle === 'gast') this.setzeStatus('Der Gastgeber hat den Raum verlassen.', '#ff9966');
+                if (this.rolle === 'gast') this.setzeStatus('The host has left the room.', '#ff9966');
                 this.zeigeListe();
             })
             .on('fehler', (text) => {
@@ -107,7 +107,7 @@ export default class LobbyScene extends Phaser.Scene {
 
     starteHost() {
         this.neuesNetz();
-        this.setzeStatus('Erstelle Raum ...', '#cfd8dc');
+        this.setzeStatus('Creating room ...', '#cfd8dc');
         this.netz.erstelleRaum();
     }
 
@@ -116,15 +116,15 @@ export default class LobbyScene extends Phaser.Scene {
         if (this.versucht || this.eingabe.length < CODE_LAENGE) return;
         this.versucht = true;
         this.neuesNetz();
-        this.setzeStatus('Verbinde ...', '#cfd8dc');
+        this.setzeStatus('Connecting ...', '#cfd8dc');
         this.netz.tritBei(this.eingabe);
     }
 
     zeigeName() {
         const blink = this.nameEdit && Math.floor(this.time.now / 400) % 2 === 0 ? '|' : '';
         this.nameText.setText(this.nameEdit
-            ? `Dein Name: ${this.name}${blink}   (Enter: fertig)`
-            : `Dein Name: ${this.name || '(Standard)'}   (Tab: ändern)`).setColor(this.nameEdit ? '#ffdd55' : '#cfd8dc');
+            ? `Your name: ${this.name}${blink}   (Enter: done)`
+            : `Your name: ${this.name || '(default)'}   (Tab: change)`).setColor(this.nameEdit ? '#ffdd55' : '#cfd8dc');
     }
 
     update(zeit) {
@@ -138,7 +138,7 @@ export default class LobbyScene extends Phaser.Scene {
     nameTaste(e) {
         if (e.key === 'Tab') {
             e.preventDefault();
-            if (this.rolle === 'gast' && this.netz && this.netz.verbunden) { this.setzeStatus('Den Namen kannst du nur vor dem Beitritt ändern.', '#ff9966'); return true; }
+            if (this.rolle === 'gast' && this.netz && this.netz.verbunden) { this.setzeStatus('You can only change your name before joining.', '#ff9966'); return true; }
             this.nameEdit = !this.nameEdit;
             if (!this.nameEdit) this.nameFertig();
             this.zeigeName();
@@ -170,17 +170,17 @@ export default class LobbyScene extends Phaser.Scene {
     zeigeListe() {
         if (!this.netz) return;
         const zeilen = this.netz.liste().map((s) => {
-            const ich = s.nr === this.netz.meineNr ? '  <- du' : '';
+            const ich = s.nr === this.netz.meineNr ? '  <- you' : '';
             // Anzeige der Laufzeit: Der Gastgeber sieht den Ping jedes Gastes, ein Gast sieht den Ping zum Gastgeber
             let ping = '';
             if (this.rolle === 'host' && s.nr !== 1) ping = `   ${s.ping || '-'} ms`;
             if (this.rolle === 'gast' && s.nr === 1) ping = `   ${this.pingZumHost ?? '-'} ms`;
-            const rolle = s.nr === 1 ? ' (Gastgeber)' : '';
+            const rolle = s.nr === 1 ? ' (Host)' : '';
             return `${s.nr}. ${s.name}${rolle}${ping}${ich}`;
         });
-        for (let i = zeilen.length; i < MAX_SPIELER; i++) zeilen.push(`${i + 1}. - frei -`);
+        for (let i = zeilen.length; i < MAX_SPIELER; i++) zeilen.push(`${i + 1}. - free -`);
         this.listeText.setText(zeilen.join('\n'));
-        if (this.rolle === 'gast' && this.netz.verbunden) this.hinweis.setText('Verbunden. Esc beendet die Verbindung.');
+        if (this.rolle === 'gast' && this.netz.verbunden) this.hinweis.setText('Connected. Esc ends the connection.');
     }
 
     // Knopf zum Antippen (Handy und Maus). Die Tastatur-Kürzel funktionieren weiter.
@@ -192,8 +192,8 @@ export default class LobbyScene extends Phaser.Scene {
 
     // Name per Eingabefenster ändern (am Handy gibt es keine Tastatur-Eingabe im Spiel)
     nameAbfragen() {
-        if (this.rolle === 'gast' && this.netz && this.netz.verbunden) { this.setzeStatus('Den Namen kannst du nur vor dem Beitritt ändern.', '#ff9966'); return; }
-        const n = window.prompt('Dein Name (höchstens 12 Zeichen):', this.name);
+        if (this.rolle === 'gast' && this.netz && this.netz.verbunden) { this.setzeStatus('You can only change your name before joining.', '#ff9966'); return; }
+        const n = window.prompt('Your name (max. 12 characters):', this.name);
         if (n === null) return;
         this.name = saubererName(n);
         this.nameFertig();
@@ -202,7 +202,7 @@ export default class LobbyScene extends Phaser.Scene {
 
     codeAbfragen() {
         if (this.versucht) return;
-        const c = window.prompt(`Raumcode (${CODE_LAENGE} Zeichen):`, this.eingabe);
+        const c = window.prompt(`Room code (${CODE_LAENGE} characters):`, this.eingabe);
         if (c === null) return;
         this.eingabe = c.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LAENGE);
         this.zeigeEingabe();
@@ -216,7 +216,7 @@ export default class LobbyScene extends Phaser.Scene {
             this.netz.gesperrt = true;                              // ab jetzt kommen keine neuen Spieler mehr hinein
             this.starteSpiel();
         } else {
-            this.setzeStatus('Warte auf mindestens einen Mitspieler.', '#ff9966');
+            this.setzeStatus('Waiting for at least one other player.', '#ff9966');
         }
     }
 
@@ -230,9 +230,9 @@ export default class LobbyScene extends Phaser.Scene {
                 this.starteSpiel();
                 return;
             }
-            if (e.key === 'Enter') this.setzeStatus('Warte auf mindestens einen Mitspieler.', '#ff9966');
+            if (e.key === 'Enter') this.setzeStatus('Waiting for at least one other player.', '#ff9966');
             if (e.key.toLowerCase() === 'c' && this.netz && this.netz.code) {
-                try { navigator.clipboard.writeText(this.netz.code); this.setzeStatus('Code kopiert.', '#9fd89f'); } catch (err) { /* egal */ }
+                try { navigator.clipboard.writeText(this.netz.code); this.setzeStatus('Code copied.', '#9fd89f'); } catch (err) { /* egal */ }
             }
             return;
         }

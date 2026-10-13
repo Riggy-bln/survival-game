@@ -77,6 +77,9 @@ const G = {
     '>': ['#....', '.#...', '..#..', '...#.', '..#..', '.#...', '#....'],
     '[': ['.###.', '.#...', '.#...', '.#...', '.#...', '.#...', '.###.'],
     ']': ['.###.', '...#.', '...#.', '...#.', '...#.', '...#.', '.###.'],
+    "'": ['..#..', '..#..', '.#...', '.....', '.....', '.....', '.....'],
+    '"': ['.#.#.', '.#.#.', '.....', '.....', '.....', '.....', '.....'],
+    '=': ['.....', '.....', '#####', '.....', '#####', '.....', '.....'],
     ' ': ['.....', '.....', '.....', '.....', '.....', '.....', '.....'],
 };
 const UMLAUT = { 'Ä': 'A', 'Ö': 'O', 'Ü': 'U' };
@@ -262,7 +265,7 @@ export function baueHintergrund(scene) {
             z.x += richtung * tempo * dt;
             const y = hoehe + Math.sin(z.x * 0.01) * 8;
             g.clear();
-            const c = 0x07130d, f = richtung;                     // f = Flugrichtung (1 = nach rechts)
+            const c = 0x07130d, f = -richtung;                    // f = Richtung zum Heck: Der Hubschrauber fliegt mit der Nase voran
             const X = (dx) => z.x + dx * f;
             const box = (dx, dy, w, h) => g.fillRect(f > 0 ? z.x + dx : z.x - dx - w, y + dy, w, h);
             g.fillStyle(c);
@@ -318,19 +321,9 @@ export function baueHintergrund(scene) {
         }
     });
 
-    // --- Sandsäcke und Stacheldraht unten ---
-    const unten = scene.add.graphics().setDepth(-66);
-    for (let x = X0; x < X1; x += 38) {
-        const y = 514 + ((x / 38) % 2 === 0 ? 0 : 12);
-        unten.fillStyle(0x3a3220).fillRect(x, y, 40, 22);
-        unten.fillStyle(0x8a7a50).fillRect(x + 1, y + 1, 38, 18).fillStyle(0xa89868).fillRect(x + 3, y + 3, 30, 4).fillStyle(0x6a5c3a).fillRect(x + 3, y + 14, 34, 3);
-    }
-    for (let x = X0; x < X1; x += 18) {                            // Stacheldraht: Zickzack mit Stacheln
-        const y = 506 + ((x / 18) % 2 === 0 ? 0 : 6);
-        unten.fillStyle(0x15160f).fillRect(x, y, 20, 2);
-        if ((x / 18) % 3 === 0) unten.fillRect(x + 8, y - 5, 2, 12).fillRect(x + 4, y - 1, 10, 2);
-    }
-    for (let x = X0 + 10; x < X1; x += 220) unten.fillStyle(0x15160f).fillRect(x, 478, 5, 40);         // Pfosten
+    // --- Kein harter Boden: Der Dschungel verschwindet unten in dunklem Dunst ---
+    const nebel = scene.add.graphics().setDepth(-66);
+    for (let i = 0; i < 28; i++) nebel.fillStyle(0x03120a, Math.min(0.92, 0.03 + i * 0.034)).fillRect(X0, 400 + i * 13, X1 - X0, 14);
 
     // Glut und Asche, die über das Bild treiben
     scene.add.particles(0, 0, 'menue_px', {

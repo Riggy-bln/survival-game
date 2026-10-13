@@ -240,7 +240,7 @@ export default class GameScene extends Phaser.Scene {
             targets: rotor, scaleX: 0.15, duration: 90, yoyo: true, repeat: -1,
         });
 
-        this.evacLabel = this.add.text(hx, BODEN - 150, 'EVAKUIERUNG', {
+        this.evacLabel = this.add.text(hx, BODEN - 150, 'EVACUATION', {
             fontSize: '28px', color: '#66ff99', fontStyle: 'bold',
         }).setOrigin(0.5);
         this.evacOpen = undefined;  // wird in update() gesetzt: offen (grün) oder gesperrt (rot)
@@ -290,7 +290,7 @@ export default class GameScene extends Phaser.Scene {
         const mitteX = this.scale.width / 2;   // Fenstermitte (das Fenster ist jetzt 1280 breit)
         this.bossBack = this.add.rectangle(mitteX, 28, 304, 18, 0x000000);
         this.bossBar = this.add.rectangle(mitteX - 150, 28, 300, 14, 0xcc3333).setOrigin(0, 0.5);
-        this.bossLabel = this.add.text(mitteX, 50, 'MUTIERTE KREATUR', {
+        this.bossLabel = this.add.text(mitteX, 50, 'MUTATED CREATURE', {
             fontSize: '14px', color: '#ffffff',
         }).setOrigin(0.5);
         // Kerben bei 1/3 und 2/3: Dort wechselt die Kreatur die Phase
@@ -719,7 +719,7 @@ export default class GameScene extends Phaser.Scene {
         if (sichtbar) {
             this.bossBar.width = 300 * boss.health / boss.maxHealth;
             this.bossBar.setFillStyle(boss.schild ? 0x66bbff : 0xcc3333);
-            this.bossLabel.setText(boss.schild ? 'SCHILD AKTIV: besiege die Brut!' : 'MUTIERTE KREATUR').setColor(boss.schild ? '#88ddff' : '#ffffff');
+            this.bossLabel.setText(boss.schild ? 'SHIELD ACTIVE: defeat the brood!' : 'MUTATED CREATURE').setColor(boss.schild ? '#88ddff' : '#ffffff');
         }
     }
 
@@ -731,15 +731,15 @@ export default class GameScene extends Phaser.Scene {
         const farbe = offen ? 0x66ff99 : 0xff5555;
         this.helicopter.setFillStyle(farbe, 0.18).setStrokeStyle(2, farbe);
         this.evacLabel.setColor(offen ? '#66ff99' : '#ff5555');
-        this.evacLabel.setText(offen ? 'EVAKUIERUNG' : 'Erst die Kreatur besiegen!');
+        this.evacLabel.setText(offen ? 'EVACUATION' : 'Defeat the creature first!');
     }
 
     // Zeigt den Endbildschirm (Sieg oder Niederlage) und hält das Spiel an.
     // Titel und Farbe werden übergeben, damit eine Funktion für beide Fälle reicht.
     // untertitel ist optional (Standard: leer), zum Beispiel "Level 01 abgeschlossen".
-    showEndScreen(titel, farbe, untertitel = '', statistikText = null, fussText = 'Drücke Enter für einen Neustart') {
+    showEndScreen(titel, farbe, untertitel = '', statistikText = null, fussText = 'Press Enter to restart') {
         this.gameOver = true;
-        sfx.play(titel === 'BESIEGT' ? 'lose' : 'win');
+        sfx.play(titel === 'DEFEATED' ? 'lose' : 'win');
         this.physics.pause();                 // Physik anhalten: alles friert ein
         this.input.setDefaultCursor('default');  // normalen Mauszeiger zurückholen
         this.crosshair.setVisible(false);
@@ -753,8 +753,8 @@ export default class GameScene extends Phaser.Scene {
         // damit 5 Sekunden als "05" erscheinen und nicht als "5".
         const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
         const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
-        const statistik = statistikText ?? (`Zeit: ${zeit}     Gegner besiegt: ${this.kills} / ${this.totalEnemies}     ` +
-                          `Leben: ${this.player.health} / ${this.player.maxHealth}`);
+        const statistik = statistikText ?? (`Time: ${zeit}     Enemies defeated: ${this.kills} / ${this.totalEnemies}     ` +
+                          `Health: ${this.player.health} / ${this.player.maxHealth}`);
         this.endeZeit = zeit;
 
         // Alle Texte: am Bildschirm festgehalten (ScrollFactor 0) und über dem Schleier (Depth 31).
@@ -775,9 +775,9 @@ export default class GameScene extends Phaser.Scene {
         const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
         const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
         const anzahl = this.mp ? this.mp.netz.liste().length : 1;
-        this.showEndScreen('EVAKUIERT!', '#66ff99', `Level 01 abgeschlossen: ${this.mp ? this.mp.netz.nameVon(nr) : 'Spieler ' + nr} hat den Hubschrauber erreicht`,
-            `Zeit: ${zeit}     Team: ${anzahl} Spieler`,
-            this.mp && this.mp.netz.rolle === 'host' ? 'Enter: neues Spiel für alle      Esc zweimal: Menü' : 'Der Gastgeber startet das nächste Spiel      Esc zweimal: Menü');
+        this.showEndScreen('EVACUATED!', '#66ff99', `Level 01 complete: ${this.mp ? this.mp.netz.nameVon(nr) : 'Player ' + nr} reached the helicopter`,
+            `Time: ${zeit}     Team: ${anzahl} players`,
+            this.mp && this.mp.netz.rolle === 'host' ? 'Enter: new game for everyone      Esc twice: menu' : 'The host starts the next game      Esc twice: menu');
     }
 
     // Erzeugt eine feste Fläche und merkt sie sich in der Liste.
@@ -931,8 +931,8 @@ export default class GameScene extends Phaser.Scene {
     zeichneHotbar() {
         const p = this.player, g = this.hotbar;
         g.clear();
-        const namen = ['', p.weaponName, p.hatSchwert ? 'Schwert  (Klick: zuschlagen)' : 'Faust  (ein Schwert liegt irgendwo in den Höhlen)',
-            'Granate  (Klick: werfen, G)', 'Verbandskasten  (Klick: heilen, H)'];
+        const namen = ['', p.weaponName, p.hatSchwert ? 'Sword  (click: strike)' : 'Fist  (a sword lies somewhere in the caves)',
+            'Grenade  (click: throw, G)', 'Medkit  (click: heal, H)'];
         const arten = ['', p.weapon, p.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'];
         const leer = p.magAmmo === 0 && p.ammo === 0;
         for (let i = 1; i <= 4; i++) {
@@ -1103,7 +1103,7 @@ export default class GameScene extends Phaser.Scene {
         p.invulnerableUntil = jetzt + 1500;
         sfx.play('hurt');
         this.cameras.main.flash(300, 0, 0, 0);
-        this.showMessage('In den Abgrund gestürzt!\nZurück auf sicherem Boden.');
+        this.showMessage('You fell into the abyss!\nBack on safe ground.');
         this.letzteHP = p.health;
     }
 
@@ -1119,7 +1119,7 @@ export default class GameScene extends Phaser.Scene {
     // Vollbild an/aus. Auf dem iPhone (Safari) gibt es das nicht: Dort hilft nur "Zum Home-Bildschirm" und das Spiel von dort öffnen.
     vollbildUmschalten() {
         if (!this.scale.fullscreen.available) {
-            this.showMessage('Vollbild geht in diesem Browser nicht.\niPhone: Teilen-Symbol, dann "Zum Home-Bildschirm"\nund das Spiel von dort öffnen.');
+            this.showMessage('Fullscreen is not available in this browser.\niPhone: tap the Share icon, then "Add to Home Screen"\nand open the game from there.');
             return;
         }
         try {
@@ -1197,7 +1197,7 @@ export default class GameScene extends Phaser.Scene {
         this.checkpoint = { x: f.x + 50, y: f.y - 40 };
         sfx.play('win');
         this.fx.pickup(f.x, f.y - 60, 0x66ee88, 'CHECKPOINT');
-        this.showMessage(vomNetz ? 'Das Team hat den Checkpoint erreicht!\nHier startet ihr nach dem Tod neu.' : 'Checkpoint erreicht!\nHier startest du nach dem Tod neu.');
+        this.showMessage(vomNetz ? 'The team reached the checkpoint!\nYou restart here after dying.' : 'Checkpoint reached!\nYou restart here after dying.');
     }
 
     // Einzelspieler: Leben auf null, aber es gibt einen Checkpoint. Man liegt kurz am Boden und steht dann an der Fahne wieder auf.
@@ -1208,7 +1208,7 @@ export default class GameScene extends Phaser.Scene {
         p.body.setVelocity(0, 0);
         sfx.play('lose');
         this.cameras.main.shake(250, 0.01);
-        this.showMessage('Du bist gefallen!\nDu startest am Checkpoint neu ...');
+        this.showMessage('You have fallen!\nRestarting at the checkpoint ...');
         this.respawnZeit = this.time.now + 2200;
     }
 
@@ -1231,7 +1231,7 @@ export default class GameScene extends Phaser.Scene {
         this.cameras.main.flash(400, 200, 255, 220);
         this.fx.pickup(p.x, p.y, 0x66ee88, '');
         sfx.play('heal');
-        this.showMessage('Zurück am Checkpoint!');
+        this.showMessage('Back at the checkpoint!');
         this.letzteHP = p.health;
         this.wipeSeit = 0;
         this.sichere = [];
@@ -1272,7 +1272,7 @@ export default class GameScene extends Phaser.Scene {
         // das Seil selbst: dunkel, mit hellem Glanz
         g.lineStyle(4, 0x1f2326).beginPath().moveTo(sb.x0, sb.y0).lineTo(sb.x1, sb.y1).strokePath();
         g.lineStyle(1, 0x9aa3ab, 0.9).beginPath().moveTo(sb.x0, sb.y0 - 2).lineTo(sb.x1, sb.y1 - 2).strokePath();
-        this.seilHinweis = this.add.text(this.scale.width / 2, this.scale.height - 130, 'E: an der Seilbahn einhängen', {
+        this.seilHinweis = this.add.text(this.scale.width / 2, this.scale.height - 130, 'E: hook onto the zipline', {
             fontSize: '22px', color: '#ffffff', backgroundColor: '#000000aa', padding: { x: 12, y: 6 },
         }).setOrigin(0.5).setScrollFactor(0).setDepth(25).setVisible(false);
         this.seilSteigung = steigung;
@@ -1298,7 +1298,7 @@ export default class GameScene extends Phaser.Scene {
         }
         const nah = !p.tot && Math.abs(p.x - sb.x0) < 80 && Math.abs(p.y - (sb.y0 + SEIL_HANG)) < 120;
         this.seilHinweis.setVisible(nah && !this.touch.aktiv);
-        if (nah) this.touch.interaktionText = 'Seilbahn';
+        if (nah) this.touch.interaktionText = 'Zipline';
         if (nah && this.time.now > (p.seilPause ?? 0) && (Phaser.Input.Keyboard.JustDown(p.keys.E) || this.touch.eTippAktuell)) {
             p.seil = true;
             this.seilHinweis.setVisible(false);
@@ -1306,7 +1306,7 @@ export default class GameScene extends Phaser.Scene {
             p.x = sb.x0;
             p.y = sb.y0 + SEIL_HANG;
             sfx.play('throw');
-            this.showMessage('Leertaste: loslassen');
+            this.showMessage('Space: let go');
         }
     }
 
@@ -1548,7 +1548,7 @@ export default class GameScene extends Phaser.Scene {
         this.kameraZiel.setPosition(p.x, p.y);
         this.cameras.main.startFollow(this.kameraZiel, true, 0.1, 0.1);     // Zuschauerkamera
         sfx.play('lose');
-        this.showMessage('Du bist am Boden!\nEin Mitspieler kann dich mit E wiederbeleben.');
+        this.showMessage('You are down!\nA teammate can revive you with E.');
     }
 
     wiederbelebt() {
@@ -1559,7 +1559,7 @@ export default class GameScene extends Phaser.Scene {
         p.invulnerableUntil = this.time.now + 2500;
         this.cameras.main.startFollow(p, true, 0.1, 0.1);
         this.belebtEffekt(p.x, p.y);
-        this.showMessage('Du wurdest wiederbelebt!');
+        this.showMessage('You were revived!');
     }
 
     // Animation beim Wiederbeleben: Lichtsäule, aufsteigende Ringe und grüne Funken (dauert knapp eine Sekunde).
@@ -1603,7 +1603,7 @@ export default class GameScene extends Phaser.Scene {
                 this.kameraZiel.x += (k.x - this.kameraZiel.x) * 0.1;
                 this.kameraZiel.y += (k.y - this.kameraZiel.y) * 0.1;
             }
-            this.belebenHinweis.setText('Du bist am Boden. Warte auf Hilfe.').setVisible(true);
+            this.belebenHinweis.setText('You are down. Wait for help.').setVisible(true);
         } else {
             this.pruefeBeleben(dt);
         }
@@ -1636,7 +1636,7 @@ export default class GameScene extends Phaser.Scene {
             const anteil = r.tot ? 0 : Phaser.Math.Clamp((r.h ?? 100) / 100, 0, 1);
             g.fillStyle(0x000000, 0.6).fillRect(20, y + 16, 124, 10);
             g.fillStyle(r.tot ? 0x444444 : (anteil <= 0.3 ? 0xcc3333 : farbe)).fillRect(22, y + 18, 120 * anteil, 6);
-            t.setPosition(22, y).setText(r.tot ? `${this.mp.netz.nameVon(r.nr)}  AM BODEN` : this.mp.netz.nameVon(r.nr));
+            t.setPosition(22, y).setText(r.tot ? `${this.mp.netz.nameVon(r.nr)}  DOWN` : this.mp.netz.nameVon(r.nr));
             y += 34;
         }
     }
@@ -1648,8 +1648,8 @@ export default class GameScene extends Phaser.Scene {
             if (r.tot && Math.hypot(r.x - this.player.x, r.y - this.player.y) < 90) { ziel = r; break; }
         }
         if (!ziel) { this.belebenZeit = 0; this.belebenHinweis.setVisible(false); return; }
-        this.belebenHinweis.setText(this.touch.aktiv ? `Knopf halten: ${this.mp.netz.nameVon(ziel.nr)} wiederbeleben` : `E halten: ${this.mp.netz.nameVon(ziel.nr)} wiederbeleben`).setVisible(true);
-        this.touch.interaktionText = 'Beleben';
+        this.belebenHinweis.setText(this.touch.aktiv ? `Hold the button: revive ${this.mp.netz.nameVon(ziel.nr)}` : `Hold E: revive ${this.mp.netz.nameVon(ziel.nr)}`).setVisible(true);
+        this.touch.interaktionText = 'Revive';
         if (this.player.keys.E.isDown || this.touch.gedrueckt.interaktion) {
             this.belebenZeit += dt;
             const p = Math.min(1, this.belebenZeit / BELEBEN_DAUER);
@@ -1669,9 +1669,9 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameOver) return;
         const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
         const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
-        this.showEndScreen('BESIEGT', '#ff4444', 'Alle Spieler sind gefallen',
-            `Zeit: ${zeit}     Gegner besiegt: ${this.kills} / ${this.totalEnemies}`,
-            this.mp && this.mp.istHost ? 'Enter: neues Spiel für alle      Esc zweimal: Menü' : 'Der Gastgeber startet das nächste Spiel      Esc zweimal: Menü');
+        this.showEndScreen('DEFEATED', '#ff4444', 'All players have fallen',
+            `Time: ${zeit}     Enemies defeated: ${this.kills} / ${this.totalEnemies}`,
+            this.mp && this.mp.istHost ? 'Enter: new game for everyone      Esc twice: menu' : 'The host starts the next game      Esc twice: menu');
     }
 
     // Ein Gefallener liegt flach auf dem Boden (x, y = Mitte der aufrechten Figur).
@@ -1805,7 +1805,7 @@ export default class GameScene extends Phaser.Scene {
         if (letzter) this.fx.rauchE.explode(8, x, y);
         this.cameras.main.shake(letzter ? 240 : 100, letzter ? 0.01 : 0.005);
         sfx.play(letzter ? 'explosion' : 'kill');
-        if (letzter) this.showMessage('Die Erde gibt nach!\nEin verschütteter Gang wird frei.');
+        if (letzter) this.showMessage('The earth gives way!\nA buried passage opens up.');
         this.pruefeEinsturz(wand);
     }
 
@@ -1889,7 +1889,7 @@ export default class GameScene extends Phaser.Scene {
 
         // N schaltet den Ton an/aus.
         if (Phaser.Input.Keyboard.JustDown(this.muteKey)) {
-            this.showMessage(sfx.toggle() ? 'Ton aus (N)' : 'Ton an (N)');
+            this.showMessage(sfx.toggle() ? 'Sound off (N)' : 'Sound on (N)');
         }
 
         // Landestaub: Wenn der Spieler schnell fallend aufkommt.
@@ -1943,7 +1943,7 @@ export default class GameScene extends Phaser.Scene {
         } else if (neuerKlick && wahl === 3 && this.player.grenades > 0) {
             this.throwGrenade();
         } else if (neuerKlick && wahl === 4 && !this.player.useMedkit()) {
-            this.showMessage(this.player.medkits <= 0 ? 'Kein Verbandskasten mehr!' : 'Dein Leben ist schon voll.');
+            this.showMessage(this.player.medkits <= 0 ? 'No medkits left!' : 'Your health is already full.');
         }
 
         // --- Granaten: Lunte prüfen, bei Ablauf explodieren ---
@@ -2019,7 +2019,7 @@ export default class GameScene extends Phaser.Scene {
         if (this.player.isDead()) {
             if (this.mp) { if (!this.player.tot) this.geheNieder(); }      // online: man liegt am Boden und kann wiederbelebt werden
             else if (this.checkpoint) { if (!this.player.tot) this.sterbeEinzel(); }   // Einzelspieler mit Checkpoint: Respawn
-            else { this.showEndScreen('BESIEGT', '#ff4444'); return; }
+            else { this.showEndScreen('DEFEATED', '#ff4444'); return; }
         }
 
         // --- Levelende: Hubschrauber erreicht? ---
@@ -2033,7 +2033,7 @@ export default class GameScene extends Phaser.Scene {
             if (this.mp) {
                 if (this.mp.meldeSieg()) return;              // Online: meldet den Sieg dem ganzen Team (der Gastgeber zeigt ihn sofort)
             } else {
-                this.showEndScreen('EVAKUIERT!', '#66ff99', 'Level 01 abgeschlossen: Verlassene Militärzone');
+                this.showEndScreen('EVACUATED!', '#66ff99', 'Level 01 complete: Abandoned Military Zone');
                 return;
             }
         }

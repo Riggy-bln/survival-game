@@ -7,10 +7,10 @@ const WAND_RUTSCH = 90; // so schnell rutscht man an einer Wand hinunter (Pixel 
 // Alle Waffen als Tabelle: Name, Pause zwischen Schüssen (ms), Magazingröße, Nachladezeit (ms).
 // Eine neue Waffe ist später nur ein weiterer Eintrag. Der Rest des Spiels liest diese Werte.
 const WAFFEN = {
-    pistol: { name: 'Pistole',     fireDelay: 150, magSize: 12, reloadTime: 1200 },
-    rifle:  { name: 'Sturmgewehr', fireDelay: 85,  magSize: 30, reloadTime: 1700 },
+    pistol: { name: 'Pistol',     fireDelay: 150, magSize: 12, reloadTime: 1200 },
+    rifle:  { name: 'Assault rifle', fireDelay: 85,  magSize: 30, reloadTime: 1700 },
     // Schrotflinte: pellets = Schrotkugeln pro Schuss, spread = Streuung (Bogenmaß), range = Reichweite (ms Flugzeit)
-    shotgun:{ name: 'Schrotflinte', fireDelay: 700, magSize: 6, reloadTime: 2000, pellets: 6, spread: 0.3, range: 330 },
+    shotgun:{ name: 'Shotgun', fireDelay: 700, magSize: 6, reloadTime: 2000, pellets: 6, spread: 0.3, range: 330 },
 };
 
 // Der Spieler: ein grünes Rechteck, das sich selbst steuern kann.
@@ -234,7 +234,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         this.touchEin.nachladen = false;
         // Heilen: Taste H (nur im Moment des Drückens).
         if (Phaser.Input.Keyboard.JustDown(this.keys.H) || this.touchEin.heilen) {
-            if (!this.useMedkit() && this.touchEin.heilen) this.scene.showMessage(this.medkits <= 0 ? 'Kein Verbandskasten mehr!' : 'Dein Leben ist schon voll.');
+            if (!this.useMedkit() && this.touchEin.heilen) this.scene.showMessage(this.medkits <= 0 ? 'No medkits left!' : 'Your health is already full.');
         }
         this.touchEin.heilen = false;
         // Granate werfen: Die Szene kennt Maus und Welt, deshalb ruft der Spieler sie nur an.

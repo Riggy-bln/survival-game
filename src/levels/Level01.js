@@ -571,8 +571,6 @@ for (const sx of [EINGANG + 8, 3110, 3290, 3440]) {
     decor.push({ x: sx + 4, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 3, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x4a331d });
 }
 // Felszähne an der Decke (Stufen, die nach unten schmaler werden) und hängende Ranken
-const zapfen = (x, n) => { for (let k = 0; k < n; k++) decor.push({ x: x, y: BODEN + DECKE + 3 + k * 6, w: 18 - k * 5, h: 6, color: 0x4a423a }); };
-[22, 62, 104, 146].forEach((d, i) => zapfen(EINGANG + d, 3 - (i % 2)));
 [12, 44, 84, 124].forEach((d, i) => decor.push({ x: EINGANG + d, y: BODEN + DECKE + 6 + i * 2, w: 4, h: 12 + i * 4, color: 0x3b5a22 }));
 // Lampe am Eingang mit schwachem Lichtschein
 decor.push({ x: EINGANG + 70, y: BODEN + DECKE + 52, w: 80, h: 50, color: 0x27261c });

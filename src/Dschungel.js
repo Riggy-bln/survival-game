@@ -155,7 +155,10 @@ export function buildDschungelSchicht(scene, worldWidth, boden, scrollFaktor, fa
         const dunkel = lerpFarbe(farbe, 0x000000, 0.3);
         for (let x = rnd.between(300, 700); x < reichweite; x += rnd.between(700, 1500)) {
             const hq = Math.round(hoeheBei(x) / 4) * 4;
-            lagerTeil(g, rnd.between(0, 2), x, fuss - hq + 4, dunkel);
+            let art = rnd.between(0, 2);
+            // Hinter dem Wachturm im Krater (Welt-x 3830) darf kein Wachturm im Hintergrund stehen (verwirrend): dort eine Hütte
+            if (art === 0 && Math.abs(x - (3830 * scrollFaktor + (1 - scrollFaktor) * 700)) < 650) art = 1;
+            lagerTeil(g, art, x, fuss - hq + 4, dunkel);
         }
     }
 }

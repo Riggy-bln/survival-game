@@ -100,7 +100,35 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
 }
 
 // Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief detailliert wird.
-function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
+// Schneidet aus einem Malwerkzeug Rechtecke heraus (z. B. abgerundete Ecken): alles, was in "weg" liegt, wird nicht gemalt.
+function mitAusschnitt(r, weg) {
+    const rect = (c, x, y, w, h, a = 1) => {
+        let teile = [[x, y, w, h]];
+        for (const [wx, wy, ww, wh] of weg) {
+            const neu = [];
+            for (const [px, py, pw, ph] of teile) {
+                if (px >= wx + ww || px + pw <= wx || py >= wy + wh || py + ph <= wy) { neu.push([px, py, pw, ph]); continue; }
+                if (py < wy) neu.push([px, py, pw, wy - py]);                                     // darüber
+                if (py + ph > wy + wh) neu.push([px, wy + wh, pw, py + ph - wy - wh]);            // darunter
+                const y0 = Math.max(py, wy), y1 = Math.min(py + ph, wy + wh);
+                if (px < wx) neu.push([px, y0, wx - px, y1 - y0]);                                // links
+                if (px + pw > wx + ww) neu.push([wx + ww, y0, px + pw - wx - ww, y1 - y0]);       // rechts
+            }
+            teile = neu;
+        }
+        for (const [px, py, pw, ph] of teile) r.rect(c, px, py, pw, ph, a);
+    };
+    return { rect, tri: r.tri, ell: r.ell, line: r.line };
+}
+
+function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, ecken = {}) {
+    // Außenecken einer Decke werden in Pixelstufen abgerundet (statt rechtwinklig): links/rechts je zwei Stufen
+    const weg = [], u = t + tiefe;
+    if (istDecke && w >= 16) {
+        if (ecken.links) weg.push([l, u - 4, 8, 4], [l, u - 8, 4, 4]);
+        if (ecken.rechts) weg.push([l + w - 8, u - 4, 8, 4], [l + w - 4, u - 8, 4, 4]);
+        if (weg.length) r = mitAusschnitt(r, weg);
+    }
     const S = 8;  // Größe einer Kachel ("Pixel") in der Erde
     const hellOben = oberflaeche ? 0x7a5a3c : 0x66564a;
     const GRAS_OBEN = [0x6aa032, 0x7ab83c, 0x5d9029];
@@ -197,12 +225,6 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
         // Untergrund: heller Rand oben, Kiesel auf dem Boden
         r.rect(0x8a7a64, l, t, w, 2);
         for (let i = 0; i < w / 30; i++) r.rect(0x8c8474, l + rnd.between(0, Math.max(0, w - 4)), t - 3, rnd.between(2, 5), 3);
-        if (istDecke) {                                                             // Tropfsteine an der Decke
-            for (let x = l + 6; x < l + w - 6; x += rnd.between(14, 32)) {
-                const h = rnd.between(6, 20);
-                r.tri(0x40372c, x - 5, t + tiefe, x + 5, t + tiefe, x, t + tiefe + h);
-            }
-        }
     }
 }
 
@@ -344,6 +366,12 @@ export function decoratePlatforms(scene, platforms, boden) {
             const istDecke = !anOberflaeche && p.height <= 80;
             const tiefe = Math.min(p.height, TIEFE);
             nr += 1;
+            // Außenecken: Nachbar links/rechts, der mindestens so tief reicht, macht eine Innenecke (nicht abrunden)
+            let ecken = {};
+            if (istDecke) {
+                const nachbar = (kante) => platforms.some(q => q !== p && !q.brechbar && ERDFARBEN.includes(q.fillColor) && Math.abs(q.y - q.height / 2 - t) < 1.5 && Math.abs(q.x + kante * q.width / 2 - (kante > 0 ? l : l + p.width)) < 1.5 && q.y + q.height / 2 >= b - 1);
+                ecken = { links: !nachbar(1), rechts: !nachbar(-1) };
+            }
             // Große Plattformen in Stücke von höchstens 2048 Pixeln Breite teilen (Grenze für Bilder).
             for (let cx = l, i = 0; cx < l + p.width; cx += 2048, i++) {
                 const cw = Math.min(2048, l + p.width - cx);
@@ -351,7 +379,7 @@ export function decoratePlatforms(scene, platforms, boden) {
                 const key = `erde_${nr}_${i}`;
                 backe(scene, key, cx, t - oben, cw, tiefe + oben + unten, (r) => {
                     const lokal = new Phaser.Math.RandomDataGenerator([key]);   // pro Stück ein fester Zufall
-                    zeichneErde(r, lokal, cx, t, cw, tiefe, grundfarbe, anOberflaeche, istDecke);
+                    zeichneErde(r, lokal, cx, t, cw, tiefe, grundfarbe, anOberflaeche, istDecke, ecken);
                 });
             }
         } else if (p.height < 40) {

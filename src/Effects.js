@@ -138,8 +138,10 @@ function pixelHalm(r, c, x, yBasis, hoehe, neigung, p) {
 // Statt eines Kachelrasters gibt es geschwungene Schichten (Gras, Humus, Mutterboden, Lehm,
 // dunkler Untergrund, Fels), darüber weiche Flecken, Körnung, runde Felsen, Wurzeln und Risse.
 function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
-    const SPALTE = 8;   // Schichten bestehen aus 8 Pixel breiten Blöcken: Die Kanten laufen in Stufen
-    const stufe = (y) => Math.round(y / SPALTE) * SPALTE;   // rundet eine Tiefe auf ein Vielfaches von 8
+    const SPALTE = 16;  // Schichten bestehen aus 16 Pixel breiten Blöcken: Die Kanten laufen in groben Stufen
+    const stufe = (y) => Math.round(y / SPALTE) * SPALTE;   // rundet eine Tiefe auf ein Vielfaches von 16
+    // Die Grasschicht bleibt feiner: 8 oder 16 Pixel dick
+    const grasTiefe = (x) => Math.max(8, Math.round(gras(Math.floor((x - l) / SPALTE) * SPALTE + l + SPALTE / 2) / 8) * 8);
 
     // Untergrenze jeder Schicht (Tiefe unter der Oberkante) als Funktion von x
     const gras  = (x) => 7 + welle(x, 3, 0.06, 0) + welle(x, 2, 0.17, 1.3);
@@ -160,11 +162,11 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
         schichten.forEach(([grenze, c], k) => {
             // Grenze in der Blockmitte berechnen und auf 8 Pixel runden: gibt Treppenstufen statt Wellen.
             // Das Gras ist immer mindestens einen Block dick.
-            const y1 = Math.min(tiefe, k === 0 && oberflaeche ? Math.max(SPALTE, stufe(grenze(x + 4))) : stufe(grenze(x + 4)));
+            const y1 = Math.min(tiefe, k === 0 && oberflaeche ? grasTiefe(x) : stufe(grenze(x + SPALTE / 2)));
             if (y1 > y0) {
                 // Die Farbe schwankt sanft mit x, damit keine Fläche gleichmäßig aussieht
                 r.rect(variiere(c, Math.round(welle(x, 4, 0.09, k * 1.7) + welle(x, 3, 0.23, k))), x, t + y0, bw, y1 - y0);
-                if (k > 0) r.rect(0x000000, x, t + y0, bw, 4, 0.3);          // dunkle Schichtkante (ein halber Block)
+                if (k > 0) r.rect(0x000000, x, t + y0, bw, 4, 0.3);          // dunkle Schichtkante
                 y0 = y1;
             }
         });
@@ -177,9 +179,9 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
         pixelEllipse(r, ex, ey, rnd.between(30, 90), rnd.between(10, 26), 8, () => c, c === 0 ? 0.12 : 0.08);
     }
     // Feine, wellige Schichtlinien
-    for (let d = 40; d < tiefe; d += rnd.between(24, 34)) {
+    for (let d = 48; d < tiefe; d += rnd.between(32, 48)) {
         for (let x = l; x < l + w; x += SPALTE) {
-            r.rect(0x000000, x, t + stufe(d + welle(x + 4, 5, 0.05, d)), SPALTE, 2, 0.15);
+            r.rect(0x000000, x, t + stufe(d + welle(x + 8, 5, 0.05, d)), SPALTE, 2, 0.15);
         }
     }
     // Körnung: winzige helle und dunkle Punkte, frei verteilt (nicht auf einem Raster)
@@ -215,7 +217,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
     if (oberflaeche) {
         // Wurzeln: Pixelketten, die von der Grasdecke nach unten wachsen (unten dünner)
         for (let i = 0; i < w / 70; i++) {
-            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + Math.max(SPALTE, stufe(gras(rx)));
+            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + grasTiefe(rx);
             const laenge = rnd.between(6, 12);
             for (let k = 0; k < laenge; k++) {
                 const nx = rx + rnd.pick([-4, -2, 0, 0, 2, 4]), ny = ry + rnd.between(4, 8);
@@ -254,7 +256,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
         }
         // Franse unter der Grasdecke: kleine Pixel-Zapfen hängen in die Erde
         for (let x = l; x < l + w; x += 4) {
-            r.rect(0x2f4a1c, x, t + Math.max(SPALTE, stufe(gras(Math.floor(x / SPALTE) * SPALTE + 4))), 4, rnd.pick([2, 4, 4, 6]));
+            r.rect(0x2f4a1c, x, t + grasTiefe(x), 4, rnd.pick([2, 4, 4, 6]));
         }
         // Blumen: vier Blütenpixel um eine Mitte
         for (let i = 0; i < w / 260; i++) {
@@ -308,7 +310,8 @@ export function decoratePlatforms(scene, platforms, boden) {
     const g = scene.add.graphics().setDepth(1);
     const rnd = new Phaser.Math.RandomDataGenerator(['boden']);
     const TIEFE = 400;     // so tief wird die Erde detailliert gemalt: bis ganz nach unten (Erdblöcke sind höchstens 340 hoch)
-    const ERDFARBEN = [0x5b4a35, 0x4b3b2a];
+    const FELS = 0x5e5a55;                    // grauer Fels (Felsstufen am Höhleneingang)
+    const ERDFARBEN = [0x5b4a35, 0x4b3b2a, FELS];
     let nr = 0;
 
     for (const p of platforms) {
@@ -317,7 +320,7 @@ export function decoratePlatforms(scene, platforms, boden) {
         const istErde = ERDFARBEN.includes(grundfarbe) && p.height >= 40;
 
         if (istErde) {
-            const anOberflaeche = t <= boden + 1;
+            const anOberflaeche = t <= boden + 1 && grundfarbe !== FELS;   // Fels trägt kein Gras
             const istDecke = !anOberflaeche && p.height <= 80;
             const tiefe = Math.min(p.height, TIEFE);
             nr += 1;

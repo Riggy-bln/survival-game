@@ -17,6 +17,7 @@ const BUNKER = 0x45494d;
 const SAND = 0x8a7a55;
 const GRAU = 0x5a5a5a;
 const OLIV = 0x4a5238;
+const FELS = 0x5e5a55;   // Fels (grauer Stein, ohne Gras)
 
 // Die Listen, die am Ende exportiert werden. Die Hilfsfunktionen füllen sie.
 const platforms = [];
@@ -31,6 +32,7 @@ const BREITE = 9000;            // Breite der Welt
 const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
+const EINGANG = TUNNEL_LINKS + 200;   // hier beginnt die Felsdecke: der Höhleneingang (x 2940)
 const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
 const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
 const TUNNEL_BODEN = 990;       // y der Oberkante des Tunnelbodens (230 unter der Oberfläche)
@@ -40,7 +42,7 @@ const erde = (links, rechts, oben, unten, farbe = 0x4b3b2a) =>
     platforms.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, color: farbe });
 
 erde(0, TUNNEL_LINKS, BODEN, HOEHE);                                              // Erde links vom Tunnel
-erde(TUNNEL_LINKS + SCHACHT, TUNNEL_RECHTS - SCHACHT, BODEN, BODEN + DECKE);      // Decke über dem Tunnel
+erde(EINGANG, TUNNEL_RECHTS - SCHACHT, BODEN, BODEN + DECKE);                     // Decke über dem Tunnel (beginnt am Höhleneingang)
 erde(TUNNEL_LINKS, VERLIES_ENDE, TUNNEL_BODEN, HOEHE);                            // Boden des Tunnels (bis zur Waffenkammer)
 erde(TUNNEL_RECHTS, VERLIES_ENDE, BODEN, BODEN + DECKE);                          // Decke über der Waffenkammer
 erde(VERLIES_ENDE, BREITE, BODEN, HOEHE);                                         // Erde rechts hinter der Kammer
@@ -141,15 +143,53 @@ granate(1850, BODEN - 140);                     // im Versteck der Ruine
 // drei Gegnern und Beute. Wer unten bleibt, umgeht die Schützen auf den Terrassen.
 // Aus dem Tunnel kommt man über Stufen wieder hinauf (je Schacht 3 Stufen à 77 Pixel).
 // =====================================================================
-signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nder Schacht führt unter die Erde' });
-dunkel(TUNNEL_LINKS, TUNNEL_LINKS + SCHACHT, BODEN, TUNNEL_BODEN);                    // linker Schacht
+signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nein Höhleneingang\nführt unter die Erde' });
+// ---- Der Höhleneingang: ein Graben mit Stufen führt zu einem Felsüberhang ----
+// Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 2940) zwei Stufen hinab
+// (je 77 Pixel) und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
+// Über dem Eingang ragt eine Felsstufe auf; vom Rand der Oberfläche führt eine Sprungstrecke von
+// 200 Pixeln über den Graben (möglich bis ca. 280).
+erde(TUNNEL_LINKS, TUNNEL_LINKS + 100, TUNNEL_BODEN - 153, TUNNEL_BODEN);  // Stufe 1 (Oberkante 837, 77 unter der Oberfläche)
+erde(TUNNEL_LINKS + 100, EINGANG, TUNNEL_BODEN - 77, TUNNEL_BODEN);        // Stufe 2 (Oberkante 913)
+huegel(EINGANG + 10, 60, 100, FELS);                                       // Felsstufe über dem Eingang (x 2950 bis 3050)
+dunkel(TUNNEL_LINKS, EINGANG, BODEN, TUNNEL_BODEN, 0x1d2226);              // Graben (Himmel scheint hinein)
+dunkel(EINGANG, EINGANG + 70, BODEN + DECKE, TUNNEL_BODEN, 0x1a1e21);      // Mund der Höhle: Dunkelheit nimmt zu
+dunkel(EINGANG + 70, TUNNEL_LINKS + SCHACHT + 200, BODEN + DECKE, TUNNEL_BODEN, 0x161a1d);
+// Holzstützen und Deckenbalken im Eingangsbereich
+decor.push({ x: (EINGANG + 3500) / 2, y: BODEN + DECKE + 5, w: 3500 - EINGANG, h: 10, color: 0x5a3d22 });    // Balken
+for (const sx of [EINGANG + 8, 3110, 3290, 3440]) {
+    decor.push({ x: sx, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 10, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x6b4a2a });
+    decor.push({ x: sx + 4, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 3, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x4a331d });
+}
+// Felszähne an der Decke (Stufen, die nach unten schmaler werden) und hängende Ranken
+const zapfen = (x, n) => { for (let k = 0; k < n; k++) decor.push({ x: x, y: BODEN + DECKE + 3 + k * 6, w: 18 - k * 5, h: 6, color: 0x4a423a }); };
+[22, 62, 104, 146].forEach((d, i) => zapfen(EINGANG + d, 3 - (i % 2)));
+[12, 44, 84, 124].forEach((d, i) => decor.push({ x: EINGANG + d, y: BODEN + DECKE + 6 + i * 2, w: 4, h: 12 + i * 4, color: 0x3b5a22 }));
+// Lampe am Eingang mit schwachem Lichtschein
+decor.push({ x: EINGANG + 70, y: BODEN + DECKE + 52, w: 80, h: 50, color: 0x27261c });
+decor.push({ x: EINGANG + 70, y: BODEN + DECKE + 12, w: 2, h: 24, color: 0x222222 });
+decor.push({ x: EINGANG + 70, y: BODEN + DECKE + 30, w: 12, h: 9, color: 0xffd866 });
+// Reste einer eingestürzten Holzbrücke an beiden Grabenrändern
+decor.push({ x: 2756, y: BODEN + 6, w: 32, h: 8, color: 0x6b4a2a });
+decor.push({ x: 2776, y: BODEN + 22, w: 8, h: 22, color: 0x4a331d });
+decor.push({ x: EINGANG - 16, y: BODEN + 6, w: 32, h: 8, color: 0x6b4a2a });
+decor.push({ x: EINGANG - 10, y: BODEN + 20, w: 8, h: 18, color: 0x4a331d });
+// Warnschild im Graben und Geröll auf den Stufen
+decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 14, w: 4, h: 28, color: 0x555555 });            // Pfosten
+decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 48, w: 92, h: 40, color: 0x2b2b2b });           // Tafel
+decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 66, w: 92, h: 4, color: 0xc9a227 });            // Warnstreifen
+decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 30, w: 92, h: 4, color: 0xc9a227 });
+signs.push({ x: 2790, y: TUNNEL_BODEN - 153 - 48, text: 'EINSTURZ-\nGEFAHR' });
+decor.push({ x: 2760, y: TUNNEL_BODEN - 153 - 4, w: 14, h: 8, color: 0x6f695d });
+decor.push({ x: 2778, y: TUNNEL_BODEN - 153 - 3, w: 8, h: 6, color: 0x8c8474 });
+decor.push({ x: 2900, y: TUNNEL_BODEN - 77 - 4, w: 12, h: 8, color: 0x6f695d });
+decor.push({ x: 2920, y: TUNNEL_BODEN - 77 - 3, w: 8, h: 6, color: 0x8c8474 });
 dunkel(TUNNEL_LINKS + SCHACHT, TUNNEL_RECHTS - SCHACHT, BODEN + DECKE, TUNNEL_BODEN);  // der Gang
 dunkel(TUNNEL_RECHTS - SCHACHT, TUNNEL_RECHTS, BODEN, TUNNEL_BODEN);                  // rechter Schacht
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
     decor.push({ x: x, y: BODEN + DECKE + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen
 }
-treppe(TUNNEL_LINKS + SCHACHT - 150, 3, 50, 77);       // Stufen im linken Schacht (x 2850 bis 3000)
 treppe(TUNNEL_RECHTS - 150, 3, 50, 77);                // Stufen im rechten Schacht (x 4070 bis 4220)
 tunnelblock(3480, 40, 80);                             // Kiste A als Deckung (x 3480 bis 3560)
 tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
@@ -179,7 +219,7 @@ waffe(4690, TUNNEL_BODEN - 50);                                // das Sturmgeweh
 // ZONE D: Grabenanlage mit Terrassen (x 3000 bis 3900), steht auf der Tunneldecke.
 // Der Graben liegt zwischen zwei Terrassen. Schützen oben, Nahkämpfer unten.
 // =====================================================================
-signs.push({ x: 3020, y: BODEN - 100, text: 'Gefahr voraus:\nSchützen auf den Terrassen' });
+signs.push({ x: 3100, y: BODEN - 140, text: 'Gefahr voraus:\nSchützen auf den Terrassen' });
 huegel(3050, 90, 140);                           // linke Terrasse, untere Stufe (x 3050 bis 3190)
 huegel(3190, 180, 140);                          // linke Terrasse, obere Stufe  (x 3190 bis 3330)
 huegel(3530, 180, 140);                          // rechte Terrasse, obere Stufe (x 3530 bis 3670)

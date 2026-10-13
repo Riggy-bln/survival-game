@@ -1,3 +1,10 @@
+// Alle Waffen als Tabelle: Name, Pause zwischen Schüssen (ms), Magazingröße, Nachladezeit (ms).
+// Eine neue Waffe ist später nur ein weiterer Eintrag. Der Rest des Spiels liest diese Werte.
+const WAFFEN = {
+    pistol: { name: 'Pistole',     fireDelay: 150, magSize: 12, reloadTime: 1200 },
+    rifle:  { name: 'Sturmgewehr', fireDelay: 85,  magSize: 30, reloadTime: 1700 },
+};
+
 // Der Spieler: ein grünes Rechteck, das sich selbst steuern kann.
 export default class Player extends Phaser.GameObjects.Rectangle {
     constructor(scene, x, y) {
@@ -17,12 +24,15 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         // Munition in zwei Teilen, wie bei echten Waffen:
         //   magAmmo = Kugeln im Magazin (die kann man sofort verschießen)
         //   ammo    = Reserve im Rucksack (die kommt beim Nachladen ins Magazin)
-        this.magSize = 12;       // so viele Kugeln passen ins Magazin
-        this.magAmmo = 12;       // Start: volles Magazin
         this.maxAmmo = 60;       // größte Reserve, die man tragen kann
-        this.ammo = 30;          // Start-Reserve
-        this.reloadTime = 1200;  // Nachladedauer in Millisekunden
         this.reloadingUntil = 0; // 0 = lädt gerade nicht nach
+        // Magazingröße, Nachladezeit und Feuerrate kommen aus der Waffentabelle (oben).
+        // equip() füllt das Magazin aus der Reserve, deshalb setzen wir die Reserve erst danach.
+        this.ammo = 0;
+        this.magAmmo = 0;
+        this.equip('pistol');    // Startwaffe
+        this.magAmmo = this.magSize;  // Start: volles Magazin
+        this.ammo = 30;               // Start-Reserve
 
         // Zeitpunkte (in Millisekunden seit Spielstart), bis zu denen etwas gilt.
         // 0 heißt: gilt gerade nicht, denn die Zeit ist schon vorbei.
@@ -32,6 +42,22 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         // Tasten, die der Spieler abfragt
         this.cursors = scene.input.keyboard.createCursorKeys();
         this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R');
+    }
+
+    // Rüstet eine Waffe aus der Tabelle aus: Werte übernehmen und das Magazin
+    // sofort aus der Reserve füllen. Gibt es die Waffe nicht, passiert nichts.
+    equip(waffe) {
+        const w = WAFFEN[waffe];
+        if (!w) return;
+        this.weapon = waffe;
+        this.weaponName = w.name;
+        this.fireDelay = w.fireDelay;
+        this.magSize = w.magSize;
+        this.reloadTime = w.reloadTime;
+        this.reloadingUntil = 0;  // laufendes Nachladen abbrechen
+        const kugeln = Math.min(this.magSize - this.magAmmo, this.ammo);
+        this.magAmmo += kugeln;
+        this.ammo -= kugeln;
     }
 
     // Lädt gerade nach?

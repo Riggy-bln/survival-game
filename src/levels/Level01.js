@@ -31,6 +31,7 @@ const BREITE = 9000;            // Breite der Welt
 const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
+const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
 const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
 const TUNNEL_BODEN = 990;       // y der Oberkante des Tunnelbodens (230 unter der Oberfläche)
 
@@ -40,8 +41,9 @@ const erde = (links, rechts, oben, unten, farbe = 0x4b3b2a) =>
 
 erde(0, TUNNEL_LINKS, BODEN, HOEHE);                                              // Erde links vom Tunnel
 erde(TUNNEL_LINKS + SCHACHT, TUNNEL_RECHTS - SCHACHT, BODEN, BODEN + DECKE);      // Decke über dem Tunnel
-erde(TUNNEL_LINKS, TUNNEL_RECHTS, TUNNEL_BODEN, HOEHE);                           // Boden des Tunnels
-erde(TUNNEL_RECHTS, BREITE, BODEN, HOEHE);                                        // Erde rechts vom Tunnel
+erde(TUNNEL_LINKS, VERLIES_ENDE, TUNNEL_BODEN, HOEHE);                            // Boden des Tunnels (bis zur Waffenkammer)
+erde(TUNNEL_RECHTS, VERLIES_ENDE, BODEN, BODEN + DECKE);                          // Decke über der Waffenkammer
+erde(VERLIES_ENDE, BREITE, BODEN, HOEHE);                                         // Erde rechts hinter der Kammer
 
 // huegel: ein fester Block, der AUF DEM BODEN steht. Angabe: linke Kante, Höhe, Breite.
 // Aus der Höhe wird die Mitte berechnet (Rechtecke werden von ihrer Mitte aus gezeichnet).
@@ -62,6 +64,7 @@ const fernkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
 // Gegenstände: "oben" = y der Fläche, auf der sie liegen.
 const munition = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'ammo' });
 const heilung = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'health' });
+const waffe = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'rifle' });   // das Sturmgewehr
 
 // Dekoration (ohne Physik)
 const stacheldraht = (x) => {
@@ -84,9 +87,12 @@ const tunnelblock = (links, hoehe, breite, farbe = 0x6b5b3a) =>
     platforms.push({ x: links + breite / 2, y: TUNNEL_BODEN - hoehe / 2, w: breite, h: hoehe, color: farbe });
 
 // treppe: Stufen, die nach RECHTS ansteigen. Jede Stufe ist "stufe" Pixel höher als die vorige.
+// Die Stufen sind dünne Platten (20 Pixel), keine massiven Blöcke: Darunter bleibt Platz,
+// sodass man im Tunnel unter der Treppe hindurch weiter nach rechts gehen kann.
 const treppe = (links, anzahl, breite, stufe) => {
     for (let i = 0; i < anzahl; i++) {
-        tunnelblock(links + i * breite, (i + 1) * stufe, breite, 0x5a4d3a);
+        const oben = TUNNEL_BODEN - (i + 1) * stufe;     // Oberkante dieser Stufe
+        platforms.push({ x: links + i * breite + breite / 2, y: oben + 10, w: breite, h: 20, color: 0x5a4d3a });
     }
 };
 
@@ -136,7 +142,8 @@ signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nder Schacht führt unt
 dunkel(TUNNEL_LINKS, TUNNEL_LINKS + SCHACHT, BODEN, TUNNEL_BODEN);                    // linker Schacht
 dunkel(TUNNEL_LINKS + SCHACHT, TUNNEL_RECHTS - SCHACHT, BODEN + DECKE, TUNNEL_BODEN);  // der Gang
 dunkel(TUNNEL_RECHTS - SCHACHT, TUNNEL_RECHTS, BODEN, TUNNEL_BODEN);                  // rechter Schacht
-for (let x = 3150; x < 3960; x += 250) {
+for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
+    if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
     decor.push({ x: x, y: BODEN + DECKE + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen
 }
 treppe(TUNNEL_LINKS + SCHACHT - 150, 3, 50, 77);       // Stufen im linken Schacht (x 2850 bis 3000)
@@ -147,7 +154,23 @@ nahkaempfer(3200, 3080, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang
 fernkaempfer(3640, 3590, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
 nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
 munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
-heilung(3950, TUNNEL_BODEN);                           // Beute vor den Stufen
+
+// ---- Die Waffenkammer am Ende des Tunnels (x 4220 bis 4780) ----
+// Wer den Ausgang nicht nimmt, sondern unter den Stufen weitergeht, findet ein verlassenes Lager:
+// ein SCHWERER WÄCHTER (8 Lebenspunkte), Heilung, Munition und das STURMGEWEHR.
+dunkel(TUNNEL_RECHTS, VERLIES_ENDE, BODEN + DECKE, TUNNEL_BODEN);                     // Raum der Kammer
+signs.push({ x: 4330, y: TUNNEL_BODEN - 120, text: 'Lager 7\n"Aufgegeben. Sie kamen von unten."' });
+decor.push({ x: 4290, y: TUNNEL_BODEN - 70, w: 44, h: 32, color: 0x1d5a3a });           // Terminal (Bildschirm)
+decor.push({ x: 4290, y: TUNNEL_BODEN - 45, w: 8, h: 18, color: 0x333333 });            // Terminal (Ständer)
+decor.push({ x: 4290, y: TUNNEL_BODEN - 30, w: 70, h: 8, color: 0x55482f });            // Tisch
+decor.push({ x: 4690, y: TUNNEL_BODEN - 80, w: 6, h: 80, color: 0x3a4046 });            // Waffenregal (Pfosten)
+decor.push({ x: 4750, y: TUNNEL_BODEN - 80, w: 6, h: 80, color: 0x3a4046 });
+decor.push({ x: 4720, y: TUNNEL_BODEN - 100, w: 66, h: 5, color: 0x3a4046 });           // Waffenregal (Brett)
+tunnelblock(4640, 50, 100);                                    // Tisch mit dem Gewehr (x 4640 bis 4740)
+nahkaempfer(4440, 4330, 4600, 8, TUNNEL_BODEN);                // der schwere Wächter
+heilung(4350, TUNNEL_BODEN);
+munition(4540, TUNNEL_BODEN);
+waffe(4690, TUNNEL_BODEN - 50);                                // das Sturmgewehr auf dem Tisch
 
 // =====================================================================
 // ZONE D: Grabenanlage mit Terrassen (x 3000 bis 3900), steht auf der Tunneldecke.

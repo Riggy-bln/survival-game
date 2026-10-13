@@ -129,7 +129,6 @@ export default class GameScene extends Phaser.Scene {
         // --- Schießen ---
         this.bullets = [];
         this.lastShot = 0;
-        this.fireDelay = 150;
 
         // --- Anzeige (Lebensbalken) ---
         // setScrollFactor(0) heftet ein Objekt an den Bildschirm statt an die Welt.
@@ -174,13 +173,26 @@ export default class GameScene extends Phaser.Scene {
         // Munitionsanzeige; bei 0 rot, damit man es sofort merkt.
         const p = this.player;
         if (p.isReloading()) {
-            this.ammoText.setText(`Nachladen...   Reserve: ${p.ammo}`);
+            this.ammoText.setText(`${p.weaponName}: Nachladen...   Reserve: ${p.ammo}`);
         } else {
-            this.ammoText.setText(`Magazin: ${p.magAmmo} / ${p.magSize}   Reserve: ${p.ammo}`);
+            this.ammoText.setText(`${p.weaponName}: ${p.magAmmo} / ${p.magSize}   Reserve: ${p.ammo}`);
         }
         // Rot, wenn gar keine Munition mehr da ist; orange bei leerem Magazin / beim Nachladen.
         const leer = p.magAmmo === 0 && p.ammo === 0;
         this.ammoText.setColor(leer ? '#ff4444' : (p.isReloading() || p.magAmmo === 0 ? '#ff9944' : '#ffdd55'));
+    }
+
+    // Blendet eine Meldung oben im Bild ein, die nach etwa zwei Sekunden verblasst.
+    showMessage(text) {
+        const meldung = this.add.text(480, 100, text, {
+            fontSize: '24px', color: '#ffdd55', align: 'center',
+            backgroundColor: '#000000bb', padding: { x: 14, y: 8 },
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(25);
+        // Tween: nach 2 Sekunden Wartezeit in 0,6 Sekunden durchsichtig werden, dann löschen.
+        this.tweens.add({
+            targets: meldung, alpha: 0, delay: 2000, duration: 600,
+            onComplete: () => meldung.destroy(),
+        });
     }
 
     // Zeigt die Lebensanzeige der Kreatur, solange sie lebt und erwacht ist.
@@ -285,7 +297,7 @@ export default class GameScene extends Phaser.Scene {
         // --- Schießen (Maustaste gedrückt halten = Dauerfeuer) ---
         // Schießen geht nur mit Kugel im Magazin und nicht während des Nachladens.
         if (pointer.isDown && this.player.canShoot() &&
-            this.time.now - this.lastShot > this.fireDelay) {
+            this.time.now - this.lastShot > this.player.fireDelay) {  // Feuerrate der Waffe
             this.shoot(pointer.worldX, pointer.worldY);
             this.player.magAmmo -= 1;  // jeder Schuss kostet eine Kugel aus dem Magazin
             this.lastShot = this.time.now;

@@ -59,9 +59,9 @@ const CHASM_L = 8400;           // Schlucht: linke Kante
 const CHASM_R = 8640;           // Schlucht: rechte Kante
 const KAV_R = 9300;             // Ende der großen Kaverne
 const SCHACHT2_L = 9640;        // linke Kante des Ausgangsschachts
-const MINE_BODEN = 1330;        // y des Minenbodens (570 unter der Oberfläche)
+const MINE_BODEN = 1336;        // y des Minenbodens (570 unter der Oberfläche)
 const MINE_DECKE = 1128;        // Unterkante der Basisdecke im Gang (202 Platz bis zum Boden; Felsen hängen bis zu 64 tiefer)
-const KAV_DECKE = 928;          // Unterkante der Basisdecke in der hohen Kaverne
+const KAV_DECKE = 936;          // Unterkante der Basisdecke in der hohen Kaverne
 const HOLZ = 0x6b4a2a;          // Holz (Brücken, Absätze)
 const METALL = 0x3a4046;        // Stahl (Gitterturm)
 
@@ -177,11 +177,13 @@ function leiter(links, rechts, anzahl = 5) {
         geruest.push({ x0, x1: x0 + 170, oben: BODEN + 95 * i, wand: i % 2 === 1 ? 'links' : 'rechts' });   // für Streben und Ketten
     }
 }
-// ---- EINE Blockgröße für das ganze Gelände: BLOCK = 32 Pixel ----
+// ---- EINE Blockgröße für das ganze Gelände: BLOCK = 16 Pixel ----
 // Alle Hänge, Hügel und Klippen bestehen aus Stufen von 32 Pixel Breite und 32 Pixel Höhe (oder einem
 // Vielfachen davon): etwa so breit wie der Spieler. Das ergibt kräftige Pixelblöcke, aber keine Kästen.
 // Die Erdtextur selbst bleibt fein (8-Pixel-Kacheln).
-const BLOCK = 32;
+const BLOCK = 16;              // alle Erde und aller Fels besteht aus 16-Pixel-Blöcken
+const DICK = 32;               // Mindestdicke einer Kruste/Decke
+const ROH = 32;                // Stärke der Zufallsabweichung beim Aufrauen (in Pixeln)
 
 // Ein kleiner, wiederholbarer Zufallsgenerator (mulberry32): gleicher Startwert = gleiche Zahlenfolge.
 // So sieht das Gelände bei jedem Start gleich aus, auch ohne Phaser.
@@ -201,7 +203,7 @@ const zufall = (seed) => {
 // unten = Unterkante der Blöcke: Ist sie höher als base, ist der Hang hohl (eine Kruste über einem Gang).
 const gelaendeAusWerten = (links, werte, fels, base = BODEN, unten = base) => {
     const hohl = unten < base;
-    if (hohl) for (let i = 0; i < werte.length; i++) werte[i] = Math.max(werte[i], (base - unten) + BLOCK);   // Kruste mindestens 1 Block dick
+    if (hohl) for (let i = 0; i < werte.length; i++) werte[i] = Math.max(werte[i], (base - unten) + DICK);   // Kruste mindestens 1 Block dick
     const n = werte.length;
     let start = 0;
     for (let i = 1; i <= n; i++) {
@@ -223,7 +225,7 @@ const gelaendeAusWerten = (links, werte, fels, base = BODEN, unten = base) => {
 const aufrauen = (glatt, flach, seed, rau = 1.4) => {
     const zu = zufall(seed);
     // Zufallsabweichung plus eine sanfte Welle: Hänge werden holprig und ungleichmäßig statt gleichmäßig gestuft
-    const w = glatt.map((h, i) => flach[i] ? h : Math.max(0, Math.round((h + (zu() - 0.5) * 2 * BLOCK * 0.95 * rau + 22 * Math.sin(i * 0.9 + seed)) / BLOCK) * BLOCK));
+    const w = glatt.map((h, i) => flach[i] ? h : Math.max(0, Math.round((h + (zu() - 0.5) * 2 * ROH * 0.95 * rau + 22 * Math.sin(i * 0.9 + seed)) / BLOCK) * BLOCK));
     for (let i = 1; i < w.length; i++) if (!flach[i]) w[i] = Math.max(w[i - 1] - BLOCK, Math.min(w[i - 1] + BLOCK, w[i]));
     for (let i = w.length - 2; i >= 0; i--) if (!flach[i]) w[i] = Math.max(w[i + 1] - BLOCK, Math.min(w[i + 1] + BLOCK, w[i]));
     return w;
@@ -378,7 +380,7 @@ const hoehlenform = (links, rechts, oben, unten, seed, frei = [], maxDecke = 2, 
     const dec = glatterVerlauf(n, maxDecke * 2, seed, (i) => inBereich(i, frei) ? 0 : null, 0.3);
     // Boden: Geröll nur dort, wo keine Decke herabhängt und keine Gegner stehen
     const bod = glatterVerlauf(n, maxBoden * 2, seed + 1000, (i) => (inBereich(i, frei) || inBereich(i, freiBoden) || dec[i] > 0) ? 0 : null, 0.55);
-    zuBloecken(dec, links, rechts, (x0, x1, k) => erde(x0, x1, oben - BLOCK, oben + k * FEIN));        // reicht in die Decke hinein (damit es als Erde gemalt wird)
+    zuBloecken(dec, links, rechts, (x0, x1, k) => erde(x0, x1, oben - DICK, oben + k * FEIN));        // reicht in die Decke hinein (damit es als Erde gemalt wird)
     zuBloecken(bod, links, rechts, (x0, x1, k) => erde(x0, x1, unten - k * FEIN, unten + 32, FELS));
     const deckeAn = (x) => oben + dec[Math.max(0, Math.min(n - 1, Math.floor((x - links) / FEIN)))] * FEIN;
     return { deckeAn };
@@ -388,7 +390,7 @@ const hoehlenform = (links, rechts, oben, unten, seed, frei = [], maxDecke = 2, 
 const raueDecke = (links, rechts, unten, maxStufen, seed, frei = []) => {
     const n = Math.ceil((rechts - links) / FEIN);
     const u = glatterVerlauf(n, maxStufen * 2, seed, (i) => frei.some(([p, q]) => links + (i + 1) * FEIN > p && links + i * FEIN < q) ? 0 : null, 0.3);
-    zuBloecken(u, links, rechts, (x0, x1, k) => erde(x0, x1, unten - BLOCK, unten + k * FEIN));
+    zuBloecken(u, links, rechts, (x0, x1, k) => erde(x0, x1, unten - DICK, unten + k * FEIN));
 };
 // hoehlenlampe: eine Lampe an der Decke einer solchen Höhle (leuchtet nur in dieser Höhle).
 const hoehlenlampe = (form, x) => {
@@ -415,6 +417,7 @@ const erdberg = (links, punkte, tunnel = 0, rau = 1.3) => gelaende(links, punkte
 // Rändern hin rund auslaufend (die Unterseite wächst in 45°-Schritten); die Oberkante ist leicht wellig mit Gras und in der Mitte eben.
 // Unter der Insel schweben ein oder zwei kleine Erdbrocken. Gibt { tops, topBei(x), flach(spalten), links, rechts } zurück.
 const schwebeinsel = (links, breite, oben, dicke, seed, brocken = true) => {
+    links = Math.round(links / FEIN) * FEIN; oben = BODEN + Math.round((oben - BODEN) / FEIN) * FEIN;     // aufs 16er-Raster
     const n = Math.round(breite / FEIN), zu = zufall(seed);
     const klemme = (v, a, b) => Math.max(a, Math.min(b, v));
     const dU = dicke / FEIN;
@@ -779,7 +782,7 @@ for (let etage = 1; etage <= 6; etage++) {
 nahkaempfer(6500, 6465, 6540, 4);                                        // im Erdgeschoss, unter der ersten Etage
 nahkaempfer(6590, 6430, 6750, 4, BODEN - 100);                           // Etage 1
 fernkaempfer(6700, 6600, 6820, 3, BODEN - 200);                          // Etage 2
-nahkaempfer(6590, 6460, 6750, 4, BODEN - 300);                           // Etage 3
+nahkaempfer(6590, 6472, 6750, 4, BODEN - 300);                           // Etage 3
 fernkaempfer(6700, 6600, 6820, 3, BODEN - 400);                          // Etage 4
 fernkaempfer(6590, 6500, 6680, 3, BODEN - 500);                          // Etage 5
 fernkaempfer(6780, 6700, 6860, 5, BODEN - 600);                          // Scharfschütze auf dem Dach
@@ -801,7 +804,7 @@ munition(6430, BODEN - 500);                                             // Belo
 // einem schweren Wächter und drei Absätzen voller Beute, ganz im Osten ein Sicherheitsraum mit der SCHROTFLINTE.
 // =====================================================================
 const KAT_O = 1130;             // Unterkante der Basisdecke
-const KAT_B = 1330;             // Boden (wie in der tiefen Mine: 570 unter der Oberfläche)
+const KAT_B = 1336;             // Boden (wie in der tiefen Mine: 570 unter der Oberfläche)
 const katakomben = hoehlenform(4990, 6560, KAT_O, KAT_B, 31,
     [[5290, 5610], [5780, 6020], [6070, 6390], [6420, 6560]], 2, 1,
     [[5010, 5290], [5620, 5780], [5790, 6020], [6390, 6560]]);
@@ -1028,10 +1031,10 @@ tunnelblock(14040, 40, 80);                                              // Deck
 munition(14080, TUNNEL_BODEN - 40);
 nahkaempfer(13930, 13880, 13990, 4, TUNNEL_BODEN);
 fass(14134, TUNNEL_BODEN);
-nahkaempfer(14260, 14190, 14320, 8, TUNNEL_BODEN + 100);                // der schwere Wächter in der Grube
+nahkaempfer(14260, 14190, 14320, 8, TUNNEL_BODEN + 96);                // der schwere Wächter in der Grube
 heilung(14200, TUNNEL_BODEN + 100);                                      // Beute in der Grube
 granate(14240, TUNNEL_BODEN + 100);
-munition(14260, TUNNEL_BODEN + 100);
+munition(14260, TUNNEL_BODEN + 96);
 tunnelblock(14430, 60, 60);                                              // Deckung vor dem Schützen
 skelett(14545, 14510, 14580, 4, TUNNEL_BODEN);
 fass(14580, TUNNEL_BODEN);
@@ -1055,7 +1058,7 @@ heilung(14510, BODEN - 544);
 munition(14535, BODEN - 544);
 granate(14560, BODEN - 544);
 fass(14610, BODEN - 544);
-nahkaempfer(14692, 14660, 14724, 4, BODEN - 352);
+nahkaempfer(14692, 14672, 14724, 4, BODEN - 352);
 fernkaempfer(14916, 14884, 14948, 3, BODEN - 160);
 // Leitern an den Klippen: Statt zu springen kann man klettern (und von oben wieder hinunter)
 sprossenleiter(14098, BODEN - 320, BODEN - 224, 1, 'holz', 28);
@@ -1148,6 +1151,21 @@ decor.push({ x: 8800 + V - 20, y: BODEN - 7, w: 6, h: 22, color: 0xd9b43a });   
 decor.push({ x: 8800 + V + 20, y: BODEN - 7, w: 6, h: 22, color: 0xd9b43a });     // H: rechter Balken
 decor.push({ x: 8800 + V, y: BODEN - 7, w: 46, h: 6, color: 0xd9b43a });          // H: Querbalken
 for (const dx of [-135, 135]) decor.push({ x: 8800 + V + dx, y: BODEN - 8, w: 6, h: 8, color: 0xcc3333 });   // Randlichter
+
+// ---- Letzter Schritt: ALLE Erd- und Felsblöcke auf das 16-Pixel-Raster legen (x ab 0, y ab der Oberfläche) ----
+// Eckpunkte benachbarter Blöcke runden gleich, deshalb bleiben Anschlüsse dicht. Was dabei auf Breite/Höhe 0 schrumpft, fällt weg.
+{
+    const ERDFARBEN = [0x4b3b2a, 0x5b4a35, FELS];
+    const rx = (v) => Math.round(v / 16) * 16, ry = (v) => BODEN + Math.round((v - BODEN) / 16) * 16;
+    for (let i = platforms.length - 1; i >= 0; i--) {
+        const q = platforms[i];
+        if (q.brechbar || q.kollisionNur || !ERDFARBEN.includes(q.color)) continue;
+        if (q.h < 40 && q.w < 40 && !q.kollision) { /* kleine Brocken ebenfalls rastern */ }
+        const l = rx(q.x - q.w / 2), r = rx(q.x + q.w / 2), o = ry(q.y - q.h / 2), u = ry(q.y + q.h / 2);
+        if (r <= l || u <= o) { platforms.splice(i, 1); continue; }
+        q.x = (l + r) / 2; q.y = (o + u) / 2; q.w = r - l; q.h = u - o;
+    }
+}
 
 export default {
     width: BREITE,   // Breite der Welt in Pixeln

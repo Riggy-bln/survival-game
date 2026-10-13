@@ -9,6 +9,26 @@
     </style>
 </head>
 <body>
+    <!-- 0. Fehlerbox: Zeigt JavaScript-Fehler rot direkt im Browserfenster an (ohne Konsole) -->
+    <script>
+        window.zeigeFehler = function (text) {
+            var box = document.getElementById('fehlerbox');
+            if (!box) {
+                box = document.createElement('pre');
+                box.id = 'fehlerbox';
+                box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:40vh;overflow:auto;margin:0;' +
+                    'padding:8px;background:#600;color:#fff;font:12px monospace;z-index:9999;white-space:pre-wrap';
+                document.body.appendChild(box);
+            }
+            box.textContent += text + '\n';
+        };
+        window.addEventListener('error', function (e) {
+            window.zeigeFehler('FEHLER: ' + e.message + ' (' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')');
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            window.zeigeFehler('FEHLER (Promise): ' + e.reason);
+        });
+    </script>
     <!-- 1. Zuerst die Phaser-Bibliothek laden (stellt das globale Objekt "Phaser" bereit) -->
     <script src="libs/phaser.min.js"></script>
     <!-- 2. Dann unser eigener Code. type="module" erlaubt uns, Code auf mehrere Dateien aufzuteilen -->

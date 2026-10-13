@@ -66,8 +66,27 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
             tri: (c, x1, y1, x2, y2, x3, y3) => g.fillStyle(c).fillTriangle(x1 - x0, y1 - y0, x2 - x0, y2 - y0, x3 - x0, y3 - y0),
         };
         zeichne(r);
-        g.generateTexture(schluessel, breite, hoehe);
+        let ok = false;
+        try {
+            g.generateTexture(schluessel, breite, hoehe);
+            // Selbstprüfung: Ist im fertigen Bild wirklich etwas gemalt? (Alpha-Wert > 0)
+            const daten = scene.textures.get(schluessel).getSourceImage().getContext('2d')
+                .getImageData(0, 0, breite, hoehe).data;
+            for (let i = 3; i < daten.length; i += 4 * 97) { if (daten[i] > 0) { ok = true; break; } }
+        } catch (fehler) {
+            if (window.zeigeFehler) window.zeigeFehler('Erd-Textur fehlgeschlagen: ' + fehler);
+        }
         g.destroy();
+        if (!ok) {
+            // Ersatzweg: direkt zeichnen (langsamer, aber sichtbar)
+            if (window.zeigeFehler) window.zeigeFehler('Erd-Textur ' + schluessel + ' war leer: zeichne direkt.');
+            const d = scene.add.graphics().setDepth(1);
+            zeichne({
+                rect: (c, x, y, w, h) => d.fillStyle(c).fillRect(x, y, w, h),
+                tri: (c, x1, y1, x2, y2, x3, y3) => d.fillStyle(c).fillTriangle(x1, y1, x2, y2, x3, y3),
+            });
+            return d;
+        }
     }
     return scene.add.image(x0, y0, schluessel).setOrigin(0, 0).setDepth(1);
 }

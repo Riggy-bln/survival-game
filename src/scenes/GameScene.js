@@ -134,6 +134,7 @@ export default class GameScene extends Phaser.Scene {
         const startX = Number(startParam.get('x')) || 200, startY = Number(startParam.get('y')) || BODEN - 200;
         this.player = new Player(this, startX + (this.meineNr - 1) * 48, startY);  // startet in der Luft und landet (Mitspieler daneben)
         this.physics.add.collider(this.player, this.platforms);
+        if (startParam.get('shot')) this.player.invulnerableUntil = Infinity;     // Testhilfe: Bildaufnahmen ohne Tod
 
         // --- Gegner ---
         // Jeder Gegner bekommt Startposition und Patrouillenbereich (links, rechts).

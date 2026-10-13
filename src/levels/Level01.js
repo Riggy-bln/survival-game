@@ -585,7 +585,7 @@ const abstieg = [[2740, 2804, 792],    // erste Kante, 32 unter der Oberfläche
 // sein, sonst stößt der Kopf des Spielers (48 hoch) an die Deckenkante. Hier ist das ab x 2868 der Fall (888).
 for (const [von, bis, oben] of abstieg) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
-hoehlen.push({ links: EINGANG, rechts: TUNNEL_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', offen: ['links', 'rechts'] });  // Mund und Gang
+hoehlen.push({ links: EINGANG, rechts: TUNNEL_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', offen: [] });  // Mund und Gang (links der Graben, rechts der Krater: beides Höhlenhintergründe)
 lampen.push(EINGANG + 70);
 // Holzstützen und Deckenbalken im Eingangsbereich
 for (const sx of [EINGANG + 8, 3110, 3290, 3440]) {
@@ -1036,7 +1036,7 @@ schwebend(ST_SCH, BODEN, 90, HOLZ);
 schwebend(ST_R - 90, BODEN, 90, HOLZ);
 leiter(ST_SCH, ST_R, 2);
 hoehlen.push({ links: ST_L, rechts: ST_EIN, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });
-hoehlen.push({ links: ST_EIN, rechts: 14150, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true, offen: ['links'] });
+hoehlen.push({ links: ST_EIN, rechts: 14150, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true, offen: [] });
 hoehlen.push({ links: 14150, rechts: 14420, oben: BODEN + DECKE, unten: TUNNEL_BODEN + 100, art: 'tunnel', eigeneLampen: true });
 hoehlen.push({ links: 14420, rechts: ST_SCH, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', eigeneLampen: true });
 hoehlen.push({ links: ST_SCH, rechts: ST_R, oben: BODEN, unten: TUNNEL_BODEN, art: 'schacht', eigeneLampen: true });

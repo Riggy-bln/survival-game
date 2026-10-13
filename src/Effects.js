@@ -146,8 +146,8 @@ function zackenProfil(n, rn) {                       // zufälliger Weg: jeder W
 function zellenTiefen(n, rn) {
     const out = []; let d = rn.between(0, 2);
     for (let i = 0; i < n; i++) {
-        d = Math.max(0, Math.min(4, d + rn.pick([-1, 0, 0, 0, 1])));
-        out.push(Math.max(0, Math.min(4, d + rn.pick([-1, 0, 0, 1]))));
+        d = Math.max(0, Math.min(3, d + rn.pick([-1, 0, 0, 0, 0, 1])));
+        out.push(Math.max(0, Math.min(3, d + rn.pick([-1, 0, 0, 0, 1]))));
     }
     return out;
 }
@@ -175,9 +175,9 @@ function randKerben(l, t, w, u, frei, kanten, oberflaeche, rn) {
             const d = tiefen[i];
             for (let k = 0; k < d; k++) { const [x, y] = zelle[seite](a, k); weg.push([x, y, 4, 4]); }
             for (let k = d; k < d + 3; k++) {              // dunkel gesprenkelter Übergang hinter der Kante
-                if (rn.frac() < [0.6, 0.35, 0.15][k - d]) { const [x, y] = zelle[seite](a, k); saum.push([x, y, 4, 4, true]); }
+                if (rn.frac() < [0.5, 0.25, 0.1][k - d]) { const [x, y] = zelle[seite](a, k); saum.push([x, y, 4, 4, true]); }
             }
-            if (d === 0 && (seite === 'oben' || seite === 'unten') && rn.frac() < 0.12) { const [x, y] = zelle[seite](a, -1); saum.push([x, y, 4, 4, false]); }   // Krümel außen
+            if (d === 0 && (seite === 'oben' || seite === 'unten') && rn.frac() < 0.07) { const [x, y] = zelle[seite](a, -1); saum.push([x, y, 4, 4, false]); }   // Krümel außen
         }
     }
     // Außenecken zusätzlich abrunden, wo beide anliegenden Seiten offen sind
@@ -448,6 +448,7 @@ export function decoratePlatforms(scene, platforms, boden) {
     const FELS = 0x5e5a55;                    // grauer Fels (Felsstufen am Höhleneingang)
     const ERDFARBEN = [0x5b4a35, 0x4b3b2a, FELS];
     let nr = 0;
+    const hinten = scene.add.graphics().setDepth(-6);          // dunkle Erde hinter allem, was unter der Oberfläche liegt: Durch die ausgefransten Ränder scheint dann Erde statt Himmel
     const feste = platforms.filter(q => !q.brechbar && q.height >= 30);     // alles, was Erde verdeckt (auch die unsichtbaren Hügelblöcke)
 
     for (const p of platforms) {
@@ -458,6 +459,7 @@ export function decoratePlatforms(scene, platforms, boden) {
         const istErde = ERDFARBEN.includes(grundfarbe) && p.height >= 40;
 
         if (istErde) {
+            if (t >= boden - 2) hinten.fillStyle(0x20180f).fillRect(l, t, p.width, p.height + (b >= 1490 ? 600 : 0));   // am Weltende ein Stück weiter nach unten
             p.setVisible(false);          // das einfarbige Rechteck verstecken: Es würde durch die ausgefransten Ränder der Erdtextur scheinen
             const anOberflaeche = t <= boden + 1 && grundfarbe !== FELS;   // Fels trägt kein Gras
             const istDecke = !anOberflaeche && p.height <= 180;
@@ -886,7 +888,7 @@ function zeichneHuegel(r, rnd, f, boden) {
             for (let k = 0; k < n; k++) {
                 const y = top + 12 + k * 4, dd = prof[k];
                 for (let q = 0; q < dd; q++) wegH.push([links ? bx + 4 * q : bx - 4 - 4 * q, y, 4, 4]);
-                for (let q = dd; q < dd + 3; q++) if (rk.frac() < [0.6, 0.35, 0.15][q - dd]) saumH.push([links ? bx + 4 * q : bx - 4 - 4 * q, y, 4, 4]);
+                for (let q = dd; q < dd + 3; q++) if (rk.frac() < [0.5, 0.25, 0.1][q - dd]) saumH.push([links ? bx + 4 * q : bx - 4 - 4 * q, y, 4, 4]);
             }
             for (let k = 1; k <= 2; k++) wegH.push([links ? bx : bx - 4 * (3 - k), top + 4 * (k - 1), 4 * (3 - k), 4]);   // obere Ecke abrunden
         };

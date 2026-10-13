@@ -141,6 +141,9 @@ export default class GameScene extends Phaser.Scene {
         // Die Rechtecke bleiben die "Körper" (Physik und Treffer). Köpfe, Waffen, Augen und Hörner
         // zeichnen wir in jedem Frame neu auf eine gemeinsame Zeichenfläche darüber.
         this.charGfx = this.add.graphics().setDepth(6);
+        // Die Rechtecke selbst werden nicht mehr gezeigt: Wir malen die Figuren stattdessen.
+        this.player.setVisible(false);
+        this.enemies.forEach(e => e.setVisible(false));
 
         // --- Schießen ---
         this.bullets = [];
@@ -187,51 +190,157 @@ export default class GameScene extends Phaser.Scene {
         this.events.on('resume', () => { this.pauseBlockedUntil = Date.now() + 300; });
     }
 
-    // Zeichnet Köpfe, Waffen und Gesichter auf die Körper-Rechtecke.
-    // clear() löscht alles vom letzten Frame, dann wird alles an die neue Position gemalt.
+    // Dunklere bzw. hellere Variante einer Farbe (für Schatten und Glanz).
+    dunkler(c, n = 30) { return Phaser.Display.Color.ValueToColor(c).darken(n).color; }
+    heller(c, n = 20) { return Phaser.Display.Color.ValueToColor(c).lighten(n).color; }
+
+    // Malt einen Menschen-ähnlichen Körper (Spieler, Soldaten, Fernkämpfer) aus einfachen Formen.
+    // (x, y) = Mitte des Körper-Rechtecks (32 x 48). o beschreibt Aussehen und Haltung.
+    drawHumanoid(g, x, y, o) {
+        const a = o.alpha ?? 1, f = o.facing, t = this.time.now;
+        const hose = this.dunkler(o.body, 45);
+
+        // Beine: beim Laufen schwingen sie gegenläufig, in der Luft sind sie gespreizt.
+        const s = Math.sin(t * 0.018), c = Math.cos(t * 0.018);
+        let l1 = 0, l2 = 0, h1 = 0, h2 = 0;
+        if (o.air) { l1 = 6; l2 = -6; h1 = 3; }
+        else if (o.moving) { l1 = s * 7; l2 = -s * 7; h1 = Math.max(0, c) * 4; h2 = Math.max(0, -c) * 4; }
+        for (const [lx, h] of [[l2, h2], [l1, h1]]) {
+            g.fillStyle(hose, a).fillRect(x + lx - 6, y + 10, 12, 14 - h);                  // Bein
+            g.fillStyle(0x222222, a).fillRect(x + lx - 6 + (f > 0 ? 1 : -3), y + 20 - h, 14, 4);   // Stiefel
+        }
+
+        // Rucksack auf dem Rücken, Torso, Gürtel, Schulterglanz
+        g.fillStyle(this.dunkler(o.body, 55), a).fillRect(x - f * 15 - 3, y - 8, 6, 15);
+        g.fillStyle(o.body, a).fillRect(x - 13, y - 10, 26, 20);
+        g.fillStyle(this.heller(o.body, 15), a).fillRect(x - 13, y - 10, 26, 4);
+        g.fillStyle(0x2a2a2a, a).fillRect(x - 13, y + 6, 26, 4);
+        g.fillStyle(0xb8a040, a).fillRect(x - 3, y + 6, 6, 4);                            // Gürtelschnalle
+        if (o.strap) {                                                                    // Patronengurt
+            g.lineStyle(3, 0x8a6d2a, a).beginPath().moveTo(x - 12, y - 9).lineTo(x + 12, y + 6).strokePath();
+        }
+
+        // Kopf
+        const hy = y - 24;
+        if (o.head === 'mask') {
+            g.fillStyle(0x555a4a, a).fillRect(x - 9, hy, 18, 15);
+            g.fillStyle(0xff4444, a).fillRect(x + (f > 0 ? -1 : -9), hy + 4, 10, 4);       // leuchtende Brille
+            g.fillStyle(0x2a2a2a, a).fillRect(x + (f > 0 ? 5 : -12), hy + 9, 7, 6);        // Filter
+        } else if (o.head === 'hood') {
+            g.fillStyle(this.dunkler(o.body, 50), a).fillRect(x - 10, hy - 2, 20, 17);
+            g.fillStyle(0xffee66, a).fillRect(x + (f > 0 ? 0 : -9), hy + 5, 9, 3);          // leuchtende Augen
+        } else {
+            g.fillStyle(o.skin, a).fillRect(x - 8, hy + 1, 16, 14);
+            g.fillStyle(0x222222, a).fillRect(x - 8, hy - 1, 16, 4);                        // Haar
+            g.fillStyle(0xcc2222, a).fillRect(x - 9, hy + 3, 18, 4);                        // Stirnband
+            const tx = f > 0 ? x - 16 : x + 9;                                              // flatterndes Ende
+            g.fillRect(tx, hy + 3 + Math.sin(t * 0.02) * 2, 7, 3);
+            const ex = f > 0 ? x + 1 : x - 5;
+            g.fillStyle(0xffffff, a).fillRect(ex, hy + 8, 4, 3);
+            g.fillStyle(0x111111, a).fillRect(ex + (f > 0 ? 2 : 0), hy + 8, 2, 3);
+        }
+
+        // Arme und Waffe
+        const schulter = { x, y: y - 6 };
+        if (o.aim !== undefined) {
+            const dx = Math.cos(o.aim), dy = Math.sin(o.aim);
+            const handX = schulter.x + dx * 12, handY = schulter.y + dy * 12;
+            g.lineStyle(6, o.skin, a).beginPath().moveTo(schulter.x, schulter.y).lineTo(handX, handY).strokePath();
+            g.lineStyle(6, 0x2a2a2a, a).beginPath().moveTo(handX - dx * 6, handY - dy * 6)
+                .lineTo(handX + dx * o.gun, handY + dy * o.gun).strokePath();
+            g.lineStyle(3, 0x777777, a).beginPath().moveTo(handX + dx * (o.gun - 8), handY + dy * (o.gun - 8))
+                .lineTo(handX + dx * o.gun, handY + dy * o.gun).strokePath();               // Lauf heller
+            g.fillStyle(o.skin, a).fillRect(handX - 3, handY - 3, 6, 6);                     // Hand
+        } else if (o.reach) {
+            for (const hy2 of [-4, 3]) {
+                g.lineStyle(6, o.skin, a).beginPath().moveTo(schulter.x, schulter.y)
+                    .lineTo(x + f * 20, y + hy2).strokePath();
+                g.fillStyle(this.dunkler(o.skin, 15), a).fillRect(x + f * 20 - 3, y + hy2 - 3, 7, 7);
+            }
+        }
+    }
+
+    // Die große Kreatur: breite Brust, dicke Arme mit Klauen, Hörner, Zähne, glühende Augen.
+    drawBoss(g, e) {
+        const x = e.x, y = e.y, f = Math.sign(this.player.x - x) || 1, t = this.time.now;
+        const body = e.fillColor;
+        const dunkel = this.dunkler(body, 35), hell = this.heller(body, 18);
+        const geht = Math.abs(e.body.velocity.x) > 20;
+        const s = geht ? Math.sin(t * 0.012) * 9 : 0;
+
+        // Beine
+        g.fillStyle(dunkel).fillRect(x - 30 + s, y + 20, 26, 30);
+        g.fillStyle(dunkel).fillRect(x + 4 - s, y + 20, 26, 30);
+        g.fillStyle(0x1a1a1a).fillRect(x - 32 + s, y + 44, 30, 6).fillRect(x + 2 - s, y + 44, 30, 6);
+
+        // Rückenstacheln (auf der abgewandten Seite)
+        g.fillStyle(0x1c3a2a);
+        for (let i = 0; i < 3; i++) {
+            g.fillTriangle(x - f * 40, y - 28 + i * 14, x - f * 40, y - 14 + i * 14, x - f * 56, y - 22 + i * 14);
+        }
+
+        // Rumpf mit Brust und Bauch
+        g.fillStyle(body).fillRect(x - 40, y - 34, 80, 58);
+        g.fillStyle(hell).fillRect(x - 22, y - 12, 44, 30);
+        g.fillStyle(dunkel).fillRect(x - 1, y - 34, 2, 50).fillRect(x - 22, y + 2, 44, 2);   // Muskellinien
+        g.fillStyle(0x7a2a2a).fillRect(x - 12, y - 26, 6, 10).fillRect(x + 6, y - 22, 5, 8); // Narben
+
+        // Arme mit Klauen (schwingen leicht)
+        const sw = Math.sin(t * 0.006) * 4;
+        for (const seite of [-1, 1]) {
+            const sx = x + seite * 40;
+            g.lineStyle(18, dunkel).beginPath().moveTo(sx, y - 24).lineTo(sx + seite * 8, y + 22 + sw).strokePath();
+            for (let k = -1; k <= 1; k++) {
+                g.fillStyle(0xe8e0c8).fillTriangle(sx + seite * 8 + k * 6 - 3, y + 28 + sw, sx + seite * 8 + k * 6 + 3, y + 28 + sw, sx + seite * 8 + k * 6, y + 42 + sw);
+            }
+        }
+
+        // Kopf: breit, Kiefer mit Zähnen, Hörner, glühende Augen
+        const kx = x + f * 4;
+        g.fillStyle(this.dunkler(body, 10)).fillRect(kx - 24, y - 62, 48, 30);
+        g.fillStyle(this.dunkler(body, 30)).fillRect(kx - 20, y - 38, 40, 12);                // Unterkiefer
+        g.fillStyle(0xffffff);
+        for (let i = 0; i < 5; i++) g.fillTriangle(kx - 18 + i * 8, y - 38, kx - 12 + i * 8, y - 38, kx - 15 + i * 8, y - 30);
+        g.fillStyle(0xe8e0c8)
+            .fillTriangle(kx - 22, y - 60, kx - 12, y - 60, kx - 30, y - 88)
+            .fillTriangle(kx + 22, y - 60, kx + 12, y - 60, kx + 30, y - 88);                // Hörner
+        const glut = Math.floor(t / 250) % 2 === 0 ? 0xff3333 : 0xff7744;
+        g.fillStyle(glut).fillRect(kx - 16, y - 54, 10, 7).fillRect(kx + 6, y - 54, 10, 7);
+    }
+
+    // Zeichnet alle Figuren. Die Rechtecke sind unsichtbar, bleiben aber Körper und Hitbox;
+    // ihre Farbe (fillColor) benutzen wir weiter für den Rumpf, damit Aufblitzen und
+    // Warnfarben (Gelb, Orange, Lila) automatisch sichtbar bleiben.
     drawCharacters() {
         const g = this.charGfx;
         g.clear();
+        const cam = this.cameras.main;
+        const mitte = cam.midPoint;
 
-        // --- Spieler: Helm, Kopf, Waffe in Zielrichtung ---
+        // --- Spieler ---
         const p = this.player;
         const pointer = this.input.activePointer;
         const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
-        const a = p.alpha;  // blinkt der Körper, blinkt alles mit
-        const nachRechts = Math.cos(winkel) >= 0;
-        const laenge = { pistol: 22, rifle: 36, shotgun: 32 }[p.weapon] ?? 22;
-        g.fillStyle(0xe0b890, a).fillCircle(p.x, p.y - 15, 9);                    // Kopf
-        g.fillStyle(0x3d4a2a, a).fillRect(p.x - 11, p.y - 27, 22, 9);              // Helm
-        g.fillStyle(0xffffff, a).fillRect(p.x + (nachRechts ? 3 : -6), p.y - 17, 3, 3);  // Auge
-        g.lineStyle(5, 0x222222, a).beginPath();                                   // Waffe
-        g.moveTo(p.x, p.y - 2);
-        g.lineTo(p.x + Math.cos(winkel) * laenge, p.y - 2 + Math.sin(winkel) * laenge);
-        g.strokePath();
+        this.drawHumanoid(g, p.x, p.y, {
+            facing: Math.cos(winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: 0x4f7a3a, skin: 0xe0b890,
+            head: 'bandana', strap: true, aim: winkel, gun: { pistol: 18, rifle: 32, shotgun: 28 }[p.weapon] ?? 18,
+            moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
+        });
 
-        // --- Gegner: Kopf mit Auge zum Spieler; Fernkämpfer mit Waffe; Kreatur mit Hörnern ---
+        // --- Gegner (nur in der Nähe der Kamera, spart Rechenzeit) ---
         for (const e of this.enemies) {
-            if (!e.active) continue;
+            if (!e.active || Math.abs(e.x - mitte.x) > 800 || Math.abs(e.y - mitte.y) > 500) continue;
+            if (e === this.boss) { this.drawBoss(g, e); continue; }
             const dx = p.x - e.x;
-            const blick = Math.abs(dx) < 700 ? Math.sign(dx) || 1 : (e.direction ?? 1);
-            if (e === this.boss) {
-                const oben = e.y - e.height / 2;
-                g.fillStyle(0x1f4a33).fillRect(e.x - 30, oben - 22, 60, 30);       // Kopf
-                g.fillTriangle(e.x - 30, oben - 20, e.x - 20, oben - 20, e.x - 34, oben - 44);  // Horn links
-                g.fillTriangle(e.x + 30, oben - 20, e.x + 20, oben - 20, e.x + 34, oben - 44);  // Horn rechts
-                g.fillStyle(0xff3333).fillRect(e.x + blick * 12 - 5, oben - 12, 10, 8);          // glühendes Auge
-                continue;
-            }
-            const oben = e.y - e.height / 2;
+            const blick = Math.abs(dx) < 700 ? (Math.sign(dx) || 1) : (e.direction ?? 1);
             const fern = e.range !== undefined;  // nur der Fernkämpfer hat "range"
-            g.fillStyle(fern ? 0x6a4a99 : 0xaa3333).fillCircle(e.x, oben + 9, 9);   // Kopf
-            g.fillStyle(0xffffff).fillRect(e.x + blick * 4 - 2, oben + 6, 4, 4);    // Auge
-            if (fern) {
-                const w = Phaser.Math.Angle.Between(e.x, e.y, p.x, p.y);
-                g.lineStyle(5, 0x222222).beginPath();
-                g.moveTo(e.x, e.y - 4);
-                g.lineTo(e.x + Math.cos(w) * 26, e.y - 4 + Math.sin(w) * 26);
-                g.strokePath();
-            }
+            this.drawHumanoid(g, e.x, e.y, {
+                facing: blick, body: e.fillColor, skin: fern ? 0x8a6fb0 : 0xc88a6a,
+                head: fern ? 'hood' : 'mask',
+                moving: Math.abs(e.body.velocity.x) > 10, air: !e.body.blocked.down,
+                aim: fern ? Phaser.Math.Angle.Between(e.x, e.y, p.x, p.y) : undefined,
+                gun: 26, reach: !fern,
+            });
         }
     }
 

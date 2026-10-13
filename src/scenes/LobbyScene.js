@@ -1,6 +1,6 @@
 import Netz, { CODE_LAENGE, MAX_SPIELER, saubererName } from '../Netz.js';
 import { sfx } from '../Sound.js';
-import { zentriere, baueHintergrund, baueTitel, pixelKnopf, MITTE_X } from '../MenuStil.js';
+import { zentriere, baueHintergrund, baueTitel, pixelKnopf, pixelText, pixelLabel, MITTE_X } from '../MenuStil.js';
 
 // Die Lobby für den Online-Mehrspielermodus.
 //   rolle 'host': erstellt einen Raum und zeigt den Code, den man Freunden gibt.
@@ -190,23 +190,109 @@ export default class LobbyScene extends Phaser.Scene {
         return k;
     }
 
-    // Name per Eingabefenster ändern (am Handy gibt es keine Tastatur-Eingabe im Spiel)
+    // Name ändern: Die Bildschirmtastatur öffnet sich (funktioniert am Handy ohne Tastatur und ohne Eingabefenster des Browsers).
     nameAbfragen() {
         if (this.rolle === 'gast' && this.netz && this.netz.verbunden) { this.setzeStatus('You can only change your name before joining.', '#ff9966'); return; }
-        const n = window.prompt('Your name (max. 12 characters):', this.name);
-        if (n === null) return;
-        this.name = saubererName(n);
-        this.nameFertig();
-        this.zeigeName();
+        this.oeffneTastatur('YOUR NAME', this.name, 12, (z) => /^[A-Za-z0-9 _-]$/.test(z), (text) => {
+            this.name = saubererName(text);
+            this.nameFertig();
+            this.zeigeName();
+        });
     }
 
     codeAbfragen() {
         if (this.versucht) return;
-        const c = window.prompt(`Room code (${CODE_LAENGE} characters):`, this.eingabe);
-        if (c === null) return;
-        this.eingabe = c.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LAENGE);
-        this.zeigeEingabe();
-        if (this.eingabe.length === CODE_LAENGE) this.verbinde();
+        this.oeffneTastatur('ROOM CODE', this.eingabe, CODE_LAENGE, (z) => /^[A-HJ-NP-Z2-9]$/.test(z), (text) => {
+            this.eingabe = text.toUpperCase().slice(0, CODE_LAENGE);
+            this.zeigeEingabe();
+            if (this.eingabe.length === CODE_LAENGE) this.verbinde();
+        });
+    }
+
+    // ---------- Bildschirmtastatur ----------
+    // Eine Tastatur zum Antippen (und Anklicken) in Pixelstil. Auch die echte Tastatur geht weiter. erlaubt(z) sagt, welche Zeichen gelten.
+    oeffneTastatur(titel, start, maxLaenge, erlaubt, fertig) {
+        if (this.tastatur) return;
+        const objekte = [];
+        const T = { text: String(start ?? '').toUpperCase().slice(0, maxLaenge), erlaubt, maxLaenge, fertig, objekte };
+        this.tastatur = T;
+        const dunkel = this.add.rectangle(MITTE_X, 270, 3000, 1400, 0x020a06, 0.82).setDepth(40).setInteractive();     // fängt alle Berührungen dahinter ab
+        objekte.push(dunkel);
+        const tafel = this.add.graphics().setDepth(41);
+        tafel.fillStyle(0x000000, 0.5).fillRect(MITTE_X - 360 + 6, 92 + 8, 720, 372);
+        tafel.fillStyle(0x56653a).fillRect(MITTE_X - 360, 92, 720, 372);
+        tafel.fillStyle(0x12201a).fillRect(MITTE_X - 356, 96, 712, 364);
+        tafel.fillStyle(0xffffff, 0.06).fillRect(MITTE_X - 356, 96, 712, 5);
+        objekte.push(tafel);
+        objekte.push(pixelText(this, titel, 3, 0xffdd55, 0x0d1117).setPosition(MITTE_X, 122).setDepth(42));
+        const feld = this.add.graphics().setDepth(41);
+        feld.fillStyle(0xffdd55).fillRect(MITTE_X - 220, 146, 440, 44).fillStyle(0x07110c).fillRect(MITTE_X - 217, 149, 434, 38);
+        objekte.push(feld);
+        T.anzeige = pixelLabel(this, MITTE_X, 168, 4, 0xf4efe0, 42);
+        objekte.push(T.anzeige.g);
+        const zeigen = () => { T.anzeige.setText((T.text + (Math.floor(this.time.now / 400) % 2 === 0 ? '_' : ' ')) || '_'); };
+        T.zeigen = zeigen;
+        const taste = (x, y, b, h, label, aktion, farbe = 0x2b3a2a, an = true) => {
+            const g = this.add.graphics().setDepth(42);
+            const zeichne = (gedrueckt) => {
+                g.clear();
+                g.fillStyle(0x000000, 0.4).fillRect(x - b / 2 + 2, y - h / 2 + 4, b, h);
+                g.fillStyle(an ? (gedrueckt ? 0xffdd55 : 0x56653a) : 0x2a3530).fillRect(x - b / 2, y - h / 2, b, h);
+                g.fillStyle(an ? (gedrueckt ? 0x6a5a1a : farbe) : 0x161d1a).fillRect(x - b / 2 + 2, y - h / 2 + 2, b - 4, h - 4);
+                g.fillStyle(0xffffff, an ? 0.1 : 0.03).fillRect(x - b / 2 + 3, y - h / 2 + 3, b - 6, 4);
+            };
+            zeichne(false);
+            const l = pixelText(this, label, label.length > 1 ? 2 : 3, an ? 0xf4efe0 : 0x55605a, 0x0d1117).setPosition(x, y).setDepth(43);
+            const z = this.add.rectangle(x, y, b + 4, h + 4, 0x000000, 0).setDepth(44).setInteractive({ useHandCursor: true });
+            if (an) z.on('pointerdown', () => { zeichne(true); sfx.play('hit'); this.time.delayedCall(110, () => zeichne(false)); aktion(); });
+            objekte.push(g, l, z);
+        };
+        const reihen = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM-_'];
+        reihen.forEach((reihe, ri) => {
+            const y = 222 + ri * 52;
+            [...reihe].forEach((z, i) => {
+                const x = MITTE_X + (i - (reihe.length - 1) / 2) * 66;
+                taste(x, y, 60, 44, z, () => this.tastaturZeichen(z), 0x2b3a2a, erlaubt(z));
+            });
+        });
+        taste(MITTE_X - 190, 432, 170, 44, 'SPACE', () => this.tastaturZeichen(' '), 0x2b3a2a, erlaubt(' '));
+        taste(MITTE_X, 432, 170, 44, 'DELETE', () => this.tastaturLoeschen(), 0x5a3a24);
+        taste(MITTE_X + 190, 432, 170, 44, 'OK', () => this.schliesseTastatur(true), 0x2a6a3a);
+        taste(MITTE_X + 316, 122, 56, 40, 'X', () => this.schliesseTastatur(false), 0x6a2a24);
+        zeigen();
+        T.takt = this.time.addEvent({ delay: 200, loop: true, callback: zeigen });
+    }
+
+    tastaturZeichen(z) {
+        const T = this.tastatur;
+        if (!T || !T.erlaubt(z) || T.text.length >= T.maxLaenge) return;
+        T.text += z;
+        T.zeigen();
+    }
+
+    tastaturLoeschen() {
+        const T = this.tastatur;
+        if (!T) return;
+        T.text = T.text.slice(0, -1);
+        T.zeigen();
+    }
+
+    schliesseTastatur(uebernehmen) {
+        const T = this.tastatur;
+        if (!T) return;
+        this.tastatur = null;
+        if (T.takt) T.takt.remove();
+        const text = T.text;
+        T.objekte.forEach(o => o.destroy());
+        if (uebernehmen) T.fertig(text);
+    }
+
+    // Die echte Tastatur wirkt auch in der Bildschirmtastatur.
+    tastaturTaste(e) {
+        if (e.key === 'Escape') { this.schliesseTastatur(false); return; }
+        if (e.key === 'Enter') { this.schliesseTastatur(true); return; }
+        if (e.key === 'Backspace') { this.tastaturLoeschen(); return; }
+        if (e.key.length === 1) this.tastaturZeichen(e.key.toUpperCase() === e.key || e.key === ' ' ? e.key : e.key.toUpperCase());
     }
 
     // Gastgeber: Spiel starten (Enter oder Knopf)
@@ -221,6 +307,7 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     taste(e) {
+        if (this.tastatur) { this.tastaturTaste(e); return; }
         if (e.key === 'Escape') { if (this.nameEdit) { this.nameEdit = false; this.nameFertig(); this.zeigeName(); } else this.zurueck(); return; }
         if (this.nameTaste(e)) return;
         if (this.rolle === 'host') {

@@ -390,7 +390,7 @@ export function pixelKnopf(scene, x, y, breite, hoehe, text, farbe, aktion, opti
     const g = scene.add.graphics().setDepth(10);
     const label = pixelText(scene, text, px, deaktiviert ? 0x6f7d88 : 0xf4efe0, 0x0d1117).setDepth(11);
     const pfeil = pixelText(scene, '>', px, 0xffdd55, 0x0d1117).setDepth(11).setVisible(false);
-    const zone = scene.add.rectangle(x, y, breite, hoehe, 0x000000, 0).setInteractive({ useHandCursor: true }).setDepth(12);
+    const zone = scene.add.rectangle(x, y, breite + 12, hoehe + 12, 0x000000, 0).setInteractive({ useHandCursor: true }).setDepth(12);   // etwas größer als der Knopf: leichter zu treffen (Finger)
     const k = { x, y, aktiv: false, an: 0, hover: false, g, label, pfeil, zone, farbe, deaktiviert };
     const zeichne = (t) => {
         g.clear();

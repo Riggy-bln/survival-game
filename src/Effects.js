@@ -208,7 +208,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
 
 
 // Pflanzenfarben für Moos, Efeu und Laub (von dunkel nach hell)
-export const GRUEN = [0x2f4a1c, 0x3f5f26, 0x4f7a2e, 0x5f8f38, 0x78a844];
+export const GRUEN = [0x1d5a24, 0x2c7a2e, 0x3e9a38, 0x5cb844, 0x8ad45a];   // satte Dschungelgrüns (von dunkel nach hell)
 
 // Lässt eine Plattform zuwachsen: Moos oben, Ranken mit Blättern, die nach unten hängen.
 // "ranken" = wie viele Ranken pro 100 Pixel Breite hängen. Alles in 2- bis 4-Pixel-Blöcken.

@@ -12,6 +12,7 @@ import Grenade from '../entities/Grenade.js';
 import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
 import { buildLandscape } from '../Landscape.js';
+import { buildDschungelHimmel, buildDschungelSchicht, buildBrandherde } from '../Dschungel.js';
 import Mehrspieler, { SPIELERFARBEN } from '../Mehrspieler.js';
 import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves, buildHuegel, buildBerge } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
@@ -66,13 +67,14 @@ export default class GameScene extends Phaser.Scene {
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
         // --- Himmel und Hintergrund-Schichten (Parallax: weiter weg = langsamer) ---
-        buildSky(this);
-        buildBerge(this, WORLD_WIDTH, BODEN, 0.04, 0x946468, 250, 190, 'berge0', false, true);    // ferne, hohe Gebirgskette mit spitzen Gipfeln
-        buildBerge(this, WORLD_WIDTH, BODEN, 0.08, 0x8a5a5c, 190, 150, 'berge1', false, true);    // ferne Berge
-        buildBerge(this, WORLD_WIDTH, BODEN, 0.17, 0x5a4254, 130, 100, 'berge2', true);           // nähere Hügel mit Kiefern
-        buildBerge(this, WORLD_WIDTH, BODEN, 0.23, 0x3f3340, 100, 80, 'berge3', true);            // nahe, dunkle Hänge
-        buildSkyline(this, WORLD_WIDTH, BODEN, 0.12, 0x6b4a52, 120, 260, 'fern');
-        buildSkyline(this, WORLD_WIDTH, BODEN, 0.3, 0x453a47, 90, 230, 'mitte');
+        // Krieg im Dschungel: giftig-grüner Himmel mit Bränden am Horizont und fünf Dschungelschichten (Palmen, Wachtürme, Hütten)
+        buildDschungelHimmel(this);
+        buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.04, 0x3f8f68, 230, 160, 'j0', 5, 55, false, -27.5);     // ferne, dunstige Hügel
+        buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.08, 0x2f7a54, 190, 130, 'j1', 6, 75, true, -26.5);      // Dschungel mit Wachtürmen
+        buildBrandherde(this, WORLD_WIDTH, BODEN, 0.08, 'b1', 7);                                                  // Rauchsäulen und Glühen
+        buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.14, 0x226444, 150, 105, 'j2', 8, 95, true, -25);
+        buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.22, 0x194c34, 115, 85, 'j3', 9, 120, false, -24);
+        buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.32, 0x103a28, 85, 65, 'j4', 8, 150, false, -23);        // nahe, dunkle Palmen
 
         // --- Dekoration: Ruinen im Hintergrund (ohne Physik) ---
         // (Die alten Rechtecke sind weg: Verfallene Gebäude und Pflanzen kommen aus Landscape.js.)

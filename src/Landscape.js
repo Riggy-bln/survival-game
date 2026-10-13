@@ -1,4 +1,4 @@
-// Die Landschaft: verlassene, zugewachsene Ruinen, Bäume, Büsche, Farne, Autowracks, Zäune.
+// Die Landschaft (Dschungel im Krieg): Bambushütten, Wachtürme, Bunker, Palmen, Büsche, Farne, Autowracks, Sandsäcke, Fahnen.
 // Alles ist Pixelgrafik. Jedes Motiv wird einmal in eine kleine Textur gemalt und dann
 // beliebig oft als Bild in der Welt verteilt (billig für den Computer, da Bilder).
 import { werkzeug, mische, variiere, GRUEN } from './Effects.js';
@@ -45,99 +45,142 @@ function textur(scene, key, w, h, zeichne) {
 }
 
 // ---------------------------------------------------------------------------------------
-// Verfallene Gebäude für den Hintergrund. Alles etwas abgedunkelt, damit sie zurücktreten.
-function zeichneRuine(r, rnd, w, h) {
-    const D = 28;                                  // Abdunklung für den Hintergrund
-    const basis = rnd.pick([0x4a4e52, 0x57524b, 0x454a45, 0x5a5650]);
-    const S = 8;
-    // Ausgefranste Oberkante: jede 8-Pixel-Spalte hat eine eigene Höhe, benachbarte unterscheiden sich wenig
-    const tops = [];
-    let t = rnd.between(0, Math.floor(h * 0.2));
-    for (let x = 0; x < w; x += S) {
-        t = Math.max(0, Math.min(Math.floor(h * 0.35), t + rnd.pick([-24, -16, -8, 0, 0, 8, 16])));
-        tops.push(t);
-        r.rect(variiere(basis, rnd.between(-6, 6) - D), x, t, S, h - t);
+// Bauten im Hintergrund (Dschungel-Kriegsgebiet): Bambushütten, Holztürme, überwucherte Bunker, Funkmasten, abgebrannte Hütten.
+// Der Index i wählt die Art. Alles ist etwas abgedunkelt, damit es hinter den Figuren zurücktritt.
+function zeichneRuine(r, rnd, w, h, i = 0) {
+    const D = 14;
+    const art = i % 6;
+    const holz = [0x6a4a2a, 0x5a3e22, 0x7a5632][i % 3], bambus = [0xb89a4a, 0xa88a3e, 0xc8aa5a][i % 3];
+    const stroh = [0x8a6a2e, 0x7a5c28, 0x9a7a38][(i + 1) % 3];
+    const sack = [0x8a7a50, 0x7a6c44, 0x9a8a5a];
+    const sandsaecke = (x, y, n) => {                                                     // eine Reihe Sandsäcke
+        for (let k = 0; k < n; k++) {
+            r.rect(0x3a3220, x + k * 18, y, 20, 12); r.rect(rnd.pick(sack), x + k * 18 + 1, y + 1, 18, 9); r.rect(0xbaa870, x + k * 18 + 3, y + 2, 12, 2);
+        }
+    };
+    if (art === 0 || art === 3) {                                                          // Hütte auf Pfählen mit Strohdach
+        const bw = w - 40, bx = 20, wandH = Math.floor(h * 0.3), boden = h - 26;
+        for (const px of [bx + 4, bx + bw / 2 - 2, bx + bw - 10]) r.rect(variiere(holz, -D), px, boden, 6, 26);   // Pfähle
+        r.rect(variiere(holz, -D), bx - 4, boden - 4, bw + 8, 6);                                              // Boden
+        for (let x = bx; x < bx + bw; x += 6) r.rect(variiere(bambus, rnd.between(-14, 6) - D), x, boden - wandH, 5, wandH - 4);   // Bambuswand
+        r.rect(0x1a120a, bx + bw / 2 - 10, boden - wandH + 10, 20, wandH - 14);                                // Tür (dunkel)
+        r.rect(0x1a120a, bx + 8, boden - wandH + 8, 12, 10);                                                   // Fenster
+        const dachH = Math.floor(h * 0.32);                                                                    // Strohdach: Dreieck mit Fransen
+        r.tri(variiere(stroh, -D), bx - 16, boden - wandH, bx + bw + 16, boden - wandH, bx + bw / 2, boden - wandH - dachH);
+        for (let k = 0; k < 18; k++) { const t = k / 18, x = bx - 16 + t * (bw + 32); r.rect(variiere(stroh, rnd.between(-20, 12) - D), x, boden - wandH - 2, 3, rnd.between(3, 9)); }
+        for (let k = 0; k < 6; k++) r.rect(variiere(stroh, -26 - D), bx + bw / 2 - 20 + k * 7, boden - wandH - dachH * (0.3 + 0.1 * (k % 3)), 3, 8);
+        laub(r, rnd, bx + 8, boden - 2, 16, 9, D); laub(r, rnd, bx + bw - 8, boden - 2, 14, 8, D);
+        if (art === 3) r.rect(0xc9302c, bx + bw - 30, boden - wandH - dachH + 6, 18, 11);                      // rote Fahne am Dach
+    } else if (art === 1) {                                                                // Holzwachturm
+        const lx = 28, rx = w - 34, plattform = Math.floor(h * 0.42);
+        for (const px of [lx, rx]) { r.rect(variiere(holz, -D), px, plattform, 7, h - plattform); }
+        pLinie(r, variiere(holz, -10 - D), lx + 3, plattform + 4, rx + 3, h - 12, 3);                           // Kreuzstreben
+        pLinie(r, variiere(holz, -10 - D), rx + 3, plattform + 4, lx + 3, h - 12, 3);
+        r.rect(variiere(holz, 8 - D), lx - 12, plattform - 6, rx - lx + 30, 8);                                 // Plattform
+        r.rect(variiere(holz, -D), lx - 12, plattform - 28, 4, 22); r.rect(variiere(holz, -D), rx + 14, plattform - 28, 4, 22);   // Geländer
+        r.rect(variiere(holz, -D), lx - 12, plattform - 28, rx - lx + 30, 3);
+        r.rect(variiere(holz, -D), lx - 8, plattform - 70, 4, 40); r.rect(variiere(holz, -D), rx + 12, plattform - 70, 4, 40);   // Dachpfosten
+        r.tri(variiere(stroh, -D), lx - 22, plattform - 70, rx + 28, plattform - 70, (lx + rx) / 2 + 4, plattform - 104);            // Dach
+        for (let k = 0; k < 14; k++) r.rect(variiere(stroh, rnd.between(-20, 12) - D), lx - 22 + k * ((rx - lx + 50) / 14), plattform - 72, 3, rnd.between(3, 8));
+        sandsaecke(lx - 18, h - 12, 3);
+        r.rect(0x20262a, (lx + rx) / 2 - 6, plattform - 46, 14, 12);                                           // Maschinengewehr-Nest (dunkel)
+        for (let k = 0; k < 3; k++) ranke(r, rnd, lx + rnd.between(-6, rx - lx), plattform, rnd.between(14, 40), D);
+    } else if (art === 2) {                                                                // überwucherter Bunker
+        const bh = Math.floor(h * 0.36), by = h - bh;
+        r.rect(variiere(0x5a5e5a, -D), 10, by, w - 20, bh);
+        r.rect(variiere(0x6a6e68, -D), 10, by, w - 20, 6);
+        r.rect(0x14181b, 24, by + 14, w - 48, 9);                                                              // Schießscharte
+        r.rect(0x3a3e3a, 10, by, 5, bh); r.rect(0x3a3e3a, w - 15, by, 5, bh);
+        for (let k = 0; k < 8; k++) r.rect(variiere(0x4a4e4a, rnd.between(-14, 6) - D), rnd.between(12, w - 30), by + rnd.between(10, bh - 6), rnd.between(8, 20), 3);   // Risse und Putz
+        sandsaecke(4, by - 12, Math.floor((w - 8) / 18));
+        for (let x = 16; x < w - 16; x += 14) { r.rect(0x20241f, x, by - 34, 2, 22); r.rect(0x20241f, x, by - 28 + (x % 28 ? 2 : 0), 14, 2); }   // Stacheldraht
+        laub(r, rnd, w * 0.3, by - 8, 28, 14, D); laub(r, rnd, w * 0.72, by - 6, 24, 12, D);
+        for (let k = 0; k < 6; k++) ranke(r, rnd, rnd.between(12, w - 14), by + 4, rnd.between(14, 46), D);
+    } else if (art === 4) {                                                                // Funkmast mit Sandsack-Nest
+        const mx = w / 2;
+        r.rect(0x3a4046, mx - 2, 20, 5, h - 20);
+        pLinie(r, 0x3a4046, mx - 18, h - 14, mx, 40, 3); pLinie(r, 0x3a4046, mx + 18, h - 14, mx, 40, 3);
+        for (let y = 60; y < h - 20; y += 34) pLinie(r, 0x3a4046, mx - 8 - (y / h) * 8, y, mx + 8 + (y / h) * 8, y, 2);
+        r.rect(0x555a5e, mx + 3, 24, 22, 10); r.rect(0x555a5e, mx - 14, 14, 12, 4);                              // Antennen
+        r.rect(0xc9302c, mx + 4, 8, 20, 12); r.rect(0x20262a, mx + 12, 8, 4, 12);                                // zerfetzte Fahne
+        sandsaecke(mx - 40, h - 12, 5);
+        sandsaecke(mx - 30, h - 24, 3);
+        laub(r, rnd, mx - 36, h - 4, 14, 8, D); laub(r, rnd, mx + 40, h - 4, 14, 8, D);
+    } else {                                                                               // abgebrannte Hütte
+        const bw = w - 40, bx = 20, boden = h - 8;
+        for (const px of [bx + 2, bx + bw - 8]) r.rect(0x2a2420, px, boden - 56, 6, 56);                          // verkohlte Pfosten
+        r.rect(0x2a2420, bx + bw / 2 - 3, boden - 40, 6, 40);
+        pLinie(r, 0x2a2420, bx + 4, boden - 54, bx + bw / 2, boden - 70, 4);                                      // eingestürzter Dachbalken
+        pLinie(r, 0x2a2420, bx + bw - 6, boden - 54, bx + bw / 2 + 8, boden - 36, 4);
+        for (let k = 0; k < 16; k++) r.rect(rnd.pick([0x3a2e26, 0x2a2420, 0x4a3a2c]), bx + rnd.between(0, bw - 8), boden - rnd.between(4, 20), rnd.between(6, 16), rnd.between(3, 8));   // Asche und Trümmer
+        for (let k = 0; k < 5; k++) r.rect(rnd.pick([0xff9a2a, 0xff6a1a, 0xffcc44]), bx + rnd.between(4, bw - 6), boden - rnd.between(2, 14), 4, rnd.between(4, 9));     // Glutnester
+        for (let k = 0; k < 6; k++) r.rect(0x1c1c1c, bx + bw / 2 + rnd.between(-10, 10), boden - 74 - k * 10, rnd.between(8, 14), 8, 0.5 - k * 0.07);   // Rauchfahne
+        laub(r, rnd, bx - 6, boden - 2, 14, 8, D); laub(r, rnd, bx + bw + 4, boden - 2, 12, 7, D);
     }
-    // Schattenseite rechts
-    r.rect(0x000000, w - 10, tops[tops.length - 1], 10, h - tops[tops.length - 1], 0.25);
-    // Fenster in Reihen, manche zerbrochen, manche zugewachsen
-    for (let y = 40; y < h - 40; y += 52) {
-        for (let x = 14; x < w - 30; x += 38) {
-            const top = tops[Math.floor(x / S)];
-            if (y < top + 12 || rnd.frac() < 0.15) continue;
-            r.rect(0x14181b, x, y, 20, 28);
-            r.rect(variiere(basis, 14 - D), x - 2, y - 2, 24, 3);                            // Sturz
-            if (rnd.frac() < 0.3) { r.rect(0x20262a, x + 4, y, 4, 28); r.rect(0x20262a, x + 12, y + 8, 4, 20); }   // Glasreste
-            if (rnd.frac() < 0.12) {                                                         // Pflanzen wachsen heraus
-                laub(r, rnd, x + 10, y + 26, 10, 7, D);
-                ranke(r, rnd, x + rnd.between(2, 16), y + 30, rnd.between(12, 40), D);
+}
+
+// Eine Palme: gebogener, geringelter Stamm, acht hängende Wedel mit Fiederblättchen und Kokosnüsse.
+function zeichnePalme(r, rnd, w, h) {
+    const cx = w / 2, hoehe = Math.floor(h * 0.7), neigung = rnd.between(-16, 16);
+    let tx = cx, ty = h;
+    for (let k = 0; k < hoehe; k += 4) {
+        tx = cx + Math.round(Math.sin(k / hoehe * 1.5) * neigung / 2) * 2;
+        ty = h - k - 4;
+        r.rect(k % 12 < 6 ? 0x6a4a2a : 0x5a3e22, tx - 4 - (k < 12 ? 2 : 0), ty, 8 + (k < 12 ? 4 : 0), 5);
+        r.rect(0x8a6a3e, tx - 4, ty, 2, 5);
+    }
+    const wedel = 9;
+    for (let wd = 0; wd < wedel; wd++) {
+        const a = -Math.PI / 2 + (wd - (wedel - 1) / 2) * 0.55 + rnd.between(-6, 6) / 100, laenge = rnd.between(42, 62);
+        let vx = tx, vy = ty;
+        for (let s = 0; s < laenge; s += 3) {
+            vx = tx + Math.cos(a) * s * 1.05; vy = ty + Math.sin(a) * s * 0.5 + s * s * 0.012;
+            r.rect(GRUEN[rnd.between(1, 3)], vx - 2, vy - 1, 4, 3);
+            if (s % 6 === 0 && s > 6) {                                                                          // Fiederblättchen
+                const g2 = GRUEN[rnd.between(2, 4)];
+                r.rect(g2, vx - 1, vy - 5, 3, 5); r.rect(g2, vx - 1, vy + 2, 3, 6);
             }
         }
     }
-    // Risse
-    for (let i = 0; i < w / 60; i++) {
-        let cx = rnd.between(6, w - 6), cy = rnd.between(tops[Math.floor(cx / S)] + 8, h - 40);
-        for (let k = 0; k < rnd.between(3, 6); k++) { r.rect(0x0c0e10, cx, cy, 2, 6, 0.8); cx += rnd.pick([-3, 3]); cy += 5; }
-    }
-    // Armierungseisen ragen aus den Bruchkanten
-    for (let i = 0; i < 4; i++) {
-        const cx = rnd.between(4, w - 6) , top = tops[Math.floor(cx / S)];
-        pLinie(r, 0x2a2420, cx, top, cx + rnd.between(-6, 6), top - rnd.between(10, 24), 2);
-    }
-    // Ranken hängen von der Oberkante und von Simsen herab
-    for (let i = 0; i < w / 40; i++) {
-        const x = rnd.between(2, w - 6);
-        ranke(r, rnd, x, tops[Math.floor(x / S)], rnd.between(20, Math.floor(h * 0.6)), D);
-    }
-    // Efeu an den Ecken, Moos und Gebüsch am Fuß
-    for (const seite of [0, w - 12]) {
-        for (let y = h; y > h - rnd.between(60, Math.floor(h * 0.8)); y -= 6) {
-            r.rect(variiere(rnd.pick(GRUEN.slice(1, 5)), -D), seite + rnd.between(0, 4), y - 6, rnd.between(6, 12), 6);
-        }
-    }
-    for (let x = 0; x < w; x += rnd.between(26, 56)) laub(r, rnd, x, h - 4, rnd.between(8, 14), rnd.between(4, 8), D);
-    // Auf dem Dach wächst manchmal ein Baum
-    if (rnd.frac() < 0.3) {
-        const cx = rnd.between(24, w - 24), top = tops[Math.floor(cx / S)];
-        r.rect(variiere(0x4a3322, -D), cx - 3, top - 36, 7, 38);
-        laub(r, rnd, cx, top - 46, 22, 16, D);
-        laub(r, rnd, cx - 14, top - 36, 12, 9, D);
-    }
+    r.rect(0x4a3418, tx - 6, ty + 2, 6, 6); r.rect(0x4a3418, tx + 1, ty + 4, 6, 6);                               // Kokosnüsse
 }
 
-// Ein lebender Baum (verzweigt, mit dichtem Laub und Ranken).
-function zeichneBaum(r, rnd, w, h) {
+// Ein Laubbaum des Dschungels: dicker Stamm mit Brettwurzeln, mächtiges Kronendach, Lianen und rote Blüten.
+function zeichneLaubbaum(r, rnd, w, h) {
     const cx = w / 2, th = Math.floor(h * 0.55);
-    r.rect(0x4a3322, cx - 5, h - th, 10, th);
-    r.rect(0x33231a, cx + 1, h - th, 4, th);
-    r.rect(0x4a3322, cx - 9, h - 8, 18, 8);                                       // Wurzelansatz
-    pLinie(r, 0x4a3322, cx, h - th + 10, cx - 22, h - th - 14, 4);                 // Äste
-    pLinie(r, 0x4a3322, cx, h - th + 4, cx + 24, h - th - 20, 4);
-    laub(r, rnd, cx, h - th - 22, Math.floor(w * 0.32), 28);
-    laub(r, rnd, cx - 28, h - th - 6, 22, 16);
-    laub(r, rnd, cx + 30, h - th - 10, 22, 16);
-    for (let i = 0; i < 4; i++) ranke(r, rnd, cx + rnd.between(-34, 34), h - th - 8, rnd.between(16, 56));
+    r.rect(0x4a3322, cx - 7, h - th, 14, th);
+    r.rect(0x33231a, cx + 2, h - th, 5, th);
+    pLinie(r, 0x4a3322, cx - 7, h - 6, cx - 22, h, 4); pLinie(r, 0x4a3322, cx + 7, h - 6, cx + 22, h, 4);          // Brettwurzeln
+    pLinie(r, 0x4a3322, cx, h - th + 12, cx - 26, h - th - 12, 4);
+    pLinie(r, 0x4a3322, cx, h - th + 6, cx + 28, h - th - 18, 4);
+    laub(r, rnd, cx, h - th - 26, Math.floor(w * 0.4), 32);
+    laub(r, rnd, cx - 34, h - th - 8, 26, 18);
+    laub(r, rnd, cx + 36, h - th - 12, 26, 18);
+    for (let i = 0; i < 7; i++) ranke(r, rnd, cx + rnd.between(-44, 44), h - th - 10, rnd.between(20, 70));
+    for (let i = 0; i < 5; i++) r.rect(rnd.pick([0xd9302c, 0xff7a2a, 0xffd23f]), cx + rnd.between(-44, 44), h - th - rnd.between(10, 54), 4, 4);   // Blüten
 }
 
-// Ein toter Baum: kahl, schief, mit Efeu an einer Seite.
+// Ein vom Krieg zerschossener Baum: verkohlter, zersplitterter Stumpf mit Glutnestern und etwas Rauch.
 function zeichneTotBaum(r, rnd, w, h) {
-    const cx = w / 2 + rnd.between(-6, 6);
-    r.rect(0x3a2e26, cx - 4, h - Math.floor(h * 0.7), 8, Math.floor(h * 0.7));
-    r.rect(0x241b16, cx + 1, h - Math.floor(h * 0.7), 3, Math.floor(h * 0.7));
-    for (const [dx, dy, l] of [[-1, 0.45, 38], [1, 0.55, 30], [-1, 0.75, 24], [1, 0.3, 26]]) {
+    const cx = w / 2 + rnd.between(-6, 6), hh = Math.floor(h * 0.6);
+    r.rect(0x241c16, cx - 6, h - hh, 12, hh);
+    r.rect(0x14100c, cx + 2, h - hh, 4, hh);
+    for (let k = 0; k < 5; k++) r.tri(0x241c16, cx - 6 + k * 3, h - hh, cx - 4 + k * 3, h - hh, cx - 5 + k * 3 + rnd.between(-2, 2), h - hh - rnd.between(8, 28));   // Splitter oben
+    for (const [dx, dy, l] of [[-1, 0.5, 26], [1, 0.35, 20]]) {
         const y0 = h - Math.floor(h * dy);
-        pLinie(r, 0x3a2e26, cx, y0, cx + dx * l, y0 - l * 0.7, 2);
-        pLinie(r, 0x3a2e26, cx + dx * l, y0 - l * 0.7, cx + dx * (l + 10), y0 - l * 0.7 - 12, 2);
+        pLinie(r, 0x241c16, cx, y0, cx + dx * l, y0 - l * 0.5, 3);
     }
-    for (let y = h; y > h - Math.floor(h * 0.5); y -= 6) r.rect(rnd.pick(GRUEN.slice(1, 5)), cx - 5 + rnd.between(0, 4), y - 6, rnd.between(4, 8), 6);
+    for (let k = 0; k < 5; k++) r.rect(rnd.pick([0xff7a2a, 0xffaa44, 0xcc3a1a]), cx - 6 + rnd.between(0, 10), h - rnd.between(6, hh - 6), 3, rnd.between(3, 6));   // Glut
+    for (let k = 0; k < 5; k++) r.rect(0x1c1c1c, cx + rnd.between(-6, 8), h - hh - 20 - k * 10, rnd.between(8, 14), 8, 0.45 - k * 0.07);   // Rauch
+    for (let y = h; y > h - Math.floor(h * 0.3); y -= 6) r.rect(rnd.pick(GRUEN.slice(1, 4)), cx - 6 + rnd.between(0, 6), y - 6, rnd.between(3, 6), 5);   // trotzdem ein paar Triebe
 }
 
 function zeichneBusch(r, rnd, w, h) {
     laub(r, rnd, w * 0.3, h - 14, w * 0.28, 14);
     laub(r, rnd, w * 0.65, h - 16, w * 0.3, 16);
     laub(r, rnd, w * 0.5, h - 24, w * 0.22, 14);
-    for (let i = 0; i < 4; i++) {                                     // Blüten und Beeren
-        r.rect(rnd.pick([0xe6e0d0, 0xd9b43a, 0xb04a4a]), rnd.between(8, w - 12), rnd.between(h - 36, h - 10), 4, 4);
+    for (let i = 0; i < 6; i++) {                                     // tropische Blüten
+        r.rect(rnd.pick([0xd9302c, 0xff7a2a, 0xffd23f, 0xf0f0f0]), rnd.between(8, w - 12), rnd.between(h - 38, h - 10), 5, 5);
     }
 }
 
@@ -179,23 +222,33 @@ function zeichneAuto(r, rnd, w, h) {
     zeichneTuft(r, rnd, 30, 14);
 }
 
+// Eine Stellung: Sandsackwall mit Stacheldraht auf Holzpfosten (und ein Busch davor).
 function zeichneZaun(r, rnd, w, h) {
-    for (let x = 6; x < w - 6; x += 24) {
-        r.rect(0x5a4630, x, h - rnd.between(30, 40), 5, 40);                       // Pfosten
+    const sack = [0x8a7a50, 0x7a6c44, 0x9a8a5a];
+    for (let reihe = 0; reihe < 2; reihe++) {
+        for (let k = 0; k < (reihe ? 4 : 5); k++) {
+            const x = 8 + k * 20 + (reihe ? 10 : 0), y = h - 12 - reihe * 11;
+            r.rect(0x3a3220, x, y, 22, 12); r.rect(rnd.pick(sack), x + 1, y + 1, 20, 9); r.rect(0xbaa870, x + 3, y + 2, 13, 2);
+        }
     }
-    r.rect(0x6a5438, 4, h - 34, 70, 5);                                           // Latten (eine hängt schief)
-    pLinie(r, 0x6a5438, 70, h - 34, 106, h - 18, 3);
-    r.rect(0x6a5438, 4, h - 20, 52, 5);
-    for (let i = 0; i < 3; i++) ranke(r, rnd, rnd.between(6, w - 10), h - 34, rnd.between(10, 30));
-    laub(r, rnd, 24, h - 4, 18, 8); laub(r, rnd, 90, h - 4, 14, 7);
+    for (const px of [10, 60, 110]) r.rect(0x4a3a24, px, h - 44, 4, 34);                                         // Pfosten
+    for (let x = 8; x < w - 6; x += 12) {                                                                         // Stacheldraht
+        r.rect(0x20241f, x, h - 38 + (x % 24 ? 3 : 0), 14, 2);
+        if ((x / 12) % 2 === 0) r.rect(0x20241f, x + 6, h - 42, 2, 10);
+    }
+    laub(r, rnd, 20, h - 3, 16, 7); laub(r, rnd, 100, h - 3, 14, 7);
 }
 
+// Eine Fahnenstange mit zerfetzter roter Fahne (Banner einer Kriegspartei).
 function zeichneLaterne(r, rnd, w, h) {
-    r.rect(0x3a4046, w / 2 - 2, 14, 5, h - 14);
-    pLinie(r, 0x3a4046, w / 2, 16, w / 2 + 14, 6, 4);                              // verbogener Arm
-    r.rect(0x555a5e, w / 2 + 10, 8, 14, 6);
-    r.rect(0x20262a, w / 2 + 12, 14, 8, 4);                                        // kaputte Lampe
-    for (let k = 0; k < 3; k++) ranke(r, rnd, w / 2 - 2 + rnd.between(-2, 2), 20 + k * 20, rnd.between(14, 40));
+    r.rect(0x3a3226, w / 2 - 2, 12, 5, h - 12);
+    r.rect(0xe8c030, w / 2 - 3, 8, 7, 6);                                                                         // Knauf
+    for (let k = 0; k < 8; k++) {                                                                                  // wehende Fahne in Stufen
+        const sw = Math.sin(k * 0.7) * 2;
+        r.rect(k % 2 ? 0xa8241f : 0xc9302c, w / 2 + 3 + k * 4, 16 + sw, 4, 30 - k * 1.2);
+    }
+    r.rect(0x10100c, w / 2 + 16, 24, 8, 8);                                                                       // Emblem
+    for (let k = 0; k < 3; k++) r.rect(0xc9302c, w / 2 + 28 + k * 2, 40 + k * 3, 2, 8 - k * 2);                  // Fetzen unten
     laub(r, rnd, w / 2, h - 6, 12, 8);
 }
 
@@ -239,8 +292,8 @@ function zeichnePanzer(r, rnd, w, h) {
 
 function erzeugeTexturen(scene) {
     [[150, 230], [210, 310], [130, 170], [240, 350], [180, 260], [120, 210]].forEach(([w, h], i) =>
-        textur(scene, `ruine_${i}`, w, h, (r, rnd) => zeichneRuine(r, rnd, w, h)));
-    for (let i = 0; i < 3; i++) textur(scene, `baum_${i}`, 130, 190 + i * 20, (r, rnd) => zeichneBaum(r, rnd, 130, 190 + i * 20));
+        textur(scene, `ruine_${i}`, w, h, (r, rnd) => zeichneRuine(r, rnd, w, h, i)));
+    for (let i = 0; i < 3; i++) textur(scene, `baum_${i}`, 130, 190 + i * 20, (r, rnd) => (i === 1 ? zeichneLaubbaum : zeichnePalme)(r, rnd, 130, 190 + i * 20));
     for (let i = 0; i < 3; i++) textur(scene, `totbaum_${i}`, 100, 150 + i * 20, (r, rnd) => zeichneTotBaum(r, rnd, 100, 150 + i * 20));
     for (let i = 0; i < 4; i++) textur(scene, `busch_${i}`, 72, 46, (r, rnd) => zeichneBusch(r, rnd, 72, 46));
     for (let i = 0; i < 3; i++) textur(scene, `farn_${i}`, 44, 34, (r, rnd) => zeichneFarn(r, rnd, 44, 34));

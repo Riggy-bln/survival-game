@@ -120,6 +120,10 @@ export default class GameScene extends Phaser.Scene {
         buildCaves(this, level.hoehlen, level.lampen);  // Höhlenwände (statt schwarzer Flächen)
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
         this.fx = new Effects(this);                       // Partikel
+        // Testhilfe (nur mit ?shot=1): nach 6 Sekunden ein Bild des Spiels an einen lokalen Testserver schicken
+        if (new URLSearchParams(window.location.search).get('shot')) {
+            this.time.delayedCall(6000, () => this.game.renderer.snapshot((bild) => fetch('http://localhost:8002/', { method: 'POST', body: bild.src })));
+        }
         buildEmbers(this);                                 // Glut und Asche in der Luft
         buildVignette(this);                               // dunkle Bildränder
 

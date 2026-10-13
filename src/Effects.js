@@ -452,12 +452,13 @@ export function decoratePlatforms(scene, platforms, boden) {
 
     for (const p of platforms) {
         if (p.kollisionNur) continue;      // Hügel-Stufenblöcke sind unsichtbar: ihre Optik malt buildHuegel
-        if (p.brechbar) { p.deko = zeichneBroeckelig(scene, p); continue; }   // brüchige Wand: eigenes, entfernbares Bild
+        if (p.brechbar) { p.deko = zeichneBroeckelig(scene, p); p.setVisible(false); continue; }   // brüchige Wand: eigenes, entfernbares Bild (das einfarbige Rechteck darunter wird versteckt)
         const l = p.x - p.width / 2, t = p.y - p.height / 2, b = t + p.height;
         const grundfarbe = p.fillColor;
         const istErde = ERDFARBEN.includes(grundfarbe) && p.height >= 40;
 
         if (istErde) {
+            p.setVisible(false);          // das einfarbige Rechteck verstecken: Es würde durch die ausgefransten Ränder der Erdtextur scheinen
             const anOberflaeche = t <= boden + 1 && grundfarbe !== FELS;   // Fels trägt kein Gras
             const istDecke = !anOberflaeche && p.height <= 180;
             const tiefe = Math.min(p.height, TIEFE);

@@ -46,6 +46,7 @@ export default class MenuScene extends Phaser.Scene {
         this.eintraege = [];
         this.auswahl = 0;
         this.zeigeMenue('haupt');
+        if (new URLSearchParams(window.location.search).get('start') === '1') this.starte('einzel');   // Testhilfe: Menü überspringen
 
         // Tastatur: hoch/runter wählt, Enter oder Leertaste bestätigt, Esc geht zurück, N schaltet den Ton
         this.tasten = this.input.keyboard.addKeys('UP,DOWN,W,S,ENTER,SPACE,ESC,N');

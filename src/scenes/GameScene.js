@@ -338,6 +338,7 @@ export default class GameScene extends Phaser.Scene {
         const s = Math.sin(t * 0.018), c = Math.cos(t * 0.018);
         let l1 = 0, l2 = 0, h1 = 0, h2 = 0;
         if (o.klettern) { const k = Math.sin((o.kPhase ?? 0) * 0.12); h1 = 5 + k * 5; h2 = 5 - k * 5; l1 = 3; l2 = -3; }     // Beine steigen abwechselnd
+        else if (o.wand) { l1 = o.wand * 6; l2 = o.wand * 3; h1 = 2; h2 = 6; }                                         // Beine gegen die Wand gestemmt
         else if (o.air) { l1 = 6; l2 = -6; h1 = 3; }
         else if (o.moving) { l1 = s * 7; l2 = -s * 7; h1 = Math.max(0, c) * 4; h2 = Math.max(0, -c) * 4; }
         for (const [lx, h] of [[l2, h2], [l1, h1]]) {
@@ -389,6 +390,11 @@ export default class GameScene extends Phaser.Scene {
 
         // Arme und Waffe
         const schulter = { x, y: y - 6 };
+        if (o.wand && !o.klettern) {                                                      // an der Wand: ein Arm greift hoch, der andere stützt
+            g.lineStyle(6, o.skin, a).beginPath().moveTo(x + o.wand * 8, y - 8).lineTo(x + o.wand * 17, y - 28).strokePath();
+            g.lineStyle(6, o.skin, a).beginPath().moveTo(x + o.wand * 6, y - 4).lineTo(x + o.wand * 16, y - 12).strokePath();
+            return;
+        }
         if (o.klettern) {                                                                 // beide Arme greifen an die Holme
             const ka = Math.sin((o.kPhase ?? 0) * 0.12) * 4;
             g.lineStyle(6, o.skin, a).beginPath().moveTo(x - 8, y - 8).lineTo(x - 9, y - 26 + ka).strokePath();
@@ -597,7 +603,7 @@ export default class GameScene extends Phaser.Scene {
             head: 'bandana', strap: true, aim: hb ? hb.a : r.a, gun: WAFFENLAENGE[r.w] ?? 18,
             art: ['sword', 'fist', 'grenade', 'medkit'].includes(r.w) ? r.w : undefined, hieb: hb ? hb.f : undefined,
             moving: Math.abs(r.vx) > 20 && !!r.g, air: !r.g && !r.k,
-            klettern: !!r.k, kPhase: r.y,
+            klettern: r.k === 1, kPhase: r.y, wand: r.k === 2 ? -1 : (r.k === 3 ? 1 : 0),
         });
     }
 
@@ -622,8 +628,8 @@ export default class GameScene extends Phaser.Scene {
             facing: Math.cos(meinHieb ? meinHieb.a : winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: SPIELERFARBEN[(this.meineNr - 1) % 4], skin: 0xe0b890, rueck,
             head: 'bandana', strap: true, aim: meinHieb ? meinHieb.a : winkel, gun: WAFFENLAENGE[p.auswahl === 2 ? (p.hatSchwert ? 'sword' : 'fist') : p.weapon] ?? 18,
             art: ['', undefined, p.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'][p.auswahl], hieb: meinHieb ? meinHieb.f : undefined,
-            moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down && !p.leiter,
-            klettern: !!p.leiter, kPhase: p.y,
+            moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down && !p.leiter && !p.wand,
+            klettern: !!p.leiter, kPhase: p.y, wand: p.wand,
         });
         this.zeichneBelebenBalken(g, this.meineNr, p.x, p.y);
         this.zeichneBelebtAnim(g);
@@ -1001,6 +1007,20 @@ export default class GameScene extends Phaser.Scene {
             traf = true;
         }
         if (traf) sfx.play(schwert ? 'schwertHit' : 'hit');
+    }
+
+    // ---------- Wände ----------
+
+    // Ist die Wand neben dem Spieler hoch genug für den Wandsprung? (Sie muss über seinen Kopf ragen: Treppenstufen und
+    // Plattformkanten zählen nicht.) dir = -1 links, 1 rechts.
+    hoheWand(p, dir) {
+        const b = p.body;
+        const x = dir < 0 ? b.left - 3 : b.right + 3, y = b.top - 8;
+        for (const pl of this.platforms) {
+            const pb = pl.body;
+            if (pb && x >= pb.left && x <= pb.right && y >= pb.top && y <= pb.bottom) return true;
+        }
+        return false;
     }
 
     // ---------- Leitern ----------

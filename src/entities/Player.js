@@ -2,6 +2,7 @@ import { sfx } from '../Sound.js';
 import { stufenHilfe } from '../Stufen.js';
 
 const KLETTERN = 170;   // Klettertempo auf der Leiter (Pixel pro Sekunde)
+const WAND_RUTSCH = 90; // so schnell rutscht man an einer Wand hinunter (Pixel pro Sekunde)
 
 // Alle Waffen als Tabelle: Name, Pause zwischen Schüssen (ms), Magazingröße, Nachladezeit (ms).
 // Eine neue Waffe ist später nur ein weiterer Eintrag. Der Rest des Spiels liest diese Werte.
@@ -59,6 +60,13 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         // Leiter: Auf einer Leiter (W/S oder Pfeil hoch/runter) klettert man ohne Schwerkraft. Seitlich weg oder Leertaste lässt los.
         this.leiter = null;
         this.leiterPause = 0;      // bis dahin greift man nicht gleich wieder zu
+
+        // Wandsprung wie bei Broforce: In der Luft gegen eine hohe senkrechte Wand laufen = festhalten und langsam hinabrutschen.
+        // Sprung an der Wand: Zur Wand gehalten springt man an ihr hoch (so kann man hohe Wände hinaufspringen),
+        // vom Wand weg gehalten stößt man sich seitlich ab.
+        this.wand = 0;             // -1 = hängt an einer Wand links, 1 = rechts, 0 = nicht
+        this.wandPause = 0;        // kurze Pause zwischen zwei Wandsprüngen
+        this.wandKickBis = 0;      // so lange gilt die Eingabe zur Seite nicht (der Absprung)
         this.magAmmo = this.magSize;  // Start: volles Magazin
         this.ammo = 30;               // Start-Reserve
 
@@ -252,10 +260,12 @@ export default class Player extends Phaser.GameObjects.Rectangle {
             if (l) { this.packeLeiter(l); return; }
         }
 
-        // Laufen
+        // Laufen (nach einem Wandsprung gilt die Seiteneingabe kurz nicht: Der Absprung soll tragen)
         const nachLinks = this.cursors.left.isDown || this.keys.A.isDown || this.touchEin.links;
         const nachRechts = this.cursors.right.isDown || this.keys.D.isDown || this.touchEin.rechts;
-        if (nachLinks) {
+        if (now < this.wandKickBis) {
+            // Absprung läuft
+        } else if (nachLinks) {
             body.setVelocityX(-this.speed);   // negativ = nach links
         } else if (nachRechts) {
             body.setVelocityX(this.speed);    // positiv = nach rechts
@@ -266,10 +276,37 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         // Sanfte Hänge hinauflaufen (kleine Stufen werden automatisch genommen)
         stufenHilfe(this, nachLinks ? -1 : nachRechts ? 1 : 0);
 
-        // Springen: nur auf festem Grund. In Phaser zeigt "oben" ins Negative!
+        // Wand: in der Luft gegen eine hohe Wand gedrückt?
+        let kontakt = 0;                                          // berührt er in der Luft eine hohe Wand? (auch ohne zu drücken)
+        if (!body.blocked.down && body.velocity.y > -80 && now >= this.wandKickBis) {
+            if (body.blocked.left && this.scene.hoheWand(this, -1)) kontakt = -1;
+            else if (body.blocked.right && this.scene.hoheWand(this, 1)) kontakt = 1;
+        }
+        if (kontakt) { this.kontaktSeite = kontakt; this.kontaktZeit = now; }
+        const wand = kontakt && ((kontakt === -1 && nachLinks) || (kontakt === 1 && nachRechts)) ? kontakt : 0;   // festhalten nur zur Wand gedrückt
+        this.wand = wand;
+        if (wand) {
+            if (body.velocity.y > WAND_RUTSCH) body.setVelocityY(WAND_RUTSCH);      // langsam hinabrutschen
+            if (now > (this.naechsterWandStaub ?? 0)) {
+                this.naechsterWandStaub = now + 140;
+                if (this.scene.fx) this.scene.fx.staubE.explode(1, this.x + wand * 14, this.y + Phaser.Math.Between(-10, 20));
+            }
+        }
+
+        // Springen: auf festem Grund oder an der Wand. In Phaser zeigt "oben" ins Negative!
         const jumpPressed = this.cursors.up.isDown || this.keys.SPACE.isDown || this.touchEin.sprung;
+        const sprungNeu = Phaser.Input.Keyboard.JustDown(this.keys.SPACE) || Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+            !!(this.scene.touch && this.scene.touch.aktiv && this.scene.touch.sprungTipp);
         if (jumpPressed && body.blocked.down) {
             body.setVelocityY(-this.jumpSpeed);
+        } else if (sprungNeu && now > this.wandPause && now - (this.kontaktZeit ?? -999) < 140) {
+            const seite = this.kontaktSeite;                                          // an welcher Wand war er gerade?
+            this.wandPause = now + 200;
+            const weg = (seite === -1 && nachRechts) || (seite === 1 && nachLinks);   // von der Wand weg gehalten: abstoßen
+            if (weg) { body.setVelocity(-seite * 230, -470); this.wandKickBis = now + 170; }
+            else { body.setVelocity(0, -440); }                                       // zur Wand gehalten (oder nichts): an der Wand hochspringen
+            sfx.play('hit');
+            if (this.scene.fx) this.scene.fx.staubE.explode(4, this.x + seite * 14, this.y);
         }
     }
 }

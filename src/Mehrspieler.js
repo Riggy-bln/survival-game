@@ -130,7 +130,7 @@ export default class Mehrspieler {
             r.vx = r.ziel.vx; r.vy = r.ziel.vy; r.a = r.ziel.a; r.w = r.ziel.w; r.g = r.ziel.g; r.h = r.ziel.h; r.s = r.ziel.s;
             r.tot = !!r.ziel.d;
             r.z = !!r.ziel.z;
-            r.k = !!r.ziel.k;
+            r.k = r.ziel.k || 0;
             r.label.setPosition(r.x, r.y - 58);
         }
         if (!this.istHost) this.fuehreWeltNach();
@@ -147,7 +147,7 @@ export default class Mehrspieler {
             x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10,
             vx: Math.round(p.body.velocity.x), vy: Math.round(p.body.velocity.y),
             a: Math.round(winkel * 100) / 100,
-            w: p.inHand(), h: p.health, g: p.body.blocked.down ? 1 : 0, d: p.tot ? 1 : 0, z: p.seil ? 1 : 0, k: p.leiter ? 1 : 0,
+            w: p.inHand(), h: p.health, g: p.body.blocked.down ? 1 : 0, d: p.tot ? 1 : 0, z: p.seil ? 1 : 0, k: p.leiter ? 1 : (p.wand === -1 ? 2 : (p.wand === 1 ? 3 : 0)),
             s: p.lastShotTime ? Math.round(jetzt - p.lastShotTime) : 9999,    // Millisekunden seit dem letzten Schuss (für den Rückstoß)
         });
     }

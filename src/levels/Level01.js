@@ -691,30 +691,45 @@ munition(5890, BODEN - 64);
 //   gerade Etagen   (2, 4, 6): x 6520 bis 6900, Lücke links
 // Von der 4. Etage führt eine Skybridge nach rechts, ein Abkürzungsweg über den Bodenkämpfen.
 // =====================================================================
-signs.push({ x: 6060, y: BODEN - 110, text: 'Hochhaus-Ruine:\nGegner auf jeder Etage' });
+signs.push({ x: 6015, y: BODEN - 110, text: 'Hochhaus-Ruine:\nin den Berg gebaut' });
+// Das Hochhaus ist in einen Berg hineingebaut: Im Westen und Osten steigen Felsberge auf, die sein Erdgeschoss und die unteren
+// Etagen verschlucken. Durch beide Berge führt ein Tunnel auf Bodenhöhe (160 hoch) ins Gebäude; über die Berge führen Absätze
+// (und Leitern), die auf die Etagen münden. Der westliche Tunnel enthält den Ausgangsschacht der Katakomben.
+// Westberg: Absätze auf 224, 320 und 416 (je 96 Unterschied: man springt hinauf), hohl mit Bodentunnel
+gelaende(6090, [[0, 224], [128, 224], [132, 320], [250, 320], [254, 416], [350, 416]], 'fels', 0.8, BODEN, BODEN - 160);
+sprossenleiter(6068, BODEN - 224, BODEN, 1, 'holz', 28);                       // Leiter an der Westwand zum ersten Absatz
+hoehlen.push({ links: 6090, rechts: 6442, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+[6180, 6300, 6410].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
+skelett(6392, 6362, 6424, 4, BODEN - 416);                                     // Schütze oben auf dem Westberg
+// Ostberg: Absätze auf 288, 352 und 416, dann wieder 288; hohl mit Bodentunnel (der Weg ins Innere des Berges)
+gelaende(6900, [[0, 288], [100, 288], [104, 352], [200, 352], [204, 416], [296, 416], [300, 288], [420, 288]], 'fels', 0.8, BODEN, BODEN - 160);
+sprossenleiter(7338, BODEN - 288, BODEN, -1, 'holz', 28);                      // Leiter an der Ostwand
+hoehlen.push({ links: 6900, rechts: 7316, oben: BODEN - 160, unten: BODEN, art: 'tunnel', eigeneLampen: true });
+[6990, 7120, 7250].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
 hoehlen.push({ links: 6380, rechts: 6920, oben: BODEN - 660, unten: BODEN, art: 'gebaeude', etagen: [100, 200, 300, 400, 500, 600] });   // Rückwand des Hochhauses
 for (let etage = 1; etage <= 6; etage++) {
-    const links = etage % 2 === 1 ? 6400 : 6520;                         // ungerade links, gerade rechts
-    schwebend(links, BODEN - 100 * etage, 380);                          // 380 breit, Oberkante = Etagenhöhe
+    const links = etage % 2 === 1 ? (etage === 3 ? 6442 : 6400) : 6520;   // ungerade links, gerade rechts (Etage 3 beginnt hinter dem Westberg)
+    const rechts = etage % 2 === 1 ? 6780 : 6900;
+    schwebend(links, BODEN - 100 * etage, rechts - links);                // Oberkante = Etagenhöhe
 }
-hoehlen.push({ links: 7060, rechts: 7260, oben: BODEN - 440, unten: BODEN, art: 'gebaeude', etagen: [400] });   // Gebäuderest am Ende der Skybridge
-schwebend(6900, BODEN - 400, 250);                                       // Skybridge (Oberkante wie Etage 4)
-// Feuerleiter an der Westseite: vom Boden zu den Etagen 1, 3 und 5
-sprossenleiter(6378, BODEN - 100, BODEN, 1, 'stahl', 30);
-sprossenleiter(6378, BODEN - 300, BODEN - 100, 1, 'stahl', 30);
-sprossenleiter(6378, BODEN - 500, BODEN - 300, 1, 'stahl', 30);
 
-nahkaempfer(6445, 6400, 6480, 4);                                        // am Eingang, unter der ersten Etage
+nahkaempfer(6500, 6465, 6540, 4);                                        // im Erdgeschoss, unter der ersten Etage
 nahkaempfer(6590, 6430, 6750, 4, BODEN - 100);                           // Etage 1
 fernkaempfer(6700, 6600, 6820, 3, BODEN - 200);                          // Etage 2
-nahkaempfer(6590, 6430, 6750, 4, BODEN - 300);                           // Etage 3
+nahkaempfer(6590, 6460, 6750, 4, BODEN - 300);                           // Etage 3
 fernkaempfer(6700, 6600, 6820, 3, BODEN - 400);                          // Etage 4
 fernkaempfer(6590, 6500, 6680, 3, BODEN - 500);                          // Etage 5
 fernkaempfer(6780, 6700, 6860, 5, BODEN - 600);                          // Scharfschütze auf dem Dach
-fernkaempfer(7050, 6960, 7110, 3, BODEN - 400);                          // auf der Skybridge
-nahkaempfer(7200, 7150, 7260, 4);                                        // am Boden, rechts (hinter den Brückenpfeilern)
+// Im Ostberg: Tunnel mit einem Wächter, einem Fass und Munition; auf den Absätzen Schützen
+nahkaempfer(7100, 7020, 7180, 4);
+fass(7255, BODEN);
+munition(7040, BODEN);
+skelett(7040, 7012, 7068, 3, BODEN - 352);                               // Schütze auf dem zweiten Absatz
+fernkaempfer(7150, 7118, 7164, 4, BODEN - 416);                          // Scharfschütze auf dem höchsten Absatz
+heilung(6950, BODEN - 288);                                              // Belohnung auf dem ersten Absatz
+granate(7112, BODEN - 416);                                              // und oben auf dem Grat
 
-heilung(6430, BODEN - 300);                                              // Belohnung auf Etage 3 (linkes Ende)
+heilung(6475, BODEN - 300);                                              // Belohnung auf Etage 3 (linkes Ende)
 munition(6430, BODEN - 500);                                             // Belohnung auf Etage 5 (linkes Ende)
 
 // =====================================================================
@@ -1047,7 +1062,7 @@ fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
 fass(5100, BODEN - 64); fass(5262);          // Zone E, auf dem offenen Feld
 fass(6385);                                  // Zone G, vor dem Hochhaus
 fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
-fass(7330); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf der Klippe
+fass(7376); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf der Klippe
 fass(8900, MINE_BODEN);                      // in der Kaverne
 fass(10200);                                 // am Funkturm
 fass(14100 + ARENA); fass(14550 + ARENA);                    // in der Boss-Arena: den Boss damit locken

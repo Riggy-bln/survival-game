@@ -23,6 +23,8 @@ export default class MenuScene extends Phaser.Scene {
         this.add.text(480, 490,
             'A/D oder Pfeile: Laufen   Leertaste: Springen   Maus: Zielen und Schießen   R: Nachladen   H: Heilen   G: Granate   Esc: Pause',
             { fontSize: '13px', color: '#7f8f9a', align: 'center' }).setOrigin(0.5);
+        this.add.text(480, 524, 'Wandsprung: In der Luft gegen eine hohe Wand laufen, dann Sprung (zur Wand gehalten = hochspringen, vom Wand weg = abstoßen). Leitern: W / S',
+            { fontSize: '12px', color: '#6f7f8a', align: 'center' }).setOrigin(0.5);
         this.add.text(480, 510, 'Handy: Linker Daumen = Laufen (nach oben schieben = Springen), rechter Daumen = Zielen und Schießen (Tippen = Schnellschuss)',
             { fontSize: '12px', color: '#6f7f8a', align: 'center' }).setOrigin(0.5);
         // Erster Fingertipp: Die Touch-Steuerung merkt sich das für das Spiel. Am Handy geht beim ersten Tippen gleich der Vollbildmodus an

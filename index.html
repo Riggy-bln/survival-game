@@ -51,6 +51,48 @@
     <!-- 1b. PeerJS: verbindet Browser direkt miteinander (für den Online-Mehrspielermodus), stellt das globale Objekt "Peer" bereit -->
     <script src="libs/peerjs.min.js"></script>
     <!-- 2. Dann unser eigener Code. type="module" erlaubt uns, Code auf mehrere Dateien aufzuteilen -->
-    <script type="module" src="src/main.js"></script>
+    <!--IMPORTMAP-START-->
+    <script>
+        // Versionsnummer an alle Spieldateien hängen (erzeugt von version.py): So gibt es nach einer Veröffentlichung keine alten Dateien mehr.
+        (function () {
+            var VER = '6efdd1d-225032';
+            var dateien = [
+        'src/Anpassung.js',
+        'src/Effects.js',
+        'src/Landscape.js',
+        'src/Mehrspieler.js',
+        'src/MenuStil.js',
+        'src/Netz.js',
+        'src/Sound.js',
+        'src/Stufen.js',
+        'src/Touch.js',
+        'src/entities/Boss.js',
+        'src/entities/Brut.js',
+        'src/entities/Bullet.js',
+        'src/entities/Enemy.js',
+        'src/entities/Fass.js',
+        'src/entities/Grenade.js',
+        'src/entities/Pickup.js',
+        'src/entities/Player.js',
+        'src/entities/RangedEnemy.js',
+        'src/entities/Skelett.js',
+        'src/levels/Level01.js',
+        'src/main.js',
+        'src/scenes/GameScene.js',
+        'src/scenes/LobbyScene.js',
+        'src/scenes/MenuScene.js',
+        'src/scenes/PauseScene.js'
+            ];
+            var imports = {};
+            dateien.forEach(function (d) { var u = new URL(d, document.baseURI).href; imports[u] = u + '?v=' + VER; });
+            var s = document.createElement('script');
+            s.type = 'importmap';
+            s.textContent = JSON.stringify({ imports: imports });
+            document.head.appendChild(s);
+            window.SPIEL_VERSION = VER;
+        })();
+    </script>
+    <!--IMPORTMAP-END-->
+    <script type="module" src="src/main.js?v=6efdd1d-225032"></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import { sfx } from '../Sound.js';
 // Ein einfacher Gegner: läuft zwischen zwei Punkten hin und her und hat Lebenspunkte.
 export default class Enemy extends Phaser.GameObjects.Rectangle {
     // patrolLeft und patrolRight sind die x-Grenzen, zwischen denen er patrouilliert.
@@ -22,10 +23,12 @@ export default class Enemy extends Phaser.GameObjects.Rectangle {
         this.health -= amount;
 
         if (this.health <= 0) {
+            sfx.play('kill');
             this.destroy();
             return true;
         }
 
+        sfx.play('hit');
         // Kurz weiß aufblitzen, damit man den Treffer sieht.
         this.setFillStyle(0xffffff);
         // delayedCall führt eine Funktion nach 80 Millisekunden aus.

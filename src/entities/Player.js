@@ -1,3 +1,4 @@
+import { sfx } from '../Sound.js';
 // Alle Waffen als Tabelle: Name, Pause zwischen Schüssen (ms), Magazingröße, Nachladezeit (ms).
 // Eine neue Waffe ist später nur ein weiterer Eintrag. Der Rest des Spiels liest diese Werte.
 const WAFFEN = {
@@ -58,6 +59,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
     useMedkit() {
         if (this.medkits <= 0 || this.health >= this.maxHealth || this.isDead()) return false;
         this.medkits -= 1;
+        sfx.play('heal');
         this.health = Math.min(this.maxHealth, this.health + this.medkitHeal);  // nie über das Maximum
         return true;
     }
@@ -96,6 +98,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
     startReload() {
         if (this.isReloading() || this.magAmmo >= this.magSize || this.ammo <= 0) return;
         this.reloadingUntil = this.scene.time.now + this.reloadTime;
+        sfx.play('reload');
     }
 
     // Wenn die Nachladezeit vorbei ist, wandern Kugeln aus der Reserve ins Magazin.
@@ -124,6 +127,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         this.health = Math.max(0, this.health - amount);  // nie unter 0
         this.invulnerableUntil = now + 1000;  // 1 Sekunde Schutz
+        sfx.play('hurt');
         this.stunnedUntil = now + 250;        // kurz die Kontrolle verlieren
 
         // Rückstoß: weg vom Angreifer und ein kleiner Sprung nach oben.

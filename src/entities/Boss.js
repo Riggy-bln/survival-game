@@ -1,4 +1,5 @@
 import Enemy from './Enemy.js';
+import { sfx } from '../Sound.js';
 
 // Die stärkere Kreatur. Sie wechselt zwischen Verfolgen und drei verschiedenen Angriffen.
 //
@@ -69,6 +70,7 @@ export default class Boss extends Enemy {
                 body.setVelocityX(0);
                 if (Math.abs(player.x - this.x) < 650) {
                     this.activated = true;
+                    sfx.play('roar');
                     this.setPhase('walk', 900, 0x2f6b4a);
                 }
                 break;

@@ -17,7 +17,7 @@ export default class MenuScene extends Phaser.Scene {
             'A / D  oder  Pfeile: Laufen        Leertaste: Springen\n' +
             'Maus: Zielen        Linke Maustaste: Schießen\n' +
             'R: Nachladen        H: Verbandskasten        G: Granate\n' +
-            'Esc: Pause\n\n' +
+            'Esc: Pause        N: Ton an/aus\n\n' +
             'Ziel: Erreiche den Hubschrauber, aber besiege vorher die Kreatur.',
             { fontSize: '18px', color: '#cfd8dc', align: 'center', lineSpacing: 8 }
         ).setOrigin(0.5);

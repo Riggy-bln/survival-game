@@ -1,3 +1,4 @@
+import { sfx } from '../Sound.js';
 // Ein Gegenstand zum Aufsammeln. "type" bestimmt, was er bewirkt:
 // 'health' (Heilung), 'ammo' (Munition) oder 'rifle' (die Waffe Sturmgewehr).
 // Er braucht keine Physik: Er liegt nur da, und die Szene prüft, ob der Spieler ihn berührt.
@@ -51,6 +52,7 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
             // this.scene ist die Szene, in der der Gegenstand liegt.
             this.scene.showMessage(TYPES[this.type].msg);
         }
+        sfx.play('pickup');
         this.destroy();
         return true;
     }

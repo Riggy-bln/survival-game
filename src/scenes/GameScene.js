@@ -6,6 +6,7 @@ import RangedEnemy from '../entities/RangedEnemy.js';
 import Boss from '../entities/Boss.js';
 import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
+import { sfx } from '../Sound.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
@@ -165,6 +166,7 @@ export default class GameScene extends Phaser.Scene {
         // Neustart auf Enter, denn R bedeutet jetzt Nachladen.
         this.restartKey = this.input.keyboard.addKey('ENTER');
         this.pauseKey = this.input.keyboard.addKey('ESC');
+        this.muteKey = this.input.keyboard.addKey('N');
         // Nach dem Fortsetzen kann derselbe Esc-Druck noch in der Warteschlange stecken.
         // Darum Esc kurz sperren (Date.now ist die echte Uhr, die Spieluhr steht ja in der Pause).
         this.pauseBlockedUntil = 0;
@@ -237,6 +239,7 @@ export default class GameScene extends Phaser.Scene {
     // untertitel ist optional (Standard: leer), zum Beispiel "Level 01 abgeschlossen".
     showEndScreen(titel, farbe, untertitel = '') {
         this.gameOver = true;
+        sfx.play(titel === 'BESIEGT' ? 'lose' : 'win');
         this.physics.pause();                 // Physik anhalten: alles friert ein
         this.input.setDefaultCursor('default');  // normalen Mauszeiger zurückholen
         this.crosshair.setVisible(false);
@@ -276,6 +279,7 @@ export default class GameScene extends Phaser.Scene {
         const winkel = Phaser.Math.Angle.Between(
             this.player.x, this.player.y, zielX, zielY
         );
+        sfx.play(this.player.weapon);  // Geräusch heißt wie die Waffe: pistol, rifle, shotgun
         // Eine Schrotflinte feuert mehrere Kugeln, jede mit zufälliger Abweichung (Streuung).
         for (let i = 0; i < this.player.pellets; i++) {
             const streuung = Phaser.Math.FloatBetween(-this.player.spread, this.player.spread);
@@ -301,6 +305,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.collider(g, this.platforms);
         this.grenadeList.push(g);
         p.grenades -= 1;
+        sfx.play('throw');
     }
 
     // Explosion: Schaden an allen im Radius (auch am Spieler!) plus ein Feuerball als Optik.
@@ -312,6 +317,7 @@ export default class GameScene extends Phaser.Scene {
             onComplete: () => ball.destroy(),
         });
         this.cameras.main.shake(200, 0.01);
+        sfx.play('explosion');
 
         for (const enemy of this.enemies) {
             if (!enemy.active) continue;
@@ -326,6 +332,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Erzeugt eine Gegner-Kugel. Wird vom Fernkämpfer aufgerufen.
     spawnEnemyBullet(x, y, winkel, speed, damage) {
+        sfx.play('enemyShot');
         const bullet = new Bullet(this, x, y, winkel, speed, 0xff6644);  // orange-rot
         bullet.damage = damage;  // Wir hängen den Schaden direkt an die Kugel
         this.physics.add.collider(bullet, this.platforms, () => bullet.destroy());
@@ -348,6 +355,11 @@ export default class GameScene extends Phaser.Scene {
             this.scene.launch('PauseScene');
             this.scene.pause();
             return;
+        }
+
+        // N schaltet den Ton an/aus.
+        if (Phaser.Input.Keyboard.JustDown(this.muteKey)) {
+            this.showMessage(sfx.toggle() ? 'Ton aus (N)' : 'Ton an (N)');
         }
 
         this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.

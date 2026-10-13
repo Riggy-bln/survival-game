@@ -687,16 +687,17 @@ export default class GameScene extends Phaser.Scene {
     zerbrich(wand) {
         if (!wand.active) return;
         const x = wand.x, y = wand.y;
-        this.fx.truemmerE.explode(44, x, y);
-        this.fx.staubE.explode(26, x, y);
-        this.fx.rauchE.explode(8, x, y);
-        this.cameras.main.shake(240, 0.01);
-        sfx.play('explosion');
         if (wand.deko) wand.deko.destroy();
         const i = this.platforms.indexOf(wand);
         if (i >= 0) this.platforms.splice(i, 1);              // aus der Liste, die die Physik benutzt (dieselbe Liste bleibt bestehen)
         wand.destroy();
-        this.showMessage('Die brüchige Erde gibt nach!\nEin verschütteter Gang wird frei.');
+        const letzter = !this.platforms.some(p => p.brechbar);   // war das der letzte Brocken des Haufens?
+        this.fx.truemmerE.explode(letzter ? 44 : 18, x, y);
+        this.fx.staubE.explode(letzter ? 26 : 10, x, y);
+        if (letzter) this.fx.rauchE.explode(8, x, y);
+        this.cameras.main.shake(letzter ? 240 : 100, letzter ? 0.01 : 0.005);
+        sfx.play(letzter ? 'explosion' : 'kill');
+        if (letzter) this.showMessage('Die Erde gibt nach!\nEin verschütteter Gang wird frei.');
     }
 
     // Erzeugt eine Gegner-Kugel. Wird vom Fernkämpfer aufgerufen.

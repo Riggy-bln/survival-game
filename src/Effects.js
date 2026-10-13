@@ -233,7 +233,7 @@ function bewuchs(g, rnd, l, t, w, h, ranken = 0.5, moos = true) {
 // von Rissen durchzogen, mit Löchern an den Rändern und losen Brocken am Fuß. Das Bild gehört zur Wand und wird
 // entfernt, sobald sie zerbricht (siehe GameScene.zerbrich).
 function zeichneBroeckelig(scene, p) {
-    const rnd = new Phaser.Math.RandomDataGenerator(['broeckelig' + p.x]);
+    const rnd = new Phaser.Math.RandomDataGenerator(['broeckelig' + p.x + '_' + p.y]);   // jeder Brocken sieht anders aus
     const g = scene.add.graphics().setDepth(1.2);
     const l = p.x - p.width / 2, t = p.y - p.height / 2, w = p.width, h = p.height;
     for (let y = 0; y < h; y += 8) {

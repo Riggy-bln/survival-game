@@ -19,18 +19,29 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
         this.amount = TYPES[type].amount;
     }
 
+    // Zeigt höchstens alle 2 Sekunden eine "voll"-Meldung (sonst käme sie in jedem Frame).
+    // Gibt false zurück: Der Gegenstand bleibt liegen.
+    meldeVoll(text) {
+        const jetzt = this.scene.time.now;
+        if (jetzt > (this.scene.letzteVollMeldung ?? 0)) {
+            this.scene.showMessage(text);
+            this.scene.letzteVollMeldung = jetzt + 2500;
+        }
+        return false;
+    }
+
     // Versucht, den Gegenstand dem Spieler zu geben.
     // Gibt true zurück, wenn er benutzt wurde (und verschwindet), sonst bleibt er liegen.
     applyTo(player) {
         if (this.type === 'health') {
             // Der Verbandskasten kommt ins Inventar. Ist der Rucksack voll, bleibt er liegen.
-            if (player.medkits >= player.maxMedkits) return false;
+            if (player.medkits >= player.maxMedkits) return this.meldeVoll('Verbandskasten-Rucksack voll (H zum Benutzen)');
             player.medkits += 1;
         } else if (this.type === 'ammo') {
-            if (player.ammo >= player.maxAmmo) return false;
+            if (player.ammo >= player.maxAmmo) return this.meldeVoll('Munition voll');
             player.ammo = Math.min(player.maxAmmo, player.ammo + this.amount);
         } else if (this.type === 'grenade') {
-            if (player.grenades >= player.maxGrenades) return false;
+            if (player.grenades >= player.maxGrenades) return this.meldeVoll('Granaten voll');
             player.grenades = Math.min(player.maxGrenades, player.grenades + this.amount);
         } else if (this.type === 'rifle') {
             if (player.weapon === 'rifle') return false;  // schon ausgerüstet

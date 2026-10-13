@@ -164,6 +164,11 @@ export default class GameScene extends Phaser.Scene {
         this.gameOver = false;
         // Neustart auf Enter, denn R bedeutet jetzt Nachladen.
         this.restartKey = this.input.keyboard.addKey('ENTER');
+        this.pauseKey = this.input.keyboard.addKey('ESC');
+        // Nach dem Fortsetzen kann derselbe Esc-Druck noch in der Warteschlange stecken.
+        // Darum Esc kurz sperren (Date.now ist die echte Uhr, die Spieluhr steht ja in der Pause).
+        this.pauseBlockedUntil = 0;
+        this.events.on('resume', () => { this.pauseBlockedUntil = Date.now() + 300; });
     }
 
     // Aktualisiert Breite, Farbe und Text des Lebensbalkens.
@@ -329,6 +334,13 @@ export default class GameScene extends Phaser.Scene {
             if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
                 this.scene.restart();  // create() läuft komplett neu: alles startet frisch
             }
+            return;
+        }
+
+        // Pause: Esc friert diese Szene ein und legt die PauseScene darüber.
+        if (Phaser.Input.Keyboard.JustDown(this.pauseKey) && Date.now() > this.pauseBlockedUntil) {
+            this.scene.launch('PauseScene');
+            this.scene.pause();
             return;
         }
 

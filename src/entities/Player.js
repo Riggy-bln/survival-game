@@ -73,29 +73,20 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         return true;
     }
 
-    // Wählt einen Platz der Inventarleiste (1 bis 4). Das Schwert geht erst, wenn man es gefunden hat.
+    // Wählt einen Platz der Inventarleiste (1 bis 4). Platz 2 ist die Nahkampfwaffe: erst die Faust, mit dem gefundenen Schwert stärker.
     waehle(platz) {
-        if (platz === 2 && !this.hatSchwert) {
-            this.scene.showMessage('Du hast noch keine Nahkampfwaffe.\nSuche in den Höhlen!');
-            return false;
-        }
         this.auswahl = platz;
         return true;
     }
 
-    // Mausrad: zum nächsten bzw. vorigen Platz (und das Schwert überspringen, solange man es nicht hat).
+    // Mausrad: zum nächsten bzw. vorigen Platz.
     naechster(richtung) {
-        let platz = this.auswahl;
-        for (let i = 0; i < 4; i++) {
-            platz = ((platz - 1 + richtung + 4) % 4) + 1;
-            if (platz !== 2 || this.hatSchwert) break;
-        }
-        this.auswahl = platz;
+        this.auswahl = ((this.auswahl - 1 + richtung + 4) % 4) + 1;
     }
 
     // Was hält die Figur gerade in der Hand? (Für die Zeichnung und für die Mitspieler.)
     inHand() {
-        return ['', this.weapon, 'sword', 'grenade', 'medkit'][this.auswahl];
+        return ['', this.weapon, this.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'][this.auswahl];
     }
 
     // Rüstet eine Waffe aus der Tabelle aus: Werte übernehmen und das Magazin

@@ -24,21 +24,22 @@ const BODEN = level.boden;
 const BELEBEN_DAUER = 3;   // so viele Sekunden muss man E halten, um einen Gefallenen wiederzubeleben
 
 // Länge der Waffe in Pixeln (vom Griff bis zur Mündung) für die Zeichnung und das Mündungsfeuer
-const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28, sword: 30 };
+const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28, sword: 30, fist: 14 };
 
 // Inventarleiste unten in der Mitte: vier Plätze
 const SLOT = 64, SLOT_ABSTAND = 8;
 const SLOT_X0 = (1280 - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2, SLOT_Y = 720 - SLOT - 14;
 
 // Seilbahn
-const SEIL_TEMPO = 430;      // Fahrgeschwindigkeit auf dem Seil (Pixel pro Sekunde)
+const SEIL_TEMPO = 640;      // Fahrgeschwindigkeit auf dem Seil (Pixel pro Sekunde)
 const SEIL_HANG = 62;        // so weit hängt die Körpermitte unter dem Seil
 
 // Schwerthieb
 const HIEB_DAUER = 260;        // so lange dauert der Schwung (ms)
 const HIEB_PAUSE = 400;        // Pause bis zum nächsten Hieb (ms)
 const HIEB_REICHWEITE = 74;    // Pixel vom Spieler
-const HIEB_SCHADEN = 2;        // Gegner haben normalerweise 3 Leben
+const HIEB_SCHADEN = 2;        // Gegner haben normalerweise 3 Leben (die Faust macht nur 1)
+const FAUST_REICHWEITE = 54;
 
 // Die Szene baut die Welt auf und lässt die Spielobjekte zusammenarbeiten.
 export default class GameScene extends Phaser.Scene {
@@ -370,6 +371,13 @@ export default class GameScene extends Phaser.Scene {
                     .lineTo(handX + bx * 3 + by * 6, handY + by * 3 - bx * 6).strokePath();                                            // Parierstange
                 g.lineStyle(5, 0xcfd8e0, a).beginPath().moveTo(handX + bx * 4, handY + by * 4).lineTo(handX + bx * o.gun, handY + by * o.gun).strokePath();   // Klinge
                 g.lineStyle(1, 0xffffff, a).beginPath().moveTo(handX + bx * 5, handY + by * 5).lineTo(handX + bx * (o.gun - 1), handY + by * (o.gun - 1)).strokePath();
+            } else if (o.art === 'fist') {
+                // Faust: in Ruhe geballt vor dem Körper, beim Hieb schnellt der Arm nach vorn
+                const ext = o.hieb !== undefined ? 22 * Math.sin(Math.PI * Math.min(1, o.hieb * 1.2)) : 0;
+                const fx2 = handX + dx * ext, fy2 = handY + dy * ext;
+                if (ext > 0) g.lineStyle(6, o.skin, a).beginPath().moveTo(handX, handY).lineTo(fx2, fy2).strokePath();
+                g.fillStyle(this.dunkler(o.skin, 18), a).fillRect(fx2 - 4, fy2 - 4, 9, 9);
+                if (o.hieb !== undefined) g.lineStyle(3, 0xffffff, a * 0.35 * (1 - o.hieb)).beginPath().moveTo(handX - dx * 6, handY - dy * 6).lineTo(fx2 + dx * 8, fy2 + dy * 8).strokePath();
             } else if (o.art === 'grenade') {
                 g.fillStyle(0x556b2f, a).fillRect(handX - 1, handY - 6, 9, 11);
                 g.fillStyle(0x2a2a2a, a).fillRect(handX + 2, handY - 9, 4, 4);
@@ -518,7 +526,7 @@ export default class GameScene extends Phaser.Scene {
         this.drawHumanoid(g, r.x, r.y, {
             facing: Math.cos(r.a) >= 0 ? 1 : -1, alpha: 1, body: SPIELERFARBEN[(r.nr - 1) % 4], skin: 0xe0b890, rueck,
             head: 'bandana', strap: true, aim: hb ? hb.a : r.a, gun: WAFFENLAENGE[r.w] ?? 18,
-            art: ['sword', 'grenade', 'medkit'].includes(r.w) ? r.w : undefined, hieb: hb ? hb.f : undefined,
+            art: ['sword', 'fist', 'grenade', 'medkit'].includes(r.w) ? r.w : undefined, hieb: hb ? hb.f : undefined,
             moving: Math.abs(r.vx) > 20 && !!r.g, air: !r.g,
         });
     }
@@ -542,8 +550,8 @@ export default class GameScene extends Phaser.Scene {
         if (p.tot) this.zeichneLiegend(g, p.x, p.y, SPIELERFARBEN[(this.meineNr - 1) % 4]);
         else this.drawHumanoid(g, p.x, p.y, {
             facing: Math.cos(meinHieb ? meinHieb.a : winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: SPIELERFARBEN[(this.meineNr - 1) % 4], skin: 0xe0b890, rueck,
-            head: 'bandana', strap: true, aim: meinHieb ? meinHieb.a : winkel, gun: WAFFENLAENGE[p.auswahl === 2 ? 'sword' : p.weapon] ?? 18,
-            art: ['', undefined, 'sword', 'grenade', 'medkit'][p.auswahl], hieb: meinHieb ? meinHieb.f : undefined,
+            head: 'bandana', strap: true, aim: meinHieb ? meinHieb.a : winkel, gun: WAFFENLAENGE[p.auswahl === 2 ? (p.hatSchwert ? 'sword' : 'fist') : p.weapon] ?? 18,
+            art: ['', undefined, p.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'][p.auswahl], hieb: meinHieb ? meinHieb.f : undefined,
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
         this.zeichneBelebenBalken(g, this.meineNr, p.x, p.y);
@@ -758,6 +766,12 @@ export default class GameScene extends Phaser.Scene {
             g.lineStyle(2, 0xffffff, a).beginPath().moveTo(cx - 4, cy + 4).lineTo(cx + 17, cy - 17).strokePath();
             g.lineStyle(5, 0xc9a227, a).beginPath().moveTo(cx - 12, cy - 2).lineTo(cx + 2, cy + 12).strokePath();
             g.lineStyle(5, 0x6a4a2a, a).beginPath().moveTo(cx - 8, cy + 8).lineTo(cx - 17, cy + 17).strokePath();
+        } else if (art === 'fist') {
+            g.fillStyle(0xe0b890, a).fillRect(cx - 12, cy - 9, 24, 20);                       // Faust
+            g.fillStyle(0xc99a72, a).fillRect(cx - 12, cy + 4, 24, 4);
+            for (let k = 0; k < 4; k++) g.fillStyle(0xa87a52, a).fillRect(cx - 10 + k * 6, cy - 9, 2, 8);   // Finger
+            g.fillStyle(0xe0b890, a).fillRect(cx - 14, cy + 6, 8, 10);                         // Daumen
+            g.fillStyle(0x5a4a3a, a).fillRect(cx - 12, cy + 12, 24, 6);                        // Armband
         } else if (art === 'grenade') {
             g.fillStyle(0x3d4f22, a).fillRect(cx - 9, cy - 7, 18, 21);
             g.fillStyle(0x556b2f, a).fillRect(cx - 8, cy - 6, 16, 19);
@@ -796,13 +810,14 @@ export default class GameScene extends Phaser.Scene {
     zeichneHotbar() {
         const p = this.player, g = this.hotbar;
         g.clear();
-        const namen = ['', p.weaponName, 'Schwert', 'Granate  (Klick: werfen, G)', 'Verbandskasten  (Klick: heilen, H)'];
-        const arten = ['', p.weapon, 'sword', 'grenade', 'medkit'];
+        const namen = ['', p.weaponName, p.hatSchwert ? 'Schwert  (Klick: zuschlagen)' : 'Faust  (ein Schwert liegt irgendwo in den Höhlen)',
+            'Granate  (Klick: werfen, G)', 'Verbandskasten  (Klick: heilen, H)'];
+        const arten = ['', p.weapon, p.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'];
         const leer = p.magAmmo === 0 && p.ammo === 0;
         for (let i = 1; i <= 4; i++) {
             const x = SLOT_X0 + (i - 1) * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
             const gewaehlt = p.auswahl === i;
-            const gesperrt = i === 2 && !p.hatSchwert;
+            const gesperrt = false;
             const keins = (i === 3 && p.grenades === 0) || (i === 4 && p.medkits === 0);
             g.fillStyle(gewaehlt ? 0x3a4450 : 0x161b20, 0.85).fillRect(x, y, SLOT, SLOT);
             g.lineStyle(gewaehlt ? 4 : 2, gewaehlt ? 0xffdd55 : 0x55616b, 1).strokeRect(x, y, SLOT, SLOT);
@@ -834,17 +849,18 @@ export default class GameScene extends Phaser.Scene {
         const p = this.player;
         const pointer = this.input.activePointer;
         const winkel = Phaser.Math.Angle.Between(p.x, p.y - 6, pointer.worldX, pointer.worldY);
-        this.hiebStart(this.meineNr, winkel);
-        if (this.istGast) this.mp.meldeHieb(Math.round(p.x), Math.round(p.y), winkel);
-        else this.hiebTreffer(this.meineNr, p.x, p.y, winkel);
-        if (this.istHost) this.mp.sendeAnAlleAusser(this.meineNr, { t: 'fx', k: 'hieb', n: this.meineNr, a: winkel });
+        const schwert = p.hatSchwert;
+        this.hiebStart(this.meineNr, winkel, schwert);
+        if (this.istGast) this.mp.meldeHieb(Math.round(p.x), Math.round(p.y), winkel, schwert);
+        else this.hiebTreffer(this.meineNr, p.x, p.y, winkel, schwert);
+        if (this.istHost) this.mp.sendeAnAlleAusser(this.meineNr, { t: 'fx', k: 'hieb', n: this.meineNr, a: winkel, s: schwert ? 1 : 0 });
     }
 
     // Nur die Optik und der Ton eines Hiebs (für jeden Spieler, auch bei den anderen).
-    hiebStart(nr, winkel) {
+    hiebStart(nr, winkel, schwert) {
         this.hiebe = this.hiebe.filter((h) => h.nr !== nr);
         this.hiebe.push({ nr, a: winkel, t0: this.time.now });
-        sfx.play('schwert');
+        sfx.play(schwert ? 'schwert' : 'throw');
     }
 
     // Wie weit ist der Hieb dieses Spielers? (undefined = kein Hieb, sonst 0 bis 1) und sein Winkel.
@@ -856,22 +872,23 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Wer trifft der Hieb? Nur Gastgeber/Einzelspieler. Alles im Bogen vor dem Schwert nimmt Schaden, Gegnerkugeln werden abgewehrt.
-    hiebTreffer(nr, x, y, winkel) {
+    hiebTreffer(nr, x, y, winkel, schwert = true) {
         if (!this.rechnet) return;
+        const reichweite0 = schwert ? HIEB_REICHWEITE : FAUST_REICHWEITE, schaden = schwert ? HIEB_SCHADEN : 1;
         let traf = false;
         for (const e of this.enemies) {
             if (!e.active) continue;
             const dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy);
-            const reichweite = HIEB_REICHWEITE + e.displayWidth / 2;
+            const reichweite = reichweite0 + e.displayWidth / 2;
             if (d > reichweite) continue;
             if (d > 34 && Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - winkel)) > 1.2) continue;     // nicht im Bogen
             traf = true;
-            if (e.takeDamage(HIEB_SCHADEN)) this.gegnerStirbt(e);
+            if (e.takeDamage(schaden)) this.gegnerStirbt(e);
             else this.zeigeBlut(e.x, e.y, 8);
         }
         this.enemies = this.enemies.filter((e) => e.active);
-        for (const k of this.enemyBullets) {                  // Kugeln mit dem Schwert abwehren
-            if (!k.active) continue;
+        for (const k of this.enemyBullets) {                  // Kugeln mit dem Schwert abwehren (die Faust kann das nicht)
+            if (!k.active || !schwert) continue;
             const dx = k.x - x, dy = k.y - y;
             if (Math.hypot(dx, dy) > HIEB_REICHWEITE + 10) continue;
             if (Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - winkel)) > 1.2) continue;
@@ -879,7 +896,7 @@ export default class GameScene extends Phaser.Scene {
             k.destroy();
             traf = true;
         }
-        if (traf) sfx.play('schwertHit');
+        if (traf) sfx.play(schwert ? 'schwertHit' : 'hit');
     }
 
     // ---------- Checkpoint (große Fahne) ----------
@@ -1148,7 +1165,7 @@ export default class GameScene extends Phaser.Scene {
         switch (d.k) {
             case 'muendung': case 'druckwelle': case 'blut': this.effektLokal(d.k, d.x, d.y, d.a, d.g, d.f); break;
             case 'schuss': this.zeigeSchussEffekt(d.x, d.y, d.a, d.wp); break;
-            case 'hieb': this.hiebStart(d.n, d.a); break;
+            case 'hieb': this.hiebStart(d.n, d.a, !!d.s); break;
             case 'explosion': this.explosionEffekt(d.x, d.y, d.r); break;
             case 'fassZ': { const f = this.faesser.find((o) => o.id === d.id); if (f) f.zuendet = true; break; }
             case 'fassWeg': {
@@ -1178,9 +1195,9 @@ export default class GameScene extends Phaser.Scene {
 
     // Der Gastgeber erzeugt die echte Granate eines Gastes.
     fremderHieb(nr, d) {
-        this.hiebStart(nr, d.a);
-        this.hiebTreffer(nr, d.x, d.y, d.a);
-        this.mp.netz.sendeAnAlleAusser(nr, { t: 'fx', k: 'hieb', n: nr, a: d.a });
+        this.hiebStart(nr, d.a, d.s);
+        this.hiebTreffer(nr, d.x, d.y, d.a, d.s);
+        this.mp.netz.sendeAnAlleAusser(nr, { t: 'fx', k: 'hieb', n: nr, a: d.a, s: d.s ? 1 : 0 });
     }
 
     fremdeGranate(nr, d) {

@@ -238,7 +238,7 @@ export default class Mehrspieler {
     }
 
     // Ein Gast hat zugeschlagen: Der Gastgeber berechnet die Treffer.
-    meldeHieb(x, y, a) { this.sendeAnHost({ t: 'hb', x, y, a: Math.round(a * 100) / 100 }); }
+    meldeHieb(x, y, a, schwert) { this.sendeAnHost({ t: 'hb', x, y, a: Math.round(a * 100) / 100, s: schwert ? 1 : 0 }); }
     sendeAnAlleAusser(nr, daten) { if (this.istHost) this.netz.sendeAnAlleAusser(nr, daten); }
 
     meldeGranate(x, y, vx, vy) { this.sendeAnHost({ t: 'gr', x, y, vx, vy }); }

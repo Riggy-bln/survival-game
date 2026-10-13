@@ -277,6 +277,34 @@ export function decoratePlatforms(scene, platforms, boden) {
             }
             bewuchs(g, rnd, l, t, p.width, p.height, 0.4);                        // etwas Moos und Ranken
             if (grundfarbe !== 0x6b4a2a) bruchkante(g, rnd, l, t, p.width, p.height, grundfarbe);   // abgebrochene Betonkanten
+        } else if (grundfarbe === 0x6b5b3a) {
+            // --- Holzkiste: senkrechte Bretter, Rahmen, Kreuzstreben und Metallecken ---
+            g.fillStyle(0x7a6540).fillRect(l, t, p.width, p.height);
+            for (let x = l + 16; x < l + p.width; x += 16) g.fillStyle(0x4a3d26).fillRect(x, t, 2, p.height);     // Brettfugen
+            g.fillStyle(0x4a3d26).fillRect(l, t, p.width, 4).fillRect(l, t + p.height - 4, p.width, 4);          // Rahmen oben/unten
+            g.fillStyle(0x4a3d26).fillRect(l, t, 4, p.height).fillRect(l + p.width - 4, t, 4, p.height);
+            const n = Math.ceil(Math.hypot(p.width, p.height) / 4);
+            for (let i = 0; i <= n; i++) {                                                                       // Kreuzstreben
+                const u = i / n;
+                g.fillStyle(0x5a4a2e).fillRect(Math.round(l + u * p.width) - 2, Math.round(t + u * p.height) - 2, 4, 4);
+                g.fillStyle(0x5a4a2e).fillRect(Math.round(l + (1 - u) * p.width) - 2, Math.round(t + u * p.height) - 2, 4, 4);
+            }
+            for (const [cx, cy] of [[l, t], [l + p.width - 6, t], [l, t + p.height - 6], [l + p.width - 6, t + p.height - 6]]) g.fillStyle(0x3a3a3a).fillRect(cx, cy, 6, 6);
+            g.fillStyle(0x9a8660).fillRect(l, t, p.width, 2);                                                    // Lichtkante
+        } else if (grundfarbe === 0x8a7a55) {
+            // --- Sandsäcke: gestapelte Säcke, jede zweite Reihe versetzt, mit Nähten und Schatten ---
+            g.fillStyle(0x6a5c3e).fillRect(l, t, p.width, p.height);
+            for (let ry = 0; ry < p.height; ry += 16) {
+                const versatz = (ry / 16) % 2 === 0 ? 0 : 16;
+                for (let x = l - versatz; x < l + p.width; x += 32) {
+                    const x0 = Math.max(l, x), x1 = Math.min(l + p.width, x + 31), hh = Math.min(15, p.height - ry);
+                    if (x1 <= x0) continue;
+                    g.fillStyle(variiere(0x9a8a62, rnd.between(-10, 8))).fillRect(x0, t + ry, x1 - x0, hh);
+                    g.fillStyle(0xb5a47a).fillRect(x0, t + ry, x1 - x0, 2);                                       // Licht oben
+                    g.fillStyle(0x6a5c3e).fillRect(x0, t + ry + hh - 2, x1 - x0, 2);                              // Schatten unten
+                    g.fillStyle(0x7a6c48).fillRect(x + 14, t + ry + 4, 3, 6);                                      // Naht
+                }
+            }
         } else {
             // --- Dicke Blöcke (Beton, Kisten): Ziegelmuster mit Fugen ---
             const fuge = variiere(grundfarbe, -45);

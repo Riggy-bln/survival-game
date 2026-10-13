@@ -48,10 +48,26 @@ export default class GameScene extends Phaser.Scene {
         for (const d of level.decor) {
             this.add.rectangle(d.x, d.y, d.w, d.h, d.color);
         }
+        // Schilder: Text auf einer Holztafel, die auf einem Pfosten steht. Der Pfosten reicht bis zum Boden unter dem Schild
+        // (höchstens 260 Pixel tief; sonst hängt die Tafel einfach an der Wand). So schweben keine Texte in der Luft.
+        const schilderGrafik = this.add.graphics().setDepth(2.5);
         for (const s of level.signs) {
-            this.add.text(s.x, s.y, s.text, {
-                fontSize: '16px', color: '#cfd8dc', align: 'center',
-            }).setOrigin(0.5);
+            const text = this.add.text(s.x, s.y, s.text, {
+                fontSize: '16px', color: '#e6ded0', align: 'center', lineSpacing: 2,
+            }).setOrigin(0.5).setDepth(3);
+            const bw = text.width + 16, bh = text.height + 10;
+            schilderGrafik.fillStyle(0x2a1f14).fillRect(s.x - bw / 2 - 2, s.y - bh / 2 - 2, bw + 4, bh + 4);     // dunkler Rand
+            schilderGrafik.fillStyle(0x4a3826).fillRect(s.x - bw / 2, s.y - bh / 2, bw, bh);                      // Holztafel
+            schilderGrafik.fillStyle(0x5a4630).fillRect(s.x - bw / 2, s.y - bh / 2, bw, 3);                       // Lichtkante oben
+            let boden = Infinity;                                                                               // Boden unter dem Schild suchen
+            for (const p of level.platforms) {
+                const top = p.y - p.h / 2;
+                if (top >= s.y + bh / 2 - 2 && Math.abs(s.x - p.x) <= p.w / 2 && top < boden) boden = top;
+            }
+            if (boden - (s.y + bh / 2) <= 260) {
+                schilderGrafik.fillStyle(0x3d2a18).fillRect(s.x - 3, s.y + bh / 2, 6, boden - (s.y + bh / 2) + 2);   // Pfosten
+                schilderGrafik.fillStyle(0x5a4630).fillRect(s.x - 3, s.y + bh / 2, 2, boden - (s.y + bh / 2) + 2);
+            }
         }
 
         // --- Boden und Plattformen ---

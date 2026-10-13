@@ -32,6 +32,7 @@ const hoehlen = [];   // Hintergründe von Höhlen und Gräben (werden als Bilde
 const lampen = [];    // x-Positionen der Deckenlampen (für Lichtkegel)
 const signs = [];
 const faesser = [];   // explosive Fässer
+const schachtkoepfe = [];   // Förderschächte mit Fördergerüst (für die Zeichnung)
 const geruest = [];   // Holzabsätze in Schächten (für Stützstreben und Ketten in der Zeichnung)
 
 // ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
@@ -341,7 +342,7 @@ nahkaempfer(1200, 1104, 1296, 3, BODEN - 96);    // der erste Gegner, oben auf d
 // ZONE B: Ruine mit zwei Etagen (x 1450 bis 2300).
 // Oben (Deck) kämpft ein Schütze, darunter patrouilliert ein Nahkämpfer.
 // =====================================================================
-huegel(1450, 60, 160, BETON);                    // Stufe zum Deck
+gelaende(1472, [[0, 0], [64, 64], [128, 64]], 'fels');   // Schutthang, über den man zum Deck der Ruine hinaufsteigt (statt eines einzelnen Betonblocks)
 hoehlen.push({ links: 1585, rechts: 2135, oben: BODEN - 330, unten: BODEN, art: 'gebaeude', etagen: [140, 240] });   // Rückwand der Ruine
 schwebend(1600, BODEN - 140, 360);                       // Deck (Oberkante 360), x 1600 bis 1960
 schwebend(2010, BODEN - 240, 110);                       // kleines Versteck darüber (Oberkante 260)
@@ -538,6 +539,7 @@ signs.push({ x: 7250, y: BODEN - 110, text: 'Steinbruch:\nKlippen, eine Schlucht
 nahkaempfer(7330, 7270, 7380, 3);                                         // vor dem Schacht
 signs.push({ x: 7530, y: BODEN - 70, text: 'Förderschacht\nzur Mine' });
 schacht(MINE_L, MINE_L + 260);                                             // Förderschacht (x 7400 bis 7660)
+schachtkoepfe.push({ links: MINE_L, rechts: MINE_L + 260 });                // mit Fördergerüst
 gelaende(7696, [[0, 0], [160, 96], [256, 96], [512, 288], [704, 288]]);   // Klippe: Rampe, Absatz (96), Rampe, Plateau (288) bis x 8400
 schwebend(CHASM_L, BODEN - 288, 100, HOLZ);                                // morsche Brücke über die Schlucht
 schwebend(CHASM_R - 100, BODEN - 288, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
@@ -553,6 +555,7 @@ nahkaempfer(9530, 9450, 9600, 4);                                          // am
 heilung(8225, BODEN - 288);                                                // Belohnung auf dem Plateau
 munition(8700, BODEN - 288);                                               // Beute hinter der Brücke
 schacht(SCHACHT2_L, MINE_R);                                               // Ausgangsschacht (x 9640 bis 9900)
+schachtkoepfe.push({ links: SCHACHT2_L, rechts: MINE_R });
 
 // =====================================================================
 // ZONE K: Die tiefe Mine (y 1160 bis 1330, Kaverne bis y 960). Eine zweite Ebene unter der Erde.
@@ -606,9 +609,9 @@ signs.push({ x: 10250, y: BODEN - 130, text: 'Funkturm:\nein Aufstieg lohnt sich
 hoehlen.push({ links: 10225, rechts: 10545, oben: BODEN - 650, unten: BODEN, art: 'turm', etagen: [105, 210, 315, 420, 525, 630] });   // Gitterturm
 for (let k = 1; k <= 5; k++) schwebend(k % 2 === 1 ? 10250 : 10420, BODEN - 105 * k, 100, METALL);
 schwebend(10330, BODEN - 630, 260, BETON);                                 // Aussichtsdeck (Oberkante 130)
-decor.push({ x: 10335, y: BODEN - 700, w: 6, h: 70, color: 0x3a4046 });    // Antennenmast
-decor.push({ x: 10335, y: BODEN - 745, w: 24, h: 6, color: 0x3a4046 });
-decor.push({ x: 10335, y: BODEN - 765, w: 40, h: 6, color: 0x3a4046 });
+decor.push({ x: 10335, y: BODEN - 665, w: 6, h: 70, color: 0x3a4046 });    // Antennenmast (steht auf dem Deck, Oberkante 630)
+decor.push({ x: 10335, y: BODEN - 705, w: 24, h: 6, color: 0x3a4046 });
+decor.push({ x: 10335, y: BODEN - 685, w: 40, h: 6, color: 0x3a4046 });
 heilung(10360, BODEN - 630);
 granate(10450, BODEN - 630);
 munition(10540, BODEN - 630);
@@ -679,9 +682,11 @@ munition(13715, BODEN - 64);
 // Drei Plattformen zum Ausweichen. Ihre Unterkante liegt über dem Kopf der Kreatur (Höhe 100),
 // sie kann darunter durchlaufen.
 // =====================================================================
+// Die Plattformen sind Reste einer eingestürzten Hochstraße: Fahrbahnstücke mit Asphalt, Leitplanken und Säulen darunter.
 schwebend(14040, BODEN - 120, 140);
 schwebend(14230, BODEN - 170, 140);
 schwebend(14420, BODEN - 120, 140);
+bruecken.push({ art: 'autobahn', stuecke: [[14040, 14180, BODEN - 120], [14230, 14370, BODEN - 170], [14420, 14560, BODEN - 120]] });
 
 // =====================================================================
 // Explosive Fässer: stehen bei Gegnergruppen. Ein Schuss oder eine Granate lässt sie explodieren,
@@ -701,6 +706,13 @@ fass(10200);                                 // am Funkturm
 fass(14100); fass(14550);                    // in der Boss-Arena: den Boss damit locken
 fass(11240, BODEN - 96); fass(12140, BODEN - 128); fass(13160, BODEN - 64);   // im Tal der Brücken
 
+// Landeplatz des Hubschraubers (Dekoration): eine betonierte Fläche mit einem gelben H und Randlichtern
+decor.push({ x: 8800 + V, y: BODEN - 2, w: 280, h: 6, color: 0x6a6f73 });
+decor.push({ x: 8800 + V - 20, y: BODEN - 7, w: 6, h: 22, color: 0xd9b43a });     // H: linker Balken
+decor.push({ x: 8800 + V + 20, y: BODEN - 7, w: 6, h: 22, color: 0xd9b43a });     // H: rechter Balken
+decor.push({ x: 8800 + V, y: BODEN - 7, w: 46, h: 6, color: 0xd9b43a });          // H: Querbalken
+for (const dx of [-135, 135]) decor.push({ x: 8800 + V + dx, y: BODEN - 8, w: 6, h: 8, color: 0xcc3333 });   // Randlichter
+
 export default {
     width: BREITE,   // Breite der Welt in Pixeln
     height: HOEHE,   // Höhe der Welt in Pixeln
@@ -718,6 +730,7 @@ export default {
     treppen,
     wracks,
     geruest,
+    schachtkoepfe,
     huegelformen,
     hoehlen,
     lampen,

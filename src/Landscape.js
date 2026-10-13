@@ -479,6 +479,25 @@ function buildGeruest(scene, level) {
     }
 }
 
+
+// Fördergerüst über den Minenschächten: zwei schräge Stützen im Stil eines A, ein Querbalken, ein Seilrad oben
+// und ein Seil, das in den Schacht hinabhängt. So hat der Schacht einen Grund, warum er im Boden ist.
+function buildSchachtkoepfe(scene, level) {
+    const g = scene.add.graphics().setDepth(-1);
+    for (const s of level.schachtkoepfe ?? []) {
+        const mitte = (s.links + s.rechts) / 2, boden = level.boden, spitze = boden - 150;
+        for (const [x0, x1] of [[s.links - 8, mitte - 6], [s.rechts + 8, mitte + 6]]) {          // zwei Stützen, oben zusammenlaufend
+            for (let k = 0; k < 2; k++) strebe(g, 0x5a3d22, x0 + k * 4, boden, x1 + k * 4, spitze);
+        }
+        g.fillStyle(0x5a3d22).fillRect(s.links + 6, boden - 70, s.rechts - s.links - 12, 8);       // Querbalken
+        g.fillStyle(0x3a2a18).fillRect(mitte - 22, spitze - 10, 44, 8);                            // Kopfbalken
+        g.fillStyle(0x333333).fillRect(mitte - 12, spitze - 8, 24, 24);                           // Seilrad (Nabe)
+        g.fillStyle(0x555555).fillRect(mitte - 8, spitze - 12, 16, 32).fillRect(mitte - 16, spitze - 4, 32, 16);
+        g.fillStyle(0x8a7a52).fillRect(mitte - 1, spitze + 16, 3, 150);                            // Seil in den Schacht
+        g.fillStyle(0x3a3a3a).fillRect(mitte - 6, spitze + 164, 12, 8);                            // Haken
+    }
+}
+
 // Verteilt alles in der Welt. Die Höhe des Bodens an jeder Stelle liest die Funktion "oben" aus den
 // festen Blöcken (Erde, Fels, Bunker) der Leveldaten. Dort, wo kein Boden ist (Schächte, Schlucht),
 // wird nichts gesetzt.
@@ -521,6 +540,7 @@ export function buildLandscape(scene, level) {
     buildStuetzen(scene, level);   // Säulen und Mauerreste unter bzw. auf den schwebenden Plattformen
     buildBruecken(scene, level);   // Fachwerk, Seile und Autobahn-Reste
     buildGeruest(scene, level);    // Streben und Ketten an den Holzabsätzen
+    buildSchachtkoepfe(scene, level);   // Fördergerüste über den Minenschächten
     buildTreppen(scene, level);    // (Treppen-Dekoration, falls vorhanden)
     // Fahrzeugwracks, die in Level01.js als begehbare Blöcke stehen
     for (const w of level.wracks ?? []) {

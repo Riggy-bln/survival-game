@@ -17,8 +17,18 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
         scene.add.existing(this);
         this.setStrokeStyle(2, 0xffffff);  // weißer Rand, damit man sie gut sieht
 
+        // Leuchtender Schein hinter dem Gegenstand, der sanft pulsiert: so findet man ihn leichter.
+        this.glow = scene.add.circle(x, y, 22, TYPES[type].color, 0.25).setDepth(-1);
+        scene.tweens.add({ targets: this.glow, scale: 1.5, alpha: 0.05, duration: 900, yoyo: true, repeat: -1 });
+
         this.type = type;
         this.amount = TYPES[type].amount;
+    }
+
+    // Beim Verschwinden auch den Schein entfernen.
+    destroy(fromScene) {
+        if (this.glow) this.glow.destroy();
+        super.destroy(fromScene);
     }
 
     // Zeigt höchstens alle 2 Sekunden eine "voll"-Meldung (sonst käme sie in jedem Frame).

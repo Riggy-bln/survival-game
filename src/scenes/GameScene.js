@@ -7,7 +7,7 @@ import Boss from '../entities/Boss.js';
 import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
 import { sfx } from '../Sound.js';
-import Effects, { buildSky, buildSkyline, decoratePlatforms } from '../Effects.js';
+import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
@@ -59,6 +59,8 @@ export default class GameScene extends Phaser.Scene {
 
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
         this.fx = new Effects(this);                       // Partikel
+        buildEmbers(this);                                 // Glut und Asche in der Luft
+        buildVignette(this);                               // dunkle Bildränder
 
         // --- Spieler ---
         // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
@@ -466,6 +468,15 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    // Effekt für einen gestorbenen Gegner: Leiche (kippt vom Spieler weg) oder Boss-Explosionen.
+    zeigeTod(enemy) {
+        if (enemy === this.boss) {
+            this.fx.bossDeath(enemy.x, enemy.y);
+        } else {
+            this.fx.death(enemy.x, enemy.y, enemy.baseColor, enemy.x < this.player.x ? -1 : 1);
+        }
+    }
+
     // Wirft eine Granate Richtung Maus. Je weiter die Maus weg ist, desto weiter fliegt sie.
     throwGrenade() {
         const p = this.player;
@@ -496,7 +507,7 @@ export default class GameScene extends Phaser.Scene {
         for (const enemy of this.enemies) {
             if (!enemy.active) continue;
             if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) <= radius) {
-                if (enemy.takeDamage(6)) { this.kills += 1; this.fx.death(enemy.x, enemy.y); }
+                if (enemy.takeDamage(6)) { this.kills += 1; this.zeigeTod(enemy); }
                 else this.fx.blood(enemy.x, enemy.y);
             }
         }
@@ -651,7 +662,7 @@ export default class GameScene extends Phaser.Scene {
                 if (getroffen) {
                     bullet.destroy();
                     // takeDamage meldet true zurück, wenn der Gegner dadurch gestorben ist.
-                    if (enemy.takeDamage(1)) { this.kills += 1; this.fx.death(enemy.x, enemy.y); }
+                    if (enemy.takeDamage(1)) { this.kills += 1; this.zeigeTod(enemy); }
                     else this.fx.blood(bullet.x, bullet.y, 5);
                 }
             }

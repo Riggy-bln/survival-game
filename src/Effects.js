@@ -80,6 +80,32 @@ export function decoratePlatforms(scene, platforms, boden) {
     }
 }
 
+// Dunkle Ränder wie bei einem alten Film: die Mitte bleibt hell, die Ecken werden dunkel.
+// Das Bild entsteht einmal auf einer Canvas-Fläche (einem Mal-Brett des Browsers).
+export function buildVignette(scene) {
+    if (!scene.textures.exists('vignette')) {
+        const tex = scene.textures.createCanvas('vignette', 960, 540);
+        const ctx = tex.getContext();
+        const grad = ctx.createRadialGradient(480, 270, 200, 480, 270, 620);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 960, 540);
+        tex.refresh();
+    }
+    scene.add.image(0, 0, 'vignette').setOrigin(0, 0).setScrollFactor(0).setDepth(15);
+}
+
+// Glut und Asche, die über den ganzen Bildschirm nach oben treiben (Stimmung).
+export function buildEmbers(scene) {
+    scene.add.particles(0, 0, 'px', {
+        x: { min: 0, max: 960 }, y: 560, lifespan: 7000, frequency: 140,
+        speedY: { min: -70, max: -25 }, speedX: { min: -25, max: 25 },
+        scale: { start: 1, end: 0.3 }, alpha: { start: 0.8, end: 0 },
+        tint: [0xff9944, 0xffcc66, 0x888888],
+    }).setScrollFactor(0).setDepth(14);
+}
+
 // Partikel-Effekte. Ein Partikel ist ein winziges Quadrat, das fliegt, fällt und verschwindet.
 export default class Effects {
     constructor(scene) {
@@ -117,8 +143,40 @@ export default class Effects {
     dust(x, y) { this.staubE.explode(6, x, y); }
     muzzle(x, y) { this.funkenE.explode(4, x, y); }
 
-    // Tod eines Gegners: viel Blut.
-    death(x, y) { this.blutE.explode(26, x, y); }
+    // Tod eines Gegners: viel Blut und eine Leiche, die umkippt und liegen bleibt.
+    death(x, y, farbe = 0xcc4444, richtung = 1, groesse = 1) {
+        this.blutE.explode(26, x, y);
+        this.corpse(x, y + 24 * groesse, farbe, richtung, groesse);
+    }
+
+    // Die Leiche ist ein kleines Bild aus Rechtecken, gezeichnet relativ zu den Füßen (0, 0).
+    // Ein Tween dreht sie um die Füße um 90 Grad: Sie kippt um.
+    corpse(x, y, farbe, richtung, groesse) {
+        const scene = this.scene;
+        const dunkel = Phaser.Display.Color.ValueToColor(farbe).darken(40).color;
+        const g = scene.add.graphics({ x, y }).setDepth(2);
+        g.fillStyle(dunkel).fillRect(-12, -14, 24, 14);       // Beine
+        g.fillStyle(farbe).fillRect(-13, -34, 26, 20);         // Rumpf
+        g.fillStyle(0x8a6a50).fillRect(-8, -48, 16, 14);       // Kopf
+        g.setScale(groesse);
+        scene.tweens.add({
+            targets: g, angle: 90 * richtung, duration: 320, ease: 'Bounce.easeOut',
+        });
+        // Nur die letzten 12 Leichen behalten, sonst wird das Spiel mit der Zeit langsamer.
+        this.leichen = this.leichen ?? [];
+        this.leichen.push(g);
+        if (this.leichen.length > 12) this.leichen.shift().destroy();
+    }
+
+    // Der Boss stirbt: mehrere Explosionen hintereinander.
+    bossDeath(x, y) {
+        for (let i = 0; i < 5; i++) {
+            this.scene.time.delayedCall(i * 180, () => {
+                this.explosion(x + Phaser.Math.Between(-40, 40), y + Phaser.Math.Between(-50, 40));
+                this.scene.cameras.main.shake(180, 0.012);
+            });
+        }
+    }
 
     // Explosion: Feuer, Trümmer, Rauch.
     explosion(x, y) {

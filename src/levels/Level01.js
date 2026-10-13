@@ -615,10 +615,9 @@ fernkaempfer(4818, 4786, 4850, 4, BODEN - 240);              // Scharfschütze a
 munition(4800, BODEN - 240);                                 // Belohnung auf dem Bunkerdach
 granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)
 // Das Feld: zwei Hügel mit einer Senke dazwischen
-gelaende(4900, [[0, 0], [128, 64], [256, 64], [352, 0], [448, 0], [576, 96], [672, 96], [704, 0]]);
+gelaende(4900, [[0, 0], [128, 64], [256, 64], [352, 0], [704, 0]]);   // ein Hügel, danach eben bis zum Einsturzloch (ZONE Q)
 nahkaempfer(5090, 5044, 5136, 3, BODEN - 64);                // auf dem ersten Hügel
-nahkaempfer(5300, 5268, 5332, 3);                            // in der Senke
-fernkaempfer(5524, 5492, 5556, 3, BODEN - 96);               // Schütze auf dem zweiten Hügel
+nahkaempfer(5285, 5262, 5300, 3);                            // in der Senke, vor dem Einsturzloch
 stacheldraht(5262);                                          // nur Dekoration in der Senke
 
 // =====================================================================
@@ -637,7 +636,7 @@ munition(5890, BODEN - 64);
 //   gerade Etagen   (2, 4, 6): x 6520 bis 6900, Lücke links
 // Von der 4. Etage führt eine Skybridge nach rechts, ein Abkürzungsweg über den Bodenkämpfen.
 // =====================================================================
-signs.push({ x: 6200, y: BODEN - 110, text: 'Hochhaus-Ruine:\nGegner auf jeder Etage' });
+signs.push({ x: 6060, y: BODEN - 110, text: 'Hochhaus-Ruine:\nGegner auf jeder Etage' });
 hoehlen.push({ links: 6380, rechts: 6920, oben: BODEN - 660, unten: BODEN, art: 'gebaeude', etagen: [100, 200, 300, 400, 500, 600] });   // Rückwand des Hochhauses
 for (let etage = 1; etage <= 6; etage++) {
     const links = etage % 2 === 1 ? 6400 : 6520;                         // ungerade links, gerade rechts
@@ -646,7 +645,7 @@ for (let etage = 1; etage <= 6; etage++) {
 hoehlen.push({ links: 7060, rechts: 7260, oben: BODEN - 440, unten: BODEN, art: 'gebaeude', etagen: [400] });   // Gebäuderest am Ende der Skybridge
 schwebend(6900, BODEN - 400, 250);                                       // Skybridge (Oberkante wie Etage 4)
 
-nahkaempfer(6250, 6170, 6330, 4);                                        // am Eingang, links
+nahkaempfer(6445, 6400, 6480, 4);                                        // am Eingang, unter der ersten Etage
 nahkaempfer(6590, 6430, 6750, 4, BODEN - 100);                           // Etage 1
 fernkaempfer(6700, 6600, 6820, 3, BODEN - 200);                          // Etage 2
 nahkaempfer(6590, 6430, 6750, 4, BODEN - 300);                           // Etage 3
@@ -658,6 +657,58 @@ nahkaempfer(7100, 6960, 7250, 4);                                        // am B
 
 heilung(6430, BODEN - 300);                                              // Belohnung auf Etage 3 (linkes Ende)
 munition(6430, BODEN - 500);                                             // Belohnung auf Etage 5 (linkes Ende)
+
+// =====================================================================
+// ZONE Q: Die Katakomben (x 4990 bis 6560, y 1130 bis 1330). Ein Höhlensystem unter dem Feld und dem Versorgungspunkt.
+// Hinein führt das Einsturzloch im Feld (x 5320 bis 5580), hinaus der Schacht vor dem Hochhaus (x 6100 bis 6360):
+// Wer unten bleibt, umgeht die Bodenkämpfe. Im Westen liegt die Gruft mit Vorräten, in der Mitte eine hohe Halle mit
+// einem schweren Wächter und drei Absätzen voller Beute, ganz im Osten ein Sicherheitsraum mit der SCHROTFLINTE.
+// =====================================================================
+const KAT_O = 1130;             // Unterkante der Basisdecke
+const KAT_B = 1330;             // Boden (wie in der tiefen Mine: 570 unter der Oberfläche)
+const katakomben = hoehlenform(4990, 6560, KAT_O, KAT_B, 31,
+    [[5290, 5610], [5780, 6020], [6070, 6390], [6420, 6560]], 2, 1,
+    [[5010, 5290], [5620, 5780], [5790, 6020], [6390, 6560]]);
+aushoehlen(5780, 6020, 930, KAT_O);                          // die hohe Halle (200 höher)
+aushoehlen(5320, 5580, BODEN, KAT_O);                        // Einsturzloch
+aushoehlen(6100, 6360, BODEN, KAT_O);                        // Ausgangsschacht
+schacht(5320, 5580);                                         // Bretter am Rand und Absätze im Zickzack (alle 95 Pixel)
+schacht(6100, 6360);
+signs.push({ x: 5290, y: BODEN - 90, text: 'Einsturzloch:\nein Weg in die Katakomben' });
+hoehlen.push({ links: 4990, rechts: 5320, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 5320, rechts: 5580, oben: BODEN, unten: KAT_B, art: 'schacht', eigeneLampen: true });
+hoehlen.push({ links: 5580, rechts: 5780, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 5780, rechts: 6020, oben: 930, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 6020, rechts: 6100, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 6100, rechts: 6360, oben: BODEN, unten: KAT_B, art: 'schacht', eigeneLampen: true });
+hoehlen.push({ links: 6360, rechts: 6560, oben: KAT_O, unten: KAT_B, art: 'lager', regale: false, eigeneLampen: true });
+[5060, 5200, 5660, 6060, 6430, 6520].forEach(x => hoehlenlampe(katakomben, x));
+// die hohe Halle: Absätze im Zickzack nach oben
+schwebend(5790, KAT_B - 100, 90, HOLZ);                      // Absatz 1 (Oberkante 1230)
+schwebend(5920, KAT_B - 200, 90, HOLZ);                      // Absatz 2 (Oberkante 1130)
+schwebend(5800, KAT_B - 300, 100, HOLZ);                     // Absatz 3 (Oberkante 1030), die Beute
+// Gruft im Westen
+heilung(5020, KAT_B);
+granate(5065, KAT_B);
+munition(5110, KAT_B);
+nahkaempfer(5200, 5150, 5260, 4, KAT_B);
+fernkaempfer(5240, 5225, 5275, 3, KAT_B);
+// Gang zur Halle
+kiste(5640, 50, 80, KAT_B);
+munition(5680, KAT_B - 50);
+fernkaempfer(5735, 5715, 5760, 3, KAT_B);
+// Halle
+nahkaempfer(5880, 5820, 5990, 8, KAT_B);                     // der schwere Wächter
+munition(5835, KAT_B - 100);
+heilung(5965, KAT_B - 200);
+granate(5850, KAT_B - 300);
+granate(5880, KAT_B - 300);
+fernkaempfer(5870, 5820, 5900, 4, KAT_B - 300);             // Schütze ganz oben
+fass(5990, KAT_B);
+// Sicherheitsraum im Osten
+kiste(6480, 44, 60, KAT_B);
+schrotflinte(6510, KAT_B - 44);
+heilung(6400, KAT_B);
 
 // =====================================================================
 // ZONE J: Steinbruch mit Schlucht (x 7300 bis 9640). Der Boden steigt in Stufen zu einer Klippe
@@ -826,8 +877,8 @@ fass(1850, BODEN - 140);                     // Zone B, auf dem Deck beim Schüt
 fass(2150);
 fass(3430, BODEN - 192);                     // Zone D, auf dem Gipfel
 fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
-fass(5100, BODEN - 64); fass(5330);          // Zone E, auf dem offenen Feld
-fass(6250);                                  // Zone G, vor dem Hochhaus
+fass(5100, BODEN - 64); fass(5262);          // Zone E, auf dem offenen Feld
+fass(6385);                                  // Zone G, vor dem Hochhaus
 fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
 fass(7330); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf der Klippe
 fass(8900, MINE_BODEN);                      // in der Kaverne

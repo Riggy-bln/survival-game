@@ -25,8 +25,20 @@ export default class MenuScene extends Phaser.Scene {
             { fontSize: '13px', color: '#7f8f9a', align: 'center' }).setOrigin(0.5);
         this.add.text(480, 510, 'Handy: Linker Daumen = Laufen (nach oben schieben = Springen), rechter Daumen = Zielen und Schießen (Tippen = Schnellschuss)',
             { fontSize: '12px', color: '#6f7f8a', align: 'center' }).setOrigin(0.5);
-        // Erster Fingertipp: Die Touch-Steuerung merkt sich das für das Spiel
-        this.input.on('pointerdown', (p) => { if (p.wasTouch) this.registry.set('touch', true); });
+        // Erster Fingertipp: Die Touch-Steuerung merkt sich das für das Spiel. Am Handy geht beim ersten Tippen gleich der Vollbildmodus an
+        // (Browser erlauben ihn nur nach einer Berührung).
+        this.input.on('pointerdown', (p) => {
+            if (!p.wasTouch) return;
+            this.registry.set('touch', true);
+            if (!this.registry.get('vollbildVersucht') && this.scale.fullscreen.available && !this.scale.isFullscreen) {
+                this.registry.set('vollbildVersucht', true);
+                this.vollbildUmschalten();
+            }
+        });
+        // Knopf oben rechts: Vollbild
+        this.vollbildKnopf = this.add.text(932, 22, '[ ] Vollbild', { fontSize: '16px', color: '#9fb0bd', backgroundColor: '#1b2630', padding: { x: 8, y: 4 } })
+            .setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+        this.vollbildKnopf.on('pointerdown', () => this.vollbildUmschalten());
 
         this.menuObjekte = [];       // alle Texte und Rahmen des aktuellen Menüs (werden beim Wechsel gelöscht)
         this.auswahl = 0;
@@ -35,6 +47,17 @@ export default class MenuScene extends Phaser.Scene {
         // Tastatur: hoch/runter wählt, Enter oder Leertaste bestätigt, Esc geht zurück
         const tasten = this.input.keyboard.addKeys('UP,DOWN,W,S,ENTER,SPACE,ESC');
         this.tasten = tasten;
+    }
+
+    vollbildUmschalten() {
+        if (!this.scale.fullscreen.available) {
+            this.beschreibung.setText('Vollbild geht in diesem Browser nicht.\niPhone: Teilen-Symbol, dann "Zum Home-Bildschirm" und von dort öffnen.').setColor('#ffdd55');
+            return;
+        }
+        try {
+            this.scale.toggleFullscreen();
+            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+        } catch (e) { /* egal */ }
     }
 
     // Baut ein Menü auf. name = 'haupt' oder 'mehrspieler'.

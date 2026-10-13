@@ -81,7 +81,6 @@ export default class Touch {
     knopfBei(x, y) {
         for (const [name, k] of Object.entries(KNOEPFE)) {
             if (name === 'interaktion' && !this.interaktionText) continue;
-            if (name === 'vollbild' && !this.scene.scale.fullscreen.available) continue;
             if (Math.hypot(x - k.x, y - k.y) <= k.r + 10) return name;
         }
         return null;
@@ -126,7 +125,7 @@ export default class Touch {
         else if (name === 'heilen') p.touchEin.heilen = true;
         else if (name === 'interaktion') this.eTipp = true;
         else if (name === 'pause') s.touchPause();
-        else if (name === 'vollbild') { try { s.scale.toggleFullscreen(); } catch (e) { /* egal */ } }
+        else if (name === 'vollbild') s.vollbildUmschalten();
     }
 
     bewegt(p) {
@@ -317,7 +316,7 @@ export default class Touch {
         if (zeigeE) ring(k.interaktion.x, k.interaktion.y, k.interaktion.r, this.gedrueckt.interaktion);
         ring(k.pause.x, k.pause.y, k.pause.r, false);
         g.fillStyle(0xffffff, 0.85).fillRect(k.pause.x - 9, k.pause.y - 10, 6, 20).fillRect(k.pause.x + 3, k.pause.y - 10, 6, 20);
-        if (s.scale.fullscreen.available) {
+        {
             ring(k.vollbild.x, k.vollbild.y, k.vollbild.r, false);
             g.lineStyle(3, 0xffffff, 0.85);
             const c = k.vollbild, d = 11, l = 6;

@@ -963,6 +963,18 @@ export default class GameScene extends Phaser.Scene {
         return { x: pointer.worldX, y: pointer.worldY };
     }
 
+    // Vollbild an/aus. Auf dem iPhone (Safari) gibt es das nicht: Dort hilft nur "Zum Home-Bildschirm" und das Spiel von dort öffnen.
+    vollbildUmschalten() {
+        if (!this.scale.fullscreen.available) {
+            this.showMessage('Vollbild geht in diesem Browser nicht.\niPhone: Teilen-Symbol, dann "Zum Home-Bildschirm"\nund das Spiel von dort öffnen.');
+            return;
+        }
+        try {
+            this.scale.toggleFullscreen();
+            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+        } catch (e) { /* egal */ }
+    }
+
     // Der Pause-Knopf der Touch-Steuerung (statt Esc).
     touchPause() {
         if (this.gameOver) {

@@ -512,6 +512,7 @@ export default class GameScene extends Phaser.Scene {
                 else this.fx.blood(enemy.x, enemy.y);
             }
         }
+        this.enemies = this.enemies.filter(e => e.active);  // gestorbene sofort aus der Liste nehmen
         if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius) {
             this.player.takeDamage(30, x);  // Eigenbeschuss: Abstand halten!
         }
@@ -599,7 +600,8 @@ export default class GameScene extends Phaser.Scene {
         this.pickups = this.pickups.filter(p => p.active);
 
         // --- Gegner bewegen ---
-        this.enemies.forEach(enemy => enemy.update());
+        // Nur lebende Gegner bewegen: Eine Granate kann einen Gegner schon in diesem Frame zerstört haben.
+        this.enemies.forEach(enemy => { if (enemy.active) enemy.update(); });
         this.drawCharacters();
 
         // --- Nahkampf: Gegner berührt den Spieler ---

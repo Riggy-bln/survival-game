@@ -103,6 +103,7 @@ const heilung = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'heal
 const schrotflinte = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'shotgun' });
 // fass: ein explosives Fass auf dem Boden (oben = y der Standfläche)
 const fass = (x, oben = BODEN) => faesser.push({ x, y: oben - 19 });
+const schwert = (x, oben = BODEN) => pickups.push({ x, y: oben - 12, type: 'sword' });   // die Nahkampfwaffe
 const granate = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'grenade' });
 const waffe = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'rifle' });   // das Sturmgewehr
 
@@ -323,6 +324,69 @@ const haufen = (links, hoehen, boden = TUNNEL_BODEN) => {
         }
     }
 };
+// aushoehlen: schneidet einen rechteckigen Hohlraum aus der Erde. Alle gewöhnlichen Erdblöcke, die ihn berühren,
+// werden in Stücke zerteilt (links, rechts, darüber, darunter). So kann man Höhlen in die große Erde "graben".
+const aushoehlen = (links, rechts, oben, unten) => {
+    const neu = [];
+    for (let i = platforms.length - 1; i >= 0; i--) {
+        const p = platforms[i];
+        if (p.color !== 0x4b3b2a || p.brechbar) continue;
+        const l = p.x - p.w / 2, r = p.x + p.w / 2, o = p.y - p.h / 2, u = p.y + p.h / 2;
+        if (r <= links || l >= rechts || u <= oben || o >= unten) continue;      // berührt den Hohlraum nicht
+        platforms.splice(i, 1);
+        const stueck = (a, b, c, d) => { if (b - a > 0 && d - c > 0) neu.push({ x: (a + b) / 2, y: (c + d) / 2, w: b - a, h: d - c, color: 0x4b3b2a }); };
+        const ml = Math.max(l, links), mr = Math.min(r, rechts);
+        stueck(l, ml, o, u);                       // links vom Hohlraum
+        stueck(mr, r, o, u);                       // rechts davon
+        stueck(ml, mr, o, Math.min(u, oben));      // darüber
+        stueck(ml, mr, Math.max(o, unten), u);     // darunter
+    }
+    platforms.push(...neu);
+};
+
+// hoehlenform: gräbt eine Höhle aus und gibt ihr eine unregelmäßige Form: Von der Decke hängen Felsblöcke (bis zu
+// maxDecke Blöcke tief), am Boden liegen kleine Geröllhaufen (bis maxBoden Blöcke hoch). In einer Spalte gibt es nie
+// beides, damit man immer durchkommt. "frei" = Bereiche ohne Zacken (unter Schächten, in Räumen, auf Podesten).
+const hoehlenform = (links, rechts, oben, unten, seed, frei = [], maxDecke = 2, maxBoden = 1, freiBoden = []) => {
+    aushoehlen(links, rechts, oben, unten);
+    const n = Math.ceil((rechts - links) / BLOCK), zu = zufall(seed);
+    const dec = [], bod = [];
+    let e = 0, f = 0;
+    for (let i = 0; i < n; i++) {
+        const x = links + i * BLOCK;
+        const r = zu(), r2 = zu();
+        if (r < 0.28 && e < maxDecke) e++; else if (r < 0.58 && e > 0) e--;
+        if (r2 < 0.2 && f < maxBoden) f++; else if (r2 < 0.55 && f > 0) f--;
+        let a = e, b = f;
+        if (frei.some(([p, q]) => x + BLOCK > p && x < q)) { a = 0; b = 0; }
+        if (freiBoden.some(([p, q]) => x + BLOCK > p && x < q)) b = 0;   // dort stehen Gegner oder liegt Beute
+        if (a > 0 && b > 0) b = 0;
+        dec.push(a); bod.push(b);
+    }
+    for (const [liste, deckeSeite] of [[dec, true], [bod, false]]) {
+        let start = 0;
+        for (let i = 1; i <= n; i++) {
+            if (i === n || liste[i] !== liste[start]) {
+                const k = liste[start];
+                if (k > 0) {
+                    const x0 = links + start * BLOCK, x1 = Math.min(rechts, links + i * BLOCK);
+                    if (deckeSeite) erde(x0, x1, oben - BLOCK, oben + k * BLOCK);     // reicht in die Decke hinein (damit es als Erde gemalt wird)
+                    else erde(x0, x1, unten - k * BLOCK, unten + 32, FELS);
+                }
+                start = i;
+            }
+        }
+    }
+    const deckeAn = (x) => oben + dec[Math.max(0, Math.min(n - 1, Math.floor((x - links) / BLOCK)))] * BLOCK;
+    return { deckeAn };
+};
+// hoehlenlampe: eine Lampe an der Decke einer solchen Höhle (leuchtet nur in dieser Höhle).
+const hoehlenlampe = (form, x) => {
+    const y = form.deckeAn(x);
+    decor.push({ x, y: y + 8, w: 10, h: 8, color: 0xc9a94e });
+    lampen.push({ x, y: y + 20 });
+};
+
 // Die Höhlendecken (siehe die Zonen T und K)
 hoehlendecke(EINGANG, TUNNEL_ENDE, BODEN + DECKE, 2, 11, [[EINGANG, 3250]]);               // Tunnel (am Eingang glatt)
 hoehlendecke(KRATER_ENDE, VERLIES_ENDE, BODEN + DECKE, 2, 12, [], true);                    // Waffenkammer, läuft zum Ende tief aus
@@ -457,9 +521,9 @@ for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     decor.push({ x: x, y: deckeBei(x) + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen (an der echten Decke)
     lampen.push(x);
 }
-tunnelblock(3480, 40, 80);                             // Kiste A als Deckung (x 3480 bis 3560)
+tunnelblock(3520, 40, 80);                             // Kiste A als Deckung (x 3520 bis 3600)
 tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
-nahkaempfer(3350, 3290, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang des Gangs
+// (Hier am Eingang des Gangs öffnet sich jetzt der Wartungsschacht zur Tiefen Galerie, siehe ZONE S.)
 fernkaempfer(3640, 3590, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
 nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
 munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
@@ -480,6 +544,47 @@ nahkaempfer(4540, 4490, 4600, 8, TUNNEL_BODEN);                // der schwere W�
 heilung(4400, TUNNEL_BODEN);
 munition(4520, TUNNEL_BODEN);
 waffe(4690, TUNNEL_BODEN - 50);                                // das Sturmgewehr auf dem Tisch
+
+// =====================================================================
+// ZONE S: Die Tiefe Galerie (x 3000 bis 4380, y 1144 bis 1336). Unter dem Tunnel liegt ein zweiter, tieferer Gang.
+// Man kommt durch den Wartungsschacht im Tunnelboden (x 3290 bis 3470) hinein und klettert über zwei Holzabsätze wieder
+// hinaus. Westlich liegt ein Vorratsraum, östlich ein langer Gang mit Deckung und am Ende die Waffenkammer 2:
+// Dort bewacht ein schwerer Wächter das SCHWERT (Nahkampfwaffe, Taste 2).
+// =====================================================================
+const GAL_O = 1144;             // Unterkante der Basisdecke der Galerie
+const GAL_B = 1336;             // Boden der Galerie (288 unter dem Tunnelboden; 96 = Abstand der Absätze im Schacht)
+const SCH2_L = 3290, SCH2_R = 3470;
+const galerie = hoehlenform(3000, 4380, GAL_O, GAL_B, 21, [[SCH2_L - 40, SCH2_R + 40], [4060, 4380]], 2, 1,
+    [[3040, 3290], [3470, 3560], [3640, 3830], [3840, 4050]]);   // Gegner- und Beutebereiche bleiben am Boden frei
+aushoehlen(SCH2_L, SCH2_R, TUNNEL_BODEN, GAL_O);                  // der Schacht durch die Decke
+schwebend(SCH2_L, GAL_B - 96, 90, HOLZ);                          // Absatz 1 (links, Oberkante 1240)
+schwebend(SCH2_R - 90, GAL_B - 192, 90, HOLZ);                    // Absatz 2 (rechts, Oberkante 1144); von hier springt man auf den Tunnelboden
+geruest.push({ x0: SCH2_L, x1: SCH2_L + 90, oben: GAL_B - 96, wand: 'links' });
+geruest.push({ x0: SCH2_R - 90, x1: SCH2_R, oben: GAL_B - 192, wand: 'rechts' });
+erde(4060, 4092, GAL_O, GAL_O + 64);                              // Türsturz vor der Waffenkammer
+hoehlen.push({ links: SCH2_L, rechts: SCH2_R, oben: TUNNEL_BODEN, unten: GAL_B, art: 'schacht', eigeneLampen: true });
+hoehlen.push({ links: 3000, rechts: SCH2_L, oben: GAL_O, unten: GAL_B, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: SCH2_R, rechts: 4060, oben: GAL_O, unten: GAL_B, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 4060, rechts: 4380, oben: GAL_O, unten: GAL_B, art: 'lager', regale: false, eigeneLampen: true });
+[3100, 3640, 3880, 4180, 4320].forEach(x => hoehlenlampe(galerie, x));
+signs.push({ x: 3380, y: TUNNEL_BODEN - 100, text: 'Wartungsschacht\n(führt in die Tiefe)' });
+signs.push({ x: 4180, y: GAL_B - 150, text: 'Waffenkammer 2\n"Für den Nahkampf, wenn\ndie Munition ausgeht."' });
+// Vorratsraum im Westen
+heilung(3070, GAL_B);
+munition(3130, GAL_B);
+granate(3190, GAL_B);
+nahkaempfer(3170, 3080, 3250, 4, GAL_B);                          // bewacht den Vorrat
+// langer Gang im Osten
+kiste(3560, 50, 80, GAL_B);
+munition(3600, GAL_B - 50);
+fernkaempfer(3730, 3680, 3800, 3, GAL_B);
+fass(3830, GAL_B);
+nahkaempfer(3940, 3870, 4020, 4, GAL_B);
+// Waffenkammer 2
+heilung(4120, GAL_B);
+nahkaempfer(4190, 4130, 4260, 8, GAL_B);                          // der schwere Wächter
+kiste(4300, 44, 60, GAL_B);                                       // Sockel
+schwert(4330, GAL_B - 44);                                        // das Schwert
 
 // =====================================================================
 // ZONE D: Der Hügel über der Höhle (x 2940 bis 3770). Die Höhle ist in diesen Hügel hineingegraben: Der Eingang

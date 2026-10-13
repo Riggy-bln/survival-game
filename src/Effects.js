@@ -592,7 +592,11 @@ function zeichneHoehle(r, rnd, h, lampen) {
     }
 
     // --- 8. Lichtkegel unter den Lampen (abgestuft, sehr durchsichtig) und Lichtfleck am Boden ---
-    for (const lx of lampen) {
+    for (const lamp of lampen) {
+        // Zahl = Lampe im Tunnel/Mine (gilt für alle Höhlen ohne "eigeneLampen"); Objekt {x, y} = Lampe in genau einer Höhle (nach Höhe)
+        const eigene = typeof lamp === 'object';
+        if (eigene ? (lamp.y < h.oben || lamp.y > h.unten) : h.eigeneLampen) continue;
+        const lx = eigene ? lamp.x : lamp;
         if (lx < h.links + 10 || lx > h.rechts - 10) continue;
         const cx = lx;
         for (let k = 0, y = 20; y < hh - 4; k++, y += 8) {

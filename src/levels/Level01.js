@@ -403,28 +403,26 @@ nahkaempfer(3430, 3362, 3498, 4);                // Nahkämpfer im Graben
 huegel(3900, 110, 30, GRAU);                     // hohe Mauer als Deckung
 
 // =====================================================================
-// ZONE E: Bunker (x 4100 bis 5600). Eine Pyramide aus drei Etagen zum Überklettern,
-// danach ein offenes Feld mit Sandsack-Deckungen.
+// ZONE E: Bunkerhügel (x 4290 bis 4870) und offenes Feld mit Hügeln (x 4900 bis 5600).
+// Der Bunker ist kein Betonklotz mehr, sondern ein gestufter Felshügel aus 32er-Blöcken (wie die Höhle):
+// Rampe, Absatz (64), Rampe, Absatz (128), Rampe, Dach (192). Hinter dem Dach geht es über einen Absatz (96)
+// hinab, damit man auch zurück hinaufkommt (mehr als 150 hoch springt niemand).
 // =====================================================================
-signs.push({ x: 4290, y: BODEN - 130, text: 'Bunker voraus:\nGegner auf mehreren Etagen' });
-huegel(4300, 100, 480, BUNKER);                  // untere Etage (Oberkante 400), x 4300 bis 4780
-huegel(4400, 200, 300, BUNKER);                  // mittlere Etage (Oberkante 300), x 4400 bis 4700
-huegel(4500, 300, 100, BUNKER);                  // Dach (Oberkante 200), x 4500 bis 4600
-fernkaempfer(4550, 4520, 4580, 4, BODEN - 300);          // Scharfschütze auf dem Dach
-fernkaempfer(4650, 4625, 4680, 3, BODEN - 200);          // Schütze auf der mittleren Etage
-// Wichtig: Die Patrouille muss zu den freien Flächen passen. Ein Gegner hat 32 Pixel Breite,
-// also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Etage.
-nahkaempfer(4350, 4320, 4380, 4, BODEN - 100);           // Nahkämpfer unten links
-nahkaempfer(4740, 4725, 4760, 4, BODEN - 100);           // Nahkämpfer unten rechts
-munition(4550, BODEN - 300);
-granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)                             // Belohnung auf dem Dach
-huegel(4900, 40, 80, SAND);                      // offenes Feld: drei Sandsack-Deckungen
-huegel(5100, 40, 80, SAND);
-huegel(5300, 40, 80, SAND);
-nahkaempfer(5040, 5000, 5080, 3);
-nahkaempfer(5240, 5200, 5280, 3);
-fernkaempfer(5470, 5400, 5560, 3);               // Schütze hinter den Deckungen
-stacheldraht(5560);
+signs.push({ x: 4262, y: BODEN - 130, text: 'Bunkerhügel voraus:\nGegner auf mehreren Etagen' });
+gelaende(4290, [[0, 0], [96, 64], [192, 64], [288, 128], [384, 128], [480, 192], [576, 192], [580, 96], [672, 96], [676, 0]], 'fels');
+nahkaempfer(4434, 4402, 4466, 4, BODEN - 64);                // Nahkämpfer auf dem ersten Absatz
+fernkaempfer(4626, 4594, 4658, 4, BODEN - 128);              // Schütze auf dem zweiten Absatz
+fernkaempfer(4818, 4786, 4850, 4, BODEN - 192);              // Scharfschütze auf dem Dach
+// Wichtig: Die Patrouille muss zu den ebenen Flächen passen. Ein Gegner hat 32 Pixel Breite,
+// also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Stufe.
+munition(4800, BODEN - 192);                                 // Belohnung auf dem Dach
+granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)
+// Das Feld: zwei Hügel mit einer Senke dazwischen
+gelaende(4900, [[0, 0], [128, 64], [256, 64], [352, 0], [448, 0], [576, 96], [672, 96], [704, 0]]);
+nahkaempfer(5090, 5044, 5136, 3, BODEN - 64);                // auf dem ersten Hügel
+nahkaempfer(5300, 5268, 5332, 3);                            // in der Senke
+fernkaempfer(5524, 5492, 5556, 3, BODEN - 96);               // Schütze auf dem zweiten Hügel
+stacheldraht(5262);                                          // nur Dekoration in der Senke
 
 // =====================================================================
 // ZONE F: Versorgungspunkt 2 (x 5700 bis 6000).
@@ -552,8 +550,9 @@ granate(10450, BODEN - 630);
 munition(10540, BODEN - 630);
 fernkaempfer(10520, 10430, 10570, 5, BODEN - 630);                         // Scharfschütze auf dem Deck
 nahkaempfer(10200, 10120, 10300, 4);                                       // am Fuß des Turms
-nahkaempfer(10650, 10560, 10760, 4);
-fernkaempfer(10850, 10780, 10920, 3);
+gelaende(10608, [[0, 0], [96, 64], [256, 64], [352, 0]]);   // Hügel hinter dem Turm
+nahkaempfer(10750, 10720, 10790, 4, BODEN - 64);
+fernkaempfer(10830, 10805, 10848, 3, BODEN - 64);
 
 // =====================================================================
 // ZONE N: Das Tal der Brücken (x 10950 bis 13400). Sanfte Hügel, zwei Schluchten und zwei kaputte Brücken.
@@ -604,11 +603,12 @@ munition(13120, BODEN - 64);
 // ZONE H: Vor der Arena (x 13400 bis 13850). Hier rüstet man sich aus.
 // =====================================================================
 signs.push({ x: 13500, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
-schrotflinte(13800);                              // Alternative zum Gewehr für den Bosskampf
-granate(13500);                                   // vor dem Boss: Granaten aufsparen
-heilung(13600);
-munition(13660);
-munition(13720);
+gelaende(13440, [[0, 0], [96, 64], [288, 64], [384, 0]]);       // Anhöhe vor der Arena
+schrotflinte(13845);                              // Alternative zum Gewehr für den Bosskampf (unten am Hang)
+granate(13560, BODEN - 64);                       // vor dem Boss: Granaten aufsparen
+heilung(13620, BODEN - 64);
+munition(13670, BODEN - 64);
+munition(13715, BODEN - 64);
 
 // =====================================================================
 // ZONE I: Arena der starken Kreatur (x 13900 bis 14700).
@@ -628,7 +628,7 @@ fass(1850, BODEN - 140);                     // Zone B, auf dem Deck beim Schüt
 fass(2150);
 fass(3440, BODEN);                           // Zone D, im Graben beim Nahkämpfer
 fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
-fass(4900); fass(5200);                      // Zone E, auf dem offenen Feld
+fass(5100, BODEN - 64); fass(5330);          // Zone E, auf dem offenen Feld
 fass(6250);                                  // Zone G, vor dem Hochhaus
 fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
 fass(7330); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf der Klippe

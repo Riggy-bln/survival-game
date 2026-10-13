@@ -229,37 +229,37 @@ function bewuchs(g, rnd, l, t, w, h, ranken = 0.5, moos = true) {
 }
 
 
-// Brüchige Erde: Eine Wand, die man zerstören kann. Sie sieht anders aus als normale Erde: heller und trockener,
-// von Rissen durchzogen, mit Löchern an den Rändern und losen Brocken am Fuß. Das Bild gehört zur Wand und wird
-// entfernt, sobald sie zerbricht (siehe GameScene.zerbrich).
+// Zerstörbare Erdblöcke: Sie sehen aus wie die normale Erde ringsum (gleiche 8-Pixel-Kacheln und Farbverlauf).
+// Nur ein paar feine Unterschiede verraten, dass man sie zerschießen kann: ein, zwei dünne Haarrisse und ein
+// kaum sichtbarer, etwas hellerer Ton. Die Kacheln richten sich nach der Weltposition (nicht nach dem Block),
+// damit aneinandergrenzende Blöcke ohne Naht ineinander übergehen. Das Bild gehört zum Block und wird mit ihm entfernt.
+function kachelZufall(x, y, k = 0) {            // wiederholbarer Zufallswert zwischen 0 und 1 für eine Weltposition
+    const v = Math.sin(x * 12.9898 + y * 78.233 + k * 37.719) * 43758.5453;
+    return v - Math.floor(v);
+}
+
 function zeichneBroeckelig(scene, p) {
-    const rnd = new Phaser.Math.RandomDataGenerator(['broeckelig' + p.x + '_' + p.y]);   // jeder Brocken sieht anders aus
     const g = scene.add.graphics().setDepth(1.2);
     const l = p.x - p.width / 2, t = p.y - p.height / 2, w = p.width, h = p.height;
     for (let y = 0; y < h; y += 8) {
         for (let x = 0; x < w; x += 8) {
-            g.fillStyle(variiere(mische(0x9a7a52, 0x6a5238, y / h), rnd.between(-14, 14))).fillRect(l + x, t + y, 8, 8);
+            const wx = l + x, wy = t + y;
+            let c = mische(0x7a5a3c, 0x4b3b2a, Math.max(0, Math.min(1, (wy - 900) / 260)));    // wie der Hang daneben
+            c = variiere(c, Math.round((kachelZufall(wx, wy) - 0.5) * 16) + 5);                // +5: ein ganz kleines bisschen heller
+            g.fillStyle(c).fillRect(wx, wy, 8, 8);
+            if (kachelZufall(wx, wy, 1) < 0.5) {                                                // feine Körnung wie in der normalen Erde
+                g.fillStyle(variiere(c, kachelZufall(wx, wy, 2) < 0.5 ? -16 : 14)).fillRect(wx + Math.floor(kachelZufall(wx, wy, 3) * 5), wy + Math.floor(kachelZufall(wx, wy, 4) * 5), 2, 2);
+            }
         }
     }
-    for (let i = 0; i < 9; i++) {                                                       // helle, trockene Flecken
-        g.fillStyle(0xb8966a, 0.45).fillRect(l + rnd.between(0, w - 14), t + rnd.between(0, h - 10), rnd.between(8, 18), rnd.between(6, 12));
-    }
-    for (let i = 0; i < 6; i++) {                                                       // Risse: dunkle Zickzack-Linien
-        let cx = l + rnd.between(4, w - 4), cy = t + rnd.between(2, h - 20);
-        for (let k = 0; k < rnd.between(4, 8); k++) {
-            g.fillStyle(0x1a120c).fillRect(cx, cy, 3, 6);
-            if (rnd.frac() < 0.3) g.fillRect(cx + rnd.pick([-8, 6]), cy + 2, 6, 3);
-            cx += rnd.pick([-4, 4]); cy += 5;
-            if (cy > t + h - 4) break;
+    // Haarrisse: ein bis zwei dünne, dunkle Linien (2 Pixel breit), sonst nichts
+    const rnd = new Phaser.Math.RandomDataGenerator(['riss' + p.x + '_' + p.y]);
+    for (let i = 0; i < rnd.between(1, 2); i++) {
+        let cx = l + rnd.between(4, w - 8), cy = t + rnd.between(0, 6);
+        for (let k = 0; k < 5 && cy < t + h - 2; k++) {
+            g.fillStyle(0x2a1d12, 0.55).fillRect(cx, cy, 2, 5);
+            cx += rnd.pick([-2, 2]); cy += 5;
         }
-    }
-    for (let i = 0; i < 7; i++) {                                                       // Löcher und abgebrochene Ecken
-        const hx = rnd.pick([l, l + w - 10, l + rnd.between(0, w - 10)]), hy = rnd.pick([t, t + h - 10, t + rnd.between(0, h - 10)]);
-        g.fillStyle(0x120d09).fillRect(hx, hy, rnd.between(6, 10), rnd.between(6, 10));
-    }
-    g.fillStyle(0x000000, 0.18).fillRect(l, t + h - 8, w, 8);                           // Schatten am Fuß
-    for (let i = 0; i < 9; i++) {                                                       // Brocken, die schon heruntergefallen sind
-        g.fillStyle(rnd.pick([0x8a6a48, 0x6a5238, 0x77716a])).fillRect(l - 10 + rnd.between(0, w + 20), t + h - rnd.between(2, 8), rnd.between(4, 9), rnd.between(3, 7));
     }
     return g;
 }

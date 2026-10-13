@@ -725,12 +725,12 @@ export default class GameScene extends Phaser.Scene {
             this.zuZerbrechen.forEach(w => this.zerbrich(w));
             this.zuZerbrechen = [];
         }
-        // Hinweis für den Spieler: Aus der brüchigen Wand rieselt in regelmäßigen Abständen etwas Staub
+        // Dezenter Hinweis: Aus den zerstörbaren Blöcken rieselt ab und zu ein Körnchen Staub
         if (this.time.now > this.naechsterStaub) {
-            this.naechsterStaub = this.time.now + 650;
+            this.naechsterStaub = this.time.now + 1400;
             for (const p of this.platforms) {
                 if (p.brechbar && p.active && Math.abs(p.x - this.player.x) < 700 && Math.abs(p.y - this.player.y) < 400) {
-                    this.fx.staubE.explode(2, p.x + Phaser.Math.Between(-26, 26), p.y + Phaser.Math.Between(-40, 0));
+                    this.fx.staubE.explode(1, p.x + Phaser.Math.Between(-14, 14), p.y + Phaser.Math.Between(-14, 14));
                 }
             }
         }

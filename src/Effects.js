@@ -138,7 +138,8 @@ function pixelHalm(r, c, x, yBasis, hoehe, neigung, p) {
 // Statt eines Kachelrasters gibt es geschwungene Schichten (Gras, Humus, Mutterboden, Lehm,
 // dunkler Untergrund, Fels), darüber weiche Flecken, Körnung, runde Felsen, Wurzeln und Risse.
 function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
-    const SPALTE = 4;   // Schichten werden in 4 Pixel breiten Streifen gemalt (die Kanten sind wellig)
+    const SPALTE = 8;   // Schichten bestehen aus 8 Pixel breiten Blöcken: Die Kanten laufen in Stufen
+    const stufe = (y) => Math.round(y / SPALTE) * SPALTE;   // rundet eine Tiefe auf ein Vielfaches von 8
 
     // Untergrenze jeder Schicht (Tiefe unter der Oberkante) als Funktion von x
     const gras  = (x) => 7 + welle(x, 3, 0.06, 0) + welle(x, 2, 0.17, 1.3);
@@ -157,11 +158,13 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
         const bw = Math.min(SPALTE, l + w - x);
         let y0 = 0;
         schichten.forEach(([grenze, c], k) => {
-            const y1 = Math.min(tiefe, grenze(x));
+            // Grenze in der Blockmitte berechnen und auf 8 Pixel runden: gibt Treppenstufen statt Wellen.
+            // Das Gras ist immer mindestens einen Block dick.
+            const y1 = Math.min(tiefe, k === 0 && oberflaeche ? Math.max(SPALTE, stufe(grenze(x + 4))) : stufe(grenze(x + 4)));
             if (y1 > y0) {
                 // Die Farbe schwankt sanft mit x, damit keine Fläche gleichmäßig aussieht
                 r.rect(variiere(c, Math.round(welle(x, 4, 0.09, k * 1.7) + welle(x, 3, 0.23, k))), x, t + y0, bw, y1 - y0);
-                if (k > 0) r.rect(0x000000, x, t + y0, bw, 2, 0.28);          // dunkle Schichtkante
+                if (k > 0) r.rect(0x000000, x, t + y0, bw, 4, 0.3);          // dunkle Schichtkante (ein halber Block)
                 y0 = y1;
             }
         });
@@ -176,7 +179,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
     // Feine, wellige Schichtlinien
     for (let d = 40; d < tiefe; d += rnd.between(24, 34)) {
         for (let x = l; x < l + w; x += SPALTE) {
-            r.rect(0x000000, x, t + d + welle(x, 4, 0.05, d), SPALTE, 1, 0.13);
+            r.rect(0x000000, x, t + stufe(d + welle(x + 4, 5, 0.05, d)), SPALTE, 2, 0.15);
         }
     }
     // Körnung: winzige helle und dunkle Punkte, frei verteilt (nicht auf einem Raster)
@@ -212,7 +215,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
     if (oberflaeche) {
         // Wurzeln: Pixelketten, die von der Grasdecke nach unten wachsen (unten dünner)
         for (let i = 0; i < w / 70; i++) {
-            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + gras(rx);
+            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + Math.max(SPALTE, stufe(gras(rx)));
             const laenge = rnd.between(6, 12);
             for (let k = 0; k < laenge; k++) {
                 const nx = rx + rnd.pick([-4, -2, 0, 0, 2, 4]), ny = ry + rnd.between(4, 8);
@@ -251,7 +254,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
         }
         // Franse unter der Grasdecke: kleine Pixel-Zapfen hängen in die Erde
         for (let x = l; x < l + w; x += 4) {
-            r.rect(0x2f4a1c, x, t + gras(x), 2, rnd.pick([2, 4, 6, 8]));
+            r.rect(0x2f4a1c, x, t + Math.max(SPALTE, stufe(gras(Math.floor(x / SPALTE) * SPALTE + 4))), 4, rnd.pick([2, 4, 4, 6]));
         }
         // Blumen: vier Blütenpixel um eine Mitte
         for (let i = 0; i < w / 260; i++) {
@@ -290,7 +293,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
     }
 
     // Tiefe: nach unten wird es dunkler (weiche Streifen mit steigender Deckkraft)
-    for (let yy = 0; yy < tiefe; yy += 10) r.rect(0x000000, l, t + yy, w, 10, 0.30 * yy / tiefe);
+    for (let yy = 0; yy < tiefe; yy += 8) r.rect(0x000000, l, t + yy, w, 8, 0.30 * yy / tiefe);
     // Kantenschatten an den Seiten: gibt dem Block Rundung
     r.rect(0x000000, l, t + 8, 3, tiefe - 8, 0.25);
     r.rect(0x000000, l + w - 3, t + 8, 3, tiefe - 8, 0.25);

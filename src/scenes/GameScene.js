@@ -6,6 +6,7 @@ import RangedEnemy from '../entities/RangedEnemy.js';
 import Boss from '../entities/Boss.js';
 import Brut from '../entities/Brut.js';
 import Skelett from '../entities/Skelett.js';
+import Touch from '../Touch.js';
 import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
 import Fass from '../entities/Fass.js';
@@ -262,6 +263,7 @@ export default class GameScene extends Phaser.Scene {
         });
         this.hiebe = [];              // laufende Schwerthiebe aller Spieler
         this.erzeugeHotbar();         // Inventarleiste unten
+        this.touch = new Touch(this);   // Touch-Steuerung (schaltet sich am Handy selbst ein)
 
         // --- Lebensanzeige der starken Kreatur (oben in der Mitte, erst sichtbar, wenn sie erwacht) ---
         const mitteX = this.scale.width / 2;   // Fenstermitte (das Fenster ist jetzt 1280 breit)
@@ -588,8 +590,8 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Spieler ---
         const p = this.player;
-        const pointer = this.input.activePointer;
-        const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
+        const zp = this.zielPunkt();
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y, zp.x, zp.y);
         // Rückstoß: Nach einem Schuss ruckt die Waffe zurück und hebt sich, dann kehrt sie in 130 ms zurück.
         const rueck = Math.max(0, 1 - (this.time.now - (p.lastShotTime ?? -999)) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[p.weapon] ?? 4);
         const meinHieb = this.hiebVon(this.meineNr);
@@ -840,10 +842,12 @@ export default class GameScene extends Phaser.Scene {
     erzeugeHotbar() {
         this.hotbar = this.add.graphics().setScrollFactor(0).setDepth(20);
         const stil = { fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3, fontFamily: 'monospace' };
+        this.slotRects = [];
         this.slotZahl = [];
         this.slotTexte = [];
         for (let i = 0; i < 4; i++) {
             const x = SLOT_X0 + i * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
+            this.slotRects.push({ x, y, w: SLOT, h: SLOT });
             this.slotZahl.push(this.add.text(x + 5, y + 3, String(i + 1), { ...stil, color: '#cfd8dc' }).setScrollFactor(0).setDepth(21));
             this.slotTexte.push(this.add.text(x + SLOT - 4, y + SLOT - 17, '', stil).setOrigin(1, 0).setScrollFactor(0).setDepth(21));
         }
@@ -898,8 +902,8 @@ export default class GameScene extends Phaser.Scene {
     // Ein Schwerthieb (dieses Gerät): Schwung zeigen, Treffer berechnen (Gastgeber) bzw. melden (Gast).
     nahkampf() {
         const p = this.player;
-        const pointer = this.input.activePointer;
-        const winkel = Phaser.Math.Angle.Between(p.x, p.y - 6, pointer.worldX, pointer.worldY);
+        const zp = this.zielPunkt();
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y - 6, zp.x, zp.y);
         const schwert = p.hatSchwert;
         this.hiebStart(this.meineNr, winkel, schwert);
         if (this.istGast) this.mp.meldeHieb(Math.round(p.x), Math.round(p.y), winkel, schwert);
@@ -948,6 +952,32 @@ export default class GameScene extends Phaser.Scene {
             traf = true;
         }
         if (traf) sfx.play(schwert ? 'schwertHit' : 'hit');
+    }
+
+    // ---------- Zielen und Touch ----------
+
+    // Wohin zielt der Spieler? Mit Maus: der Mauszeiger. Am Handy: die Richtung des Zielsticks (oder des letzten Schnellschusses).
+    zielPunkt() {
+        if (this.touch && this.touch.aktiv) return this.touch.zielPunkt(this.player);
+        const pointer = this.input.activePointer;
+        return { x: pointer.worldX, y: pointer.worldY };
+    }
+
+    // Der Pause-Knopf der Touch-Steuerung (statt Esc).
+    touchPause() {
+        if (this.gameOver) {
+            if (this.mp) this.mp.escDruecken(); else this.scene.start('MenuScene');
+            return;
+        }
+        if (this.mp) { this.mp.escDruecken(); return; }
+        this.scene.launch('PauseScene');
+        this.scene.pause();
+    }
+
+    nimmEndeTipp() {
+        const t = this.touch.endeTipp;
+        this.touch.endeTipp = false;
+        return t;
     }
 
     // ---------- Checkpoint (große Fahne) ----------
@@ -1095,13 +1125,14 @@ export default class GameScene extends Phaser.Scene {
             p.body.setVelocity(ux * SEIL_TEMPO, uy * SEIL_TEMPO);
             p.y = this.seilYBei(p.x) + SEIL_HANG;                              // bleibt am Seil hängen
             if (this.time.now > this.seilNaechsterTon) { this.seilNaechsterTon = this.time.now + 140; sfx.play('seil'); }
-            if (Phaser.Input.Keyboard.JustDown(p.keys.SPACE)) this.seilLoslassen(true);
+            if (Phaser.Input.Keyboard.JustDown(p.keys.SPACE) || this.touch.sprungTipp) this.seilLoslassen(true);
             else if (p.x >= sb.x1) this.seilLoslassen(false);
             return;
         }
         const nah = !p.tot && Math.abs(p.x - sb.x0) < 80 && Math.abs(p.y - (sb.y0 + SEIL_HANG)) < 120;
-        this.seilHinweis.setVisible(nah);
-        if (nah && this.time.now > (p.seilPause ?? 0) && Phaser.Input.Keyboard.JustDown(p.keys.E)) {
+        this.seilHinweis.setVisible(nah && !this.touch.aktiv);
+        if (nah) this.touch.interaktionText = 'Seilbahn';
+        if (nah && this.time.now > (p.seilPause ?? 0) && (Phaser.Input.Keyboard.JustDown(p.keys.E) || this.touch.eTippAktuell)) {
             p.seil = true;
             this.seilHinweis.setVisible(false);
             p.body.allowGravity = false;
@@ -1449,8 +1480,9 @@ export default class GameScene extends Phaser.Scene {
             if (r.tot && Math.hypot(r.x - this.player.x, r.y - this.player.y) < 90) { ziel = r; break; }
         }
         if (!ziel) { this.belebenZeit = 0; this.belebenHinweis.setVisible(false); return; }
-        this.belebenHinweis.setText(`E halten: ${this.mp.netz.nameVon(ziel.nr)} wiederbeleben`).setVisible(true);
-        if (this.player.keys.E.isDown) {
+        this.belebenHinweis.setText(this.touch.aktiv ? `Knopf halten: ${this.mp.netz.nameVon(ziel.nr)} wiederbeleben` : `E halten: ${this.mp.netz.nameVon(ziel.nr)} wiederbeleben`).setVisible(true);
+        this.touch.interaktionText = 'Beleben';
+        if (this.player.keys.E.isDown || this.touch.gedrueckt.interaktion) {
             this.belebenZeit += dt;
             const p = Math.min(1, this.belebenZeit / BELEBEN_DAUER);
             this.mp.meldeBelebenFortschritt(ziel.nr, p);
@@ -1512,9 +1544,9 @@ export default class GameScene extends Phaser.Scene {
     // Ein Gast erzeugt nur ein Bild (sofortige Rückmeldung) und meldet den Wurf; die echte Granate rechnet der Gastgeber.
     throwGrenade() {
         const p = this.player;
-        const pointer = this.input.activePointer;
-        const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
-        const abstand = Phaser.Math.Distance.Between(p.x, p.y, pointer.worldX, pointer.worldY);
+        const zp = this.zielPunkt();
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y, zp.x, zp.y);
+        const abstand = Phaser.Math.Distance.Between(p.x, p.y, zp.x, zp.y);
         const tempo = Phaser.Math.Clamp(abstand * 1.6, 250, 650);
         // Etwas nach oben zusätzlich (-180), damit sie einen Bogen fliegt statt gerade.
         const vx = Math.cos(winkel) * tempo, vy = Math.sin(winkel) * tempo - 180;
@@ -1631,11 +1663,11 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameOver) {
             if (this.mp) {                                    // Online: Enter startet (nur der Gastgeber) für alle neu, Esc zweimal verlässt
                 if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) this.mp.escDruecken();
-                if (Phaser.Input.Keyboard.JustDown(this.restartKey)) this.mp.neustartWunsch();
+                if (Phaser.Input.Keyboard.JustDown(this.restartKey) || this.nimmEndeTipp()) this.mp.neustartWunsch();
                 return;
             }
             // JustDown ist nur im Moment des Tastendrucks wahr, nicht dauerhaft.
-            if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
+            if (Phaser.Input.Keyboard.JustDown(this.restartKey) || this.nimmEndeTipp()) {
                 this.scene.restart();  // create() läuft komplett neu: alles startet frisch
             }
             return;
@@ -1682,11 +1714,13 @@ export default class GameScene extends Phaser.Scene {
         if (!this.player.tot) this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
         else this.player.body.setVelocityX(0);       // Gefallene liegen still
         if (this.mp) { this.mp.aktualisiere(); this.mpUpdate(); }   // eigenen Zustand senden, fremde Figuren nachführen, Wiederbeleben
+        this.touch.interaktionText = null;
         this.seilUpdate();
         this.pruefeFlagge();
         if (!this.mp && this.player.tot && this.checkpoint && this.time.now >= this.respawnZeit) this.respawnAnCheckpoint();
 
         // Schaden kommt irgendwo später im Frame an; wir vergleichen deshalb mit dem Wert des letzten Frames.
+        if (this.player.health < (this.letzteHP ?? this.player.health) && this.touch.aktiv) { try { navigator.vibrate && navigator.vibrate(60); } catch (e) { /* egal */ } }
         if (this.player.health < (this.letzteHP ?? this.player.health)) { this.fx.blood(this.player.x, this.player.y, 10); this.cameras.main.shake(150, 0.007); this.cameras.main.flash(90, 140, 0, 0); }
         this.letzteHP = this.player.health;
 
@@ -1694,18 +1728,24 @@ export default class GameScene extends Phaser.Scene {
         // worldX/worldY = Mausposition in der Welt (nicht im Fenster).
         const pointer = this.input.activePointer;
         pointer.updateWorldPoint(this.cameras.main);
-        this.crosshair.setPosition(pointer.worldX, pointer.worldY);
+        this.touch.update();
+        const zp = this.zielPunkt();
+        this.crosshair.setPosition(zp.x, zp.y);
+        if (this.touch.aktiv) this.crosshair.setVisible(this.time.now < this.touch.zielSichtbarBis && !this.player.tot);
 
         // --- Schießen (Maustaste gedrückt halten = Dauerfeuer) ---
         // Schießen geht nur mit Kugel im Magazin und nicht während des Nachladens.
         // Die linke Maustaste benutzt den gewählten Platz der Inventarleiste.
-        const klick = pointer.isDown && !this.player.tot;
-        const neuerKlick = klick && !this.zeigerWarUnten;       // nur im Moment des Drückens (für Granate und Heilung)
-        this.zeigerWarUnten = pointer.isDown;
+        // Am Handy ersetzt der Zielstick die Maustaste: Gezogen halten = Dauerfeuer, kurzes Tippen = Schnellschuss auf den nächsten Gegner.
+        const gedrueckt = this.touch.aktiv ? (this.touch.feuer || this.touch.tippSchuss()) : pointer.isDown;
+        const klick = gedrueckt && !this.player.tot;
+        const neuerKlick = this.touch.aktiv ? (this.touch.feuerBeginn || this.touch.tippEvent) && !this.player.tot
+            : klick && !this.zeigerWarUnten;                    // nur im Moment des Drückens (für Granate und Heilung)
+        this.zeigerWarUnten = gedrueckt;
         const wahl = this.player.auswahl;
         if (klick && wahl === 1 && this.player.canShoot() &&
             this.time.now - this.lastShot > this.player.fireDelay) {  // Feuerrate der Waffe
-            this.shoot(pointer.worldX, pointer.worldY);
+            this.shoot(zp.x, zp.y);
             this.player.magAmmo -= 1;  // jeder Schuss kostet eine Kugel aus dem Magazin
             this.lastShot = this.time.now;
         } else if (klick && wahl === 2 && this.time.now - this.lastShot > HIEB_PAUSE) {

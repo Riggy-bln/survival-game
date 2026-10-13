@@ -132,8 +132,8 @@ export default class Mehrspieler {
     sendeZustand(jetzt) {
         const sz = this.scene;
         const p = sz.player;
-        const zeiger = sz.input.activePointer;
-        const winkel = Phaser.Math.Angle.Between(p.x, p.y, zeiger.worldX, zeiger.worldY);
+        const zp = sz.zielPunkt();
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y, zp.x, zp.y);
         this.netz.sende({
             t: 'z',
             x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10,
@@ -383,7 +383,7 @@ export default class Mehrspieler {
         const jetzt = this.scene.time.now;
         if (jetzt < this.escBis) { this.beende(); return; }
         this.escBis = jetzt + 2000;
-        this.scene.showMessage('Esc nochmal drücken,\num das Spiel zu verlassen.');
+        this.scene.showMessage('Nochmal drücken (Esc oder Pause-Knopf),\num das Spiel zu verlassen.');
     }
 
     beende() {

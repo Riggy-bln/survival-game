@@ -49,6 +49,10 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         this.auswahl = 1;
         this.hatSchwert = false;   // das Schwert muss man erst finden
         this.seil = null;          // fährt gerade auf der Seilbahn? (sonst null)
+
+        // Eingaben vom Touchscreen (Touch.js schreibt hier hinein): links/rechts/sprung gelten, solange gehalten;
+        // nachladen/heilen/granate sind einmalige Tipps, die update() abholt.
+        this.touchEin = { links: false, rechts: false, sprung: false, nachladen: false, heilen: false, granate: false };
         this.magAmmo = this.magSize;  // Start: volles Magazin
         this.ammo = 30;               // Start-Reserve
 
@@ -174,13 +178,18 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         // Zahlentasten 1 bis 4 wählen den Platz in der Inventarleiste.
         ['ONE', 'TWO', 'THREE', 'FOUR'].forEach((name, i) => { if (Phaser.Input.Keyboard.JustDown(this.keys[name])) this.waehle(i + 1); });
         // Nachladen: Taste R startet es. JustDown ist nur im Moment des Drückens wahr.
-        if (Phaser.Input.Keyboard.JustDown(this.keys.R)) this.startReload();
+        if (Phaser.Input.Keyboard.JustDown(this.keys.R) || this.touchEin.nachladen) this.startReload();
+        this.touchEin.nachladen = false;
         // Heilen: Taste H (nur im Moment des Drückens).
-        if (Phaser.Input.Keyboard.JustDown(this.keys.H)) this.useMedkit();
+        if (Phaser.Input.Keyboard.JustDown(this.keys.H) || this.touchEin.heilen) {
+            if (!this.useMedkit() && this.touchEin.heilen) this.scene.showMessage(this.medkits <= 0 ? 'Kein Verbandskasten mehr!' : 'Dein Leben ist schon voll.');
+        }
+        this.touchEin.heilen = false;
         // Granate werfen: Die Szene kennt Maus und Welt, deshalb ruft der Spieler sie nur an.
-        if (Phaser.Input.Keyboard.JustDown(this.keys.G) && this.grenades > 0) {
+        if ((Phaser.Input.Keyboard.JustDown(this.keys.G) || this.touchEin.granate) && this.grenades > 0) {
             this.scene.throwGrenade();
         }
+        this.touchEin.granate = false;
         // Ist das Magazin leer, aber noch Reserve da? Dann automatisch nachladen.
         if (this.magAmmo === 0) this.startReload();
         this.updateReload();
@@ -191,19 +200,21 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         if (now < this.stunnedUntil) return;
 
         // Laufen
-        if (this.cursors.left.isDown || this.keys.A.isDown) {
+        const nachLinks = this.cursors.left.isDown || this.keys.A.isDown || this.touchEin.links;
+        const nachRechts = this.cursors.right.isDown || this.keys.D.isDown || this.touchEin.rechts;
+        if (nachLinks) {
             body.setVelocityX(-this.speed);   // negativ = nach links
-        } else if (this.cursors.right.isDown || this.keys.D.isDown) {
+        } else if (nachRechts) {
             body.setVelocityX(this.speed);    // positiv = nach rechts
         } else {
             body.setVelocityX(0);
         }
 
         // Sanfte Hänge hinauflaufen (kleine Stufen werden automatisch genommen)
-        stufenHilfe(this, (this.cursors.left.isDown || this.keys.A.isDown) ? -1 : (this.cursors.right.isDown || this.keys.D.isDown) ? 1 : 0);
+        stufenHilfe(this, nachLinks ? -1 : nachRechts ? 1 : 0);
 
         // Springen: nur auf festem Grund. In Phaser zeigt "oben" ins Negative!
-        const jumpPressed = this.cursors.up.isDown || this.keys.SPACE.isDown;
+        const jumpPressed = this.cursors.up.isDown || this.keys.SPACE.isDown || this.touchEin.sprung;
         if (jumpPressed && body.blocked.down) {
             body.setVelocityY(-this.jumpSpeed);
         }

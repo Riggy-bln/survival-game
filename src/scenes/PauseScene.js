@@ -14,14 +14,22 @@ export default class PauseScene extends Phaser.Scene {
             fontSize: '24px', color: '#cfd8dc',
         }).setOrigin(0.5);
 
-        this.input.keyboard.once('keydown-ESC', () => {
+        const weiter = () => {
             this.input.setDefaultCursor('none');
             this.scene.resume('GameScene');
             this.scene.stop();
-        });
-        this.input.keyboard.once('keydown-M', () => {
+        };
+        const menue = () => {
             this.scene.stop('GameScene');
             this.scene.start('MenuScene');
+        };
+        this.input.keyboard.once('keydown-ESC', weiter);
+        this.input.keyboard.once('keydown-M', menue);
+        // Knöpfe zum Antippen (Handy) oder Anklicken
+        [['Weiter', 380, weiter], ['Hauptmenü', 436, menue]].forEach(([text, y, aktion]) => {
+            const r = this.add.rectangle(480, y, 300, 46, 0x1b2630, 0.95).setStrokeStyle(2, 0x6f8190).setInteractive({ useHandCursor: true });
+            this.add.text(480, y, text, { fontSize: '24px', color: '#e6edf2' }).setOrigin(0.5);
+            r.on('pointerdown', aktion);
         });
     }
 }

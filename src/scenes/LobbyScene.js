@@ -28,7 +28,7 @@ export default class LobbyScene extends Phaser.Scene {
         }).setOrigin(0.5);
         this.status = this.add.text(480, 290, '', { fontSize: '20px', color: '#cfd8dc', align: 'center' }).setOrigin(0.5);
         this.listeText = this.add.text(480, 370, '', { fontSize: '22px', color: '#e6edf2', align: 'center', lineSpacing: 8, fontFamily: 'monospace' }).setOrigin(0.5);
-        this.unten = this.add.text(480, 505, host
+        this.unten = this.add.text(480, 492, host
             ? 'Enter: Spiel starten      C: Code kopieren      Esc: Zurück'
             : 'Esc: Zurück', { fontSize: '16px', color: '#7f8f9a' }).setOrigin(0.5);
 
@@ -39,6 +39,18 @@ export default class LobbyScene extends Phaser.Scene {
         this.nameEdit = false;
         this.nameText = this.add.text(480, 470, '', { fontSize: '18px', color: '#cfd8dc' }).setOrigin(0.5);
         this.zeigeName();
+
+        // Knöpfe (für Handy und Maus)
+        if (host) {
+            this.knopf(240, 528, 'Spiel starten', () => this.hostStart(), 170);
+            this.knopf(480, 528, 'Name ändern', () => this.nameAbfragen(), 170);
+            this.knopf(720, 528, 'Zurück', () => this.zurueck(), 170);
+        } else {
+            this.knopf(150, 528, 'Code eingeben', () => this.codeAbfragen(), 160);
+            this.knopf(330, 528, 'Beitreten', () => this.verbinde(), 160);
+            this.knopf(560, 528, 'Name ändern', () => this.nameAbfragen(), 160);
+            this.knopf(760, 528, 'Zurück', () => this.zurueck(), 160);
+        }
 
         this.pingZumHost = null;
         this.eingabe = '';
@@ -152,6 +164,44 @@ export default class LobbyScene extends Phaser.Scene {
         for (let i = zeilen.length; i < MAX_SPIELER; i++) zeilen.push(`${i + 1}. - frei -`);
         this.listeText.setText(zeilen.join('\n'));
         if (this.rolle === 'gast' && this.netz.verbunden) this.hinweis.setText('Verbunden. Esc beendet die Verbindung.');
+    }
+
+    // Knopf zum Antippen (Handy und Maus). Die Tastatur-Kürzel funktionieren weiter.
+    knopf(x, y, text, aktion, breite = 150) {
+        const r = this.add.rectangle(x, y, breite, 32, 0x1b2630, 0.95).setStrokeStyle(2, 0x6f8190).setInteractive({ useHandCursor: true });
+        this.add.text(x, y, text, { fontSize: '16px', color: '#e6edf2' }).setOrigin(0.5);
+        r.on('pointerdown', aktion);
+        return r;
+    }
+
+    // Name per Eingabefenster ändern (am Handy gibt es keine Tastatur-Eingabe im Spiel)
+    nameAbfragen() {
+        if (this.rolle === 'gast' && this.netz && this.netz.verbunden) { this.setzeStatus('Den Namen kannst du nur vor dem Beitritt ändern.', '#ff9966'); return; }
+        const n = window.prompt('Dein Name (höchstens 12 Zeichen):', this.name);
+        if (n === null) return;
+        this.name = saubererName(n);
+        this.nameFertig();
+        this.zeigeName();
+    }
+
+    codeAbfragen() {
+        if (this.versucht) return;
+        const c = window.prompt(`Raumcode (${CODE_LAENGE} Zeichen):`, this.eingabe);
+        if (c === null) return;
+        this.eingabe = c.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LAENGE);
+        this.zeigeEingabe();
+        if (this.eingabe.length === CODE_LAENGE) this.verbinde();
+    }
+
+    // Gastgeber: Spiel starten (Enter oder Knopf)
+    hostStart() {
+        if (this.netz && this.netz.verbunden !== undefined && this.netz.liste().length >= 2) {
+            this.netz.sende({ t: 'start' });                       // alle Gäste starten gleichzeitig
+            this.netz.gesperrt = true;                              // ab jetzt kommen keine neuen Spieler mehr hinein
+            this.starteSpiel();
+        } else {
+            this.setzeStatus('Warte auf mindestens einen Mitspieler.', '#ff9966');
+        }
     }
 
     taste(e) {

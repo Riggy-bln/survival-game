@@ -19,6 +19,11 @@
 const VORSILBE = 'survivalgame-';
 const ZEICHEN = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // ohne I, O, 0, 1: sie verwechselt man leicht
 export const CODE_LAENGE = 4;
+// Macht aus einer Eingabe einen brauchbaren Spielernamen (höchstens 12 Zeichen, nur Buchstaben, Ziffern, Leerzeichen, - und _).
+export function saubererName(text) {
+    return String(text ?? '').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 12);
+}
+
 export const MAX_SPIELER = 4;
 const GNADENFRIST = 20000;     // so lange (ms) wird auf eine abgerissene Verbindung gewartet, bevor ein Spieler als weg gilt
 
@@ -51,7 +56,7 @@ export default class Netz {
     erstelleRaum(versuch = 0) {
         this.rolle = 'host';
         this.meineNr = 1;
-        this.spieler = new Map([[1, { name: 'Spieler 1', conn: null, ping: 0 }]]);
+        this.spieler = new Map([[1, { name: saubererName(this.meinName) || 'Spieler 1', conn: null, ping: 0 }]]);
         this.code = zufallscode();
         this.peer = new Peer(VORSILBE + this.code);
         this.peer.on('open', () => { this.ruf('bereit', this.code); this.starteMessung(); });
@@ -90,7 +95,8 @@ export default class Netz {
                 setTimeout(() => conn.close(), 300);
                 return;
             }
-            this.spieler.set(nr, { name: `Spieler ${nr}`, conn, ping: 0, token, abwesend: false, frist: null });
+            const name = saubererName(conn.metadata && conn.metadata.name) || `Spieler ${nr}`;
+            this.spieler.set(nr, { name, conn, ping: 0, token, abwesend: false, frist: null });
             conn.send({ t: 'willkommen', nr });
             conn.on('data', (daten) => this.empfange(nr, daten));
             conn.on('close', () => this.verbindungAbgerissen(nr, conn));
@@ -144,7 +150,7 @@ export default class Netz {
 
     // Baut die Verbindung zum Gastgeber auf (beim Neuversuch mit demselben Erkennungszeichen).
     verbindeMitHost(neuVersuch) {
-        const conn = this.peer.connect(VORSILBE + this.code, { reliable: true, metadata: { token: this.token } });
+        const conn = this.peer.connect(VORSILBE + this.code, { reliable: true, metadata: { token: this.token, name: saubererName(this.meinName) } });
         this.hostConn = conn;
         conn.on('open', () => {
             this.verbunden = true;
@@ -181,6 +187,19 @@ export default class Netz {
     }
 
     // ---------- gemeinsam ----------
+    // Der Anzeigename eines Spielers (Standard: "Spieler N").
+    nameVon(nr) {
+        const s = this.liste().find((x) => x.nr === nr);
+        return (s && s.name) || `Spieler ${nr}`;
+    }
+
+    // Gastgeber: den eigenen Namen ändern und allen mitteilen.
+    setzeMeinenNamen(name) {
+        this.meinName = saubererName(name);
+        const s = this.rolle === 'host' && this.spieler.get(1);
+        if (s) { s.name = this.meinName || 'Spieler 1'; this.sendeListe(); }
+    }
+
     liste() {
         if (this.rolle === 'host') return [...this.spieler.entries()].map(([nr, s]) => ({ nr, name: s.name, ping: s.ping }));
         return this.gastListe;

@@ -71,7 +71,7 @@ export default class Mehrspieler {
             const host = s.nr === 1 ? ' [Gastgeber]' : '';
             const r = this.fern.get(s.nr);
             const unten = (s.nr === this.netz.meineNr ? this.scene.player.tot : (r && r.tot)) ? ' - am Boden' : '';
-            return `Spieler ${s.nr}${host}${ich}${unten}`;
+            return `${s.name}${host}${ich}${unten}`;
         });
         this.anzeige.setText(zeilen.join('\n'));
     }
@@ -82,8 +82,8 @@ export default class Mehrspieler {
             this.banner.setText('Verbindung zum Gastgeber unterbrochen.\nVersuche, sie neu aufzubauen ...').setVisible(true);
         } else {
             const r = this.fern.get(nr);
-            if (r) { r.getrennt = true; r.label.setText(`Spieler ${nr} (Verbindung?)`); }
-            this.scene.showMessage(`Verbindung zu Spieler ${nr} unterbrochen ...`);
+            if (r) { r.getrennt = true; r.label.setText(`${this.netz.nameVon(nr)} (Verbindung?)`); }
+            this.scene.showMessage(`Verbindung zu ${this.netz.nameVon(nr)} unterbrochen ...`);
         }
     }
 
@@ -93,8 +93,8 @@ export default class Mehrspieler {
             this.scene.showMessage('Wieder verbunden.');
         } else {
             const r = this.fern.get(nr);
-            if (r) { r.getrennt = false; r.label.setText(`Spieler ${nr}`); }
-            this.scene.showMessage(`Spieler ${nr} ist wieder da.`);
+            if (r) { r.getrennt = false; r.label.setText(this.netz.nameVon(nr)); }
+            this.scene.showMessage(`${this.netz.nameVon(nr)} ist wieder da.`);
         }
     }
 
@@ -327,10 +327,10 @@ export default class Mehrspieler {
     }
 
     neueFigur(nr, daten) {
-        const label = this.scene.add.text(daten.x, daten.y - 58, `Spieler ${nr}`, {
+        const label = this.scene.add.text(daten.x, daten.y - 58, this.netz.nameVon(nr), {
             fontSize: '14px', color: '#ffffff', stroke: '#000000', strokeThickness: 3,
         }).setOrigin(0.5).setDepth(8);
-        const r = { nr, x: daten.x, y: daten.y, vx: 0, vy: 0, a: 0, w: 'pistol', g: 1, h: 100, s: 9999, tot: false, label,
+        const r = { nr, name: this.netz.nameVon(nr), x: daten.x, y: daten.y, vx: 0, vy: 0, a: 0, w: 'pistol', g: 1, h: 100, s: 9999, tot: false, label,
             ziel: { x: daten.x, y: daten.y, vx: 0, vy: 0, a: 0, w: 'pistol', g: 1, h: 100, s: 9999, d: 0, t: performance.now() } };
         this.fern.set(nr, r);
         this.aktualisiereAnzeige();
@@ -339,13 +339,14 @@ export default class Mehrspieler {
 
     getrennt(nr) {
         const r = this.fern.get(nr);
+        const name = r ? r.name : `Spieler ${nr}`;                 // der Name steht nach dem Abgang nicht mehr in der Liste
         if (r) { r.label.destroy(); this.fern.delete(nr); }
         this.aktualisiereAnzeige();
         if (nr === 1 && this.netz.rolle === 'gast') {
             this.scene.showMessage('Der Gastgeber hat das Spiel verlassen.');
             this.scene.time.delayedCall(2200, () => this.beende());
         } else {
-            this.scene.showMessage(`Spieler ${nr} hat das Spiel verlassen.`);
+            this.scene.showMessage(`${name} hat das Spiel verlassen.`);
         }
     }
 

@@ -1,4 +1,4 @@
-import Netz, { CODE_LAENGE, MAX_SPIELER } from '../Netz.js';
+import Netz, { CODE_LAENGE, MAX_SPIELER, saubererName } from '../Netz.js';
 import { sfx } from '../Sound.js';
 
 // Die Lobby für den Online-Mehrspielermodus.
@@ -32,6 +32,14 @@ export default class LobbyScene extends Phaser.Scene {
             ? 'Enter: Spiel starten      C: Code kopieren      Esc: Zurück'
             : 'Esc: Zurück', { fontSize: '16px', color: '#7f8f9a' }).setOrigin(0.5);
 
+        // Dein Name: Tab zum Ändern. Er wird im Browser gemerkt.
+        let gemerkt = '';
+        try { gemerkt = localStorage.getItem('spielername') || ''; } catch (err) { /* egal */ }
+        this.name = saubererName(gemerkt);
+        this.nameEdit = false;
+        this.nameText = this.add.text(480, 470, '', { fontSize: '18px', color: '#cfd8dc' }).setOrigin(0.5);
+        this.zeigeName();
+
         this.pingZumHost = null;
         this.eingabe = '';
         this.versucht = false;     // Gast: wurde schon eine Verbindung versucht?
@@ -47,7 +55,9 @@ export default class LobbyScene extends Phaser.Scene {
     // Ein neues Netzwerk-Objekt mit allen Rückrufen für die Anzeige.
     neuesNetz() {
         if (this.netz) this.netz.schliesse();
-        this.netz = new Netz()
+        this.netz = new Netz();
+        this.netz.meinName = this.name;
+        this.netz
             .on('bereit', (code) => {
                 this.codeText.setText(code.split('').join(' '));
                 this.setzeStatus('Raum offen. Warte auf Mitspieler ...', '#9fd89f');
@@ -86,6 +96,40 @@ export default class LobbyScene extends Phaser.Scene {
         this.netz.tritBei(this.eingabe);
     }
 
+    zeigeName() {
+        const blink = this.nameEdit && Math.floor(this.time.now / 400) % 2 === 0 ? '|' : '';
+        this.nameText.setText(this.nameEdit
+            ? `Dein Name: ${this.name}${blink}   (Enter: fertig)`
+            : `Dein Name: ${this.name || '(Standard)'}   (Tab: ändern)`).setColor(this.nameEdit ? '#ffdd55' : '#cfd8dc');
+    }
+
+    update() { if (this.nameEdit) this.zeigeName(); }
+
+    // Namenseingabe: gibt true zurück, wenn die Taste hier verbraucht wurde.
+    nameTaste(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            if (this.rolle === 'gast' && this.netz && this.netz.verbunden) { this.setzeStatus('Den Namen kannst du nur vor dem Beitritt ändern.', '#ff9966'); return true; }
+            this.nameEdit = !this.nameEdit;
+            if (!this.nameEdit) this.nameFertig();
+            this.zeigeName();
+            return true;
+        }
+        if (!this.nameEdit) return false;
+        if (e.key === 'Enter') { this.nameEdit = false; this.nameFertig(); }
+        else if (e.key === 'Backspace') this.name = this.name.slice(0, -1);
+        else if (e.key.length === 1 && /^[\p{L}\p{N} _-]$/u.test(e.key) && this.name.length < 12) this.name += e.key;
+        this.zeigeName();
+        return true;
+    }
+
+    nameFertig() {
+        this.name = saubererName(this.name);
+        try { localStorage.setItem('spielername', this.name); } catch (err) { /* egal */ }
+        if (this.netz) this.netz.setzeMeinenNamen(this.name);
+        this.zeigeListe();
+    }
+
     setzeStatus(text, farbe) { this.status.setText(text).setColor(farbe); }
 
     // Gast: zeigt die eingetippten Zeichen mit Strichen für die fehlenden
@@ -103,15 +147,16 @@ export default class LobbyScene extends Phaser.Scene {
             if (this.rolle === 'host' && s.nr !== 1) ping = `   ${s.ping || '-'} ms`;
             if (this.rolle === 'gast' && s.nr === 1) ping = `   ${this.pingZumHost ?? '-'} ms`;
             const rolle = s.nr === 1 ? ' (Gastgeber)' : '';
-            return `Spieler ${s.nr}${rolle}${ping}${ich}`;
+            return `${s.nr}. ${s.name}${rolle}${ping}${ich}`;
         });
-        for (let i = zeilen.length; i < MAX_SPIELER; i++) zeilen.push(`Spieler ${i + 1}   - frei -`);
+        for (let i = zeilen.length; i < MAX_SPIELER; i++) zeilen.push(`${i + 1}. - frei -`);
         this.listeText.setText(zeilen.join('\n'));
         if (this.rolle === 'gast' && this.netz.verbunden) this.hinweis.setText('Verbunden. Esc beendet die Verbindung.');
     }
 
     taste(e) {
-        if (e.key === 'Escape') { this.zurueck(); return; }
+        if (e.key === 'Escape') { if (this.nameEdit) { this.nameEdit = false; this.nameFertig(); this.zeigeName(); } else this.zurueck(); return; }
+        if (this.nameTaste(e)) return;
         if (this.rolle === 'host') {
             if (e.key === 'Enter' && this.netz && this.netz.verbunden !== undefined && this.netz.liste().length >= 2) {
                 this.netz.sende({ t: 'start' });                       // alle Gäste starten gleichzeitig

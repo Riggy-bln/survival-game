@@ -628,7 +628,7 @@ export default class GameScene extends Phaser.Scene {
         const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
         const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
         const anzahl = this.mp ? this.mp.netz.liste().length : 1;
-        this.showEndScreen('EVAKUIERT!', '#66ff99', `Level 01 abgeschlossen: Spieler ${nr} hat den Hubschrauber erreicht`,
+        this.showEndScreen('EVAKUIERT!', '#66ff99', `Level 01 abgeschlossen: ${this.mp ? this.mp.netz.nameVon(nr) : 'Spieler ' + nr} hat den Hubschrauber erreicht`,
             `Zeit: ${zeit}     Team: ${anzahl} Spieler`,
             this.mp && this.mp.netz.rolle === 'host' ? 'Enter: neues Spiel für alle      Esc zweimal: Menü' : 'Der Gastgeber startet das nächste Spiel      Esc zweimal: Menü');
     }
@@ -901,7 +901,7 @@ export default class GameScene extends Phaser.Scene {
             const anteil = r.tot ? 0 : Phaser.Math.Clamp((r.h ?? 100) / 100, 0, 1);
             g.fillStyle(0x000000, 0.6).fillRect(20, y + 16, 124, 10);
             g.fillStyle(r.tot ? 0x444444 : (anteil <= 0.3 ? 0xcc3333 : farbe)).fillRect(22, y + 18, 120 * anteil, 6);
-            t.setPosition(22, y).setText(r.tot ? `Spieler ${r.nr}  AM BODEN` : `Spieler ${r.nr}`);
+            t.setPosition(22, y).setText(r.tot ? `${this.mp.netz.nameVon(r.nr)}  AM BODEN` : this.mp.netz.nameVon(r.nr));
             y += 34;
         }
     }
@@ -913,7 +913,7 @@ export default class GameScene extends Phaser.Scene {
             if (r.tot && Math.hypot(r.x - this.player.x, r.y - this.player.y) < 90) { ziel = r; break; }
         }
         if (!ziel) { this.belebenZeit = 0; this.belebenHinweis.setVisible(false); return; }
-        this.belebenHinweis.setText(`E halten: Spieler ${ziel.nr} wiederbeleben`).setVisible(true);
+        this.belebenHinweis.setText(`E halten: ${this.mp.netz.nameVon(ziel.nr)} wiederbeleben`).setVisible(true);
         if (this.player.keys.E.isDown) {
             this.belebenZeit += dt;
             const p = Math.min(1, this.belebenZeit / BELEBEN_DAUER);

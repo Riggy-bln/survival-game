@@ -41,6 +41,8 @@ const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht begin
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
 const EINGANG = TUNNEL_LINKS + 200;   // hier beginnt die Felsdecke: der Höhleneingang (x 2940)
+const TUNNEL_ENDE = 3900;       // hier endet die Tunneldecke: Danach liegt der Einsturzkrater mit dem Hang nach oben
+const KRATER_ENDE = 4348;       // hier endet der Krater; ab hier liegt die Oberfläche wieder auf Fels
 const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
 const DECKE = 64;               // Mindestdicke der Tunneldecke (Oberfläche bis Unterkante der Basisdecke); Felsen hängen darunter
 const TUNNEL_BODEN = 1048;      // y der Oberkante des Tunnelbodens (288 unter der Oberfläche): der Gang ist 228 hoch
@@ -188,17 +190,24 @@ const zufall = (seed) => {
 
 // Baut aus einer Liste von Höhen (eine pro Block-Spalte) das Gelände: gleich hohe Nachbarn werden zu einem
 // unsichtbaren Stufenblock verschmolzen (nur zum Laufen). Die Optik malt buildHuegel (Effects.js).
-const gelaendeAusWerten = (links, werte, fels) => {
+// base = Höhe, auf der das Gelände steht (Standard: die Oberfläche; für einen Hang im Untergrund der Tunnelboden).
+// unten = Unterkante der Blöcke: Ist sie höher als base, ist der Hang hohl (eine Kruste über einem Gang).
+const gelaendeAusWerten = (links, werte, fels, base = BODEN, unten = base) => {
+    const hohl = unten < base;
+    if (hohl) for (let i = 0; i < werte.length; i++) werte[i] = Math.max(werte[i], (base - unten) + BLOCK);   // Kruste mindestens 1 Block dick
     const n = werte.length;
     let start = 0;
     for (let i = 1; i <= n; i++) {
         if (i === n || werte[i] !== werte[start]) {
             const h = werte[start];
-            if (h > 0) platforms.push({ x: links + (start + i) * BLOCK / 2, y: BODEN - h / 2, w: (i - start) * BLOCK, h, color: fels ? FELS : ERDE, kollision: true });
+            if (h > 0) {
+                const oben = base - h, dicke = unten - oben;
+                platforms.push({ x: links + (start + i) * BLOCK / 2, y: oben + dicke / 2, w: (i - start) * BLOCK, h: dicke, color: fels ? FELS : ERDE, kollision: true });
+            }
             start = i;
         }
     }
-    huegelformen.push({ links, breite: n * BLOCK, schritt: BLOCK, werte, fels });
+    huegelformen.push({ links, breite: n * BLOCK, schritt: BLOCK, werte, fels, boden: base, unten: hohl ? unten : undefined });
 };
 
 // Macht aus glatten Höhen ein natürliches Gelände: Auf den Hängen kommen Zufallsabweichungen dazu (Buckel, Dellen,
@@ -216,7 +225,7 @@ const aufrauen = (glatt, flach, seed, rau = 1.4) => {
 // gelaende: ein Gelände nach einer Linie. "punkte" = Liste von [x-Abstand ab links, Höhe]; dazwischen wird
 // geradlinig verbunden, aufgeraut und auf ganze Blöcke (32) gerundet. Steigungen über 0,9 vermeiden!
 // Waagerechte Strecken (gleiche Höhe an beiden Punkten) bleiben eben. material: 'erde' (mit Gras) oder 'fels'.
-const gelaende = (links, punkte, material = 'erde', rau = 1) => {
+const gelaende = (links, punkte, material = 'erde', rau = 1.4, base = BODEN, unten = base) => {
     const n = Math.round(punkte[punkte.length - 1][0] / BLOCK);
     const glatt = [], flach = [];
     for (let i = 0; i < n; i++) {
@@ -229,7 +238,7 @@ const gelaende = (links, punkte, material = 'erde', rau = 1) => {
         glatt.push(eben ? h : h); flach.push(eben);
         if (eben) glatt[i] = Math.round(h / BLOCK) * BLOCK;
     }
-    gelaendeAusWerten(links, aufrauen(glatt, flach, links, rau), material === 'fels');
+    gelaendeAusWerten(links, aufrauen(glatt, flach, links, rau), material === 'fels', base, unten);
 };
 
 // sanfterHuegel: ein Hügel mit weichen, unregelmäßigen Hängen und flacher Kuppe (Höhe: Vielfaches von 32).
@@ -251,6 +260,7 @@ const sanfterHuegel = (links, breite, hoehe, plateau = 0.3) => {
 // Damit setzt man Gegenstände, Schilder und Deko genau auf den Boden eines Hügels.
 const bodenBei = (x) => {
     for (const f of huegelformen) {
+        if (f.boden !== BODEN) continue;                       // Hänge im Untergrund zählen nicht als Oberfläche
         const i = Math.floor((x - f.links) / f.schritt);
         if (i >= 0 && i < f.werte.length) return BODEN - f.werte[i];
     }
@@ -314,8 +324,8 @@ const haufen = (links, hoehen, boden = TUNNEL_BODEN) => {
     }
 };
 // Die Höhlendecken (siehe die Zonen T und K)
-hoehlendecke(EINGANG, TUNNEL_RECHTS - SCHACHT, BODEN + DECKE, 2, 11, [[EINGANG, 3250]]);   // Tunnel (am Eingang glatt)
-hoehlendecke(TUNNEL_RECHTS, VERLIES_ENDE, BODEN + DECKE, 2, 12, [], true);                  // Waffenkammer, läuft zum Ende tief aus
+hoehlendecke(EINGANG, TUNNEL_ENDE, BODEN + DECKE, 2, 11, [[EINGANG, 3250]]);               // Tunnel (am Eingang glatt)
+hoehlendecke(KRATER_ENDE, VERLIES_ENDE, BODEN + DECKE, 2, 12, [], true);                    // Waffenkammer, läuft zum Ende tief aus
 hoehlendecke(MINE_L + 260, CHASM_L, MINE_DECKE, 2, 13);                                     // Minengang links der Schlucht
 hoehlendecke(CHASM_R, KAV_R, KAV_DECKE, 1, 14);                                             // Kaverne
 hoehlendecke(KAV_R, SCHACHT2_L, MINE_DECKE, 2, 15);                                         // Minengang rechts der Kaverne
@@ -387,7 +397,7 @@ const abstieg = [[2740, 2804, 792],    // erste Kante, 32 unter der Oberfläche
 // sein, sonst stößt der Kopf des Spielers (48 hoch) an die Deckenkante. Hier ist das ab x 2868 der Fall (888).
 for (const [von, bis, oben] of abstieg) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
-hoehlen.push({ links: EINGANG, rechts: TUNNEL_RECHTS - SCHACHT, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
+hoehlen.push({ links: EINGANG, rechts: TUNNEL_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
 lampen.push(EINGANG + 70);
 // Holzstützen und Deckenbalken im Eingangsbereich
 for (const sx of [EINGANG + 8, 3110, 3290, 3440]) {
@@ -423,16 +433,22 @@ for (const [bx, by, bw, bh] of [[2820, 824, 22, 14], [2900, 888, 30, 18], [2970,
     decor.push({ x: bx - bw / 4, y: by - bh * 0.8, w: bw / 2, h: bh / 2, color: 0x948c7c });
 }
 signs.push({ x: 2870, y: 806, text: 'EINSTURZ-\nGEFAHR' });
-// Der rechte Schacht ist das Treppenhaus eines Bunkers: Betonwände ringsum, oben die abgebrochene Decke (ein Stück
-// Betonplatte ragt vom linken Rand in den Schacht), unten die Stufen. Die Lücke von 150 Pixel ist überspringbar.
-hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODEN, unten: TUNNEL_BODEN, art: 'lager', regale: false });   // rechter Schacht (Treppenhaus)
-schwebend(TUNNEL_RECHTS - SCHACHT, BODEN, 110, BETON);                      // abgebrochene Decke des Treppenhauses (x 3960 bis 4070)
+// ---- Der Ausgang des Tunnels: ein Einsturzkrater mit einem natürlichen Berghang nach oben ----
+// Am Ende des Tunnels ist die Decke eingestürzt (x 3900 bis 4348): Von dort führt ein Hang aus Erdreich
+// zur Oberfläche. Unter dem Hang liegt ein verschütteter Gang zur Waffenkammer. Der Gang ist durch eine brüchige
+// Erdwand verschlossen, die man mit Schüssen oder einer Granate zerstören kann. Die Wand sieht rissig aus.
+// Wer sie ignoriert, springt auf die Wand (96 hoch) und geht den Hang hinauf nach draußen.
+hoehlen.push({ links: TUNNEL_ENDE, rechts: KRATER_ENDE, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });   // Krater: Himmel scheint herein
+schwebend(TUNNEL_ENDE, BODEN, 104, BETON);                 // Reste der eingestürzten Decke als Brückenstücke über den Krater
+schwebend(4100, BODEN, 90, BETON);
+schwebend(4236, BODEN, 112, BETON);
+gelaende(4060, [[0, 128], [64, 128], [256, 288], [288, 288]], 'erde', 0.8, TUNNEL_BODEN, TUNNEL_BODEN - 96);   // der Hang: oben die Kruste, darunter 96 Platz für den Gang
+platforms.push({ x: 4028, y: TUNNEL_BODEN - 48, w: 64, h: 96, color: 0x7a5a3c, brechbar: true, hp: 5 });   // die brüchige Erdwand (x 3996 bis 4060)
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
-    if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
+    if (x > TUNNEL_ENDE - 20 && x < 4440) continue;                                      // im Krater und im Gang unter dem Hang hängen keine Lampen
     decor.push({ x: x, y: deckeBei(x) + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen (an der echten Decke)
     lampen.push(x);
 }
-treppe(TUNNEL_RECHTS - 200, 4, 50, 72);                // Stufen im rechten Schacht (x 4020 bis 4220), je 72 hoch
 tunnelblock(3480, 40, 80);                             // Kiste A als Deckung (x 3480 bis 3560)
 tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
 nahkaempfer(3350, 3290, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang des Gangs
@@ -440,21 +456,21 @@ fernkaempfer(3640, 3590, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den 
 nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
 munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
 
-// ---- Die Waffenkammer am Ende des Tunnels (x 4220 bis 4780) ----
-// Wer den Ausgang nicht nimmt, sondern unter den Stufen weitergeht, findet ein verlassenes Lager:
+// ---- Die Waffenkammer hinter der brüchigen Wand (x 4060 bis 4780) ----
+// Wer die brüchige Erdwand durchschießt und dem Gang unter dem Hang folgt, findet ein verlassenes Lager:
 // ein SCHWERER WÄCHTER (8 Lebenspunkte), Heilung, Munition und das STURMGEWEHR.
-hoehlen.push({ links: TUNNEL_RECHTS, rechts: VERLIES_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'lager' });     // Raum der Kammer
-signs.push({ x: 4330, y: TUNNEL_BODEN - 120, text: 'Lager 7\n"Aufgegeben. Sie kamen von unten."' });
-decor.push({ x: 4290, y: TUNNEL_BODEN - 70, w: 44, h: 32, color: 0x1d5a3a });           // Terminal (Bildschirm)
-decor.push({ x: 4290, y: TUNNEL_BODEN - 45, w: 8, h: 18, color: 0x333333 });            // Terminal (Ständer)
-decor.push({ x: 4290, y: TUNNEL_BODEN - 30, w: 70, h: 8, color: 0x55482f });            // Tisch
+hoehlen.push({ links: 4060, rechts: VERLIES_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'lager' });     // Gang unter dem Hang und Raum der Kammer
+signs.push({ x: 4490, y: TUNNEL_BODEN - 150, text: 'Lager 7\n"Aufgegeben. Sie kamen von unten."' });
+decor.push({ x: 4440, y: TUNNEL_BODEN - 70, w: 44, h: 32, color: 0x1d5a3a });           // Terminal (Bildschirm)
+decor.push({ x: 4440, y: TUNNEL_BODEN - 45, w: 8, h: 18, color: 0x333333 });            // Terminal (Ständer)
+decor.push({ x: 4440, y: TUNNEL_BODEN - 30, w: 70, h: 8, color: 0x55482f });            // Tisch
 decor.push({ x: 4690, y: TUNNEL_BODEN - 80, w: 6, h: 80, color: 0x3a4046 });            // Waffenregal (Pfosten)
 decor.push({ x: 4750, y: TUNNEL_BODEN - 80, w: 6, h: 80, color: 0x3a4046 });
 decor.push({ x: 4720, y: TUNNEL_BODEN - 100, w: 66, h: 5, color: 0x3a4046 });           // Waffenregal (Brett)
 tunnelblock(4640, 50, 100);                                    // Tisch mit dem Gewehr (x 4640 bis 4740)
-nahkaempfer(4440, 4330, 4600, 8, TUNNEL_BODEN);                // der schwere Wächter
-heilung(4350, TUNNEL_BODEN);
-munition(4540, TUNNEL_BODEN);
+nahkaempfer(4540, 4490, 4600, 8, TUNNEL_BODEN);                // der schwere Wächter
+heilung(4400, TUNNEL_BODEN);
+munition(4520, TUNNEL_BODEN);
 waffe(4690, TUNNEL_BODEN - 50);                                // das Sturmgewehr auf dem Tisch
 
 // =====================================================================
@@ -475,7 +491,7 @@ fernkaempfer(3628, 3596, 3660, 3, BODEN - 96);           // Schütze auf dem zwe
 // Ein begrünter Erdwall mit einem Bunker obenauf: Rampe, Absatz (64), Rampe, Absatz (128), Rampe, Dach (192).
 // Hinter dem Dach geht es über einen Absatz (96) hinab, damit man auch zurück hinaufkommt (mehr als 150 springt niemand).
 // =====================================================================
-signs.push({ x: 4262, y: BODEN - 130, text: 'Bunker voraus:\nGegner auf mehreren Absätzen' });
+signs.push({ x: 4300, y: BODEN - 130, text: 'Bunker voraus:\nGegner auf mehreren Absätzen' });
 gelaende(4290, [[0, 0], [96, 64], [192, 64], [288, 128], [384, 128], [480, 192], [576, 192], [580, 96], [672, 96], [676, 0]]);   // Erdwall
 huegel(4770, 240, 96, BUNKER);                               // der Betonbunker auf dem Wall (Oberkante 240)
 nahkaempfer(4434, 4402, 4466, 4, BODEN - 64);                // Nahkämpfer auf dem ersten Absatz

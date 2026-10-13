@@ -228,6 +228,42 @@ function bewuchs(g, rnd, l, t, w, h, ranken = 0.5, moos = true) {
     }
 }
 
+
+// Brüchige Erde: Eine Wand, die man zerstören kann. Sie sieht anders aus als normale Erde: heller und trockener,
+// von Rissen durchzogen, mit Löchern an den Rändern und losen Brocken am Fuß. Das Bild gehört zur Wand und wird
+// entfernt, sobald sie zerbricht (siehe GameScene.zerbrich).
+function zeichneBroeckelig(scene, p) {
+    const rnd = new Phaser.Math.RandomDataGenerator(['broeckelig' + p.x]);
+    const g = scene.add.graphics().setDepth(1.2);
+    const l = p.x - p.width / 2, t = p.y - p.height / 2, w = p.width, h = p.height;
+    for (let y = 0; y < h; y += 8) {
+        for (let x = 0; x < w; x += 8) {
+            g.fillStyle(variiere(mische(0x9a7a52, 0x6a5238, y / h), rnd.between(-14, 14))).fillRect(l + x, t + y, 8, 8);
+        }
+    }
+    for (let i = 0; i < 9; i++) {                                                       // helle, trockene Flecken
+        g.fillStyle(0xb8966a, 0.45).fillRect(l + rnd.between(0, w - 14), t + rnd.between(0, h - 10), rnd.between(8, 18), rnd.between(6, 12));
+    }
+    for (let i = 0; i < 6; i++) {                                                       // Risse: dunkle Zickzack-Linien
+        let cx = l + rnd.between(4, w - 4), cy = t + rnd.between(2, h - 20);
+        for (let k = 0; k < rnd.between(4, 8); k++) {
+            g.fillStyle(0x1a120c).fillRect(cx, cy, 3, 6);
+            if (rnd.frac() < 0.3) g.fillRect(cx + rnd.pick([-8, 6]), cy + 2, 6, 3);
+            cx += rnd.pick([-4, 4]); cy += 5;
+            if (cy > t + h - 4) break;
+        }
+    }
+    for (let i = 0; i < 7; i++) {                                                       // Löcher und abgebrochene Ecken
+        const hx = rnd.pick([l, l + w - 10, l + rnd.between(0, w - 10)]), hy = rnd.pick([t, t + h - 10, t + rnd.between(0, h - 10)]);
+        g.fillStyle(0x120d09).fillRect(hx, hy, rnd.between(6, 10), rnd.between(6, 10));
+    }
+    g.fillStyle(0x000000, 0.18).fillRect(l, t + h - 8, w, 8);                           // Schatten am Fuß
+    for (let i = 0; i < 9; i++) {                                                       // Brocken, die schon heruntergefallen sind
+        g.fillStyle(rnd.pick([0x8a6a48, 0x6a5238, 0x77716a])).fillRect(l - 10 + rnd.between(0, w + 20), t + h - rnd.between(2, 8), rnd.between(4, 9), rnd.between(3, 7));
+    }
+    return g;
+}
+
 // Gibt allen Plattformen ihr Aussehen. Es gibt drei Arten:
 //  1. Erde (Oberfläche und Untergrund): feine 8-Pixel-Kacheln, oben mit Grasschicht.
 //  2. Dünne Platten (Beton, Stahl): Kanten, Nieten, Risse, Rostspuren.
@@ -243,6 +279,7 @@ export function decoratePlatforms(scene, platforms, boden) {
 
     for (const p of platforms) {
         if (p.kollisionNur) continue;      // Hügel-Stufenblöcke sind unsichtbar: ihre Optik malt buildHuegel
+        if (p.brechbar) { p.deko = zeichneBroeckelig(scene, p); continue; }   // brüchige Wand: eigenes, entfernbares Bild
         const l = p.x - p.width / 2, t = p.y - p.height / 2, b = t + p.height;
         const grundfarbe = p.fillColor;
         const istErde = ERDFARBEN.includes(grundfarbe) && p.height >= 40;
@@ -607,10 +644,11 @@ export function buildCaves(scene, hoehlen, lampen) {
 // Malt einen Hügel in 8-Pixel-Spalten: oben Grasschicht (1 bis 3 Kacheln), darunter Erde, die nach unten
 // dunkler wird. Gleicher Stil wie der flache Boden. f = { links, breite, schritt, werte[] } (siehe Level01.js).
 function zeichneHuegel(r, rnd, f, boden) {
+    boden = f.boden ?? boden;            // Hänge im Untergrund haben eine eigene Standhöhe
     const fels = !!f.fels;   // Felshang statt Grashügel: graue Steinkacheln statt grüner Grasschicht
     const GRAS_OBEN = fels ? [0x8c8474, 0x7d776a, 0x948c7c] : [0x6aa032, 0x7ab83c, 0x5d9029];
     const GRAS_MITTE = fels ? [0x6f6a5e, 0x66605a, 0x757066] : [0x4f7f27, 0x467022, 0x588a2c];
-    const S = 8, UNTEN = boden + 28;
+    const S = 8, UNTEN = f.unten ?? (boden + 28);   // Unterkante der Zeichnung (hohle Hänge enden früher)
     for (let x = f.links; x < f.links + f.breite; x += S) {
         const hoehe = f.werte[Math.min(f.werte.length - 1, Math.floor((x - f.links) / f.schritt))];
         if (hoehe <= 0) continue;
@@ -665,7 +703,8 @@ export function buildHuegel(scene, formen, boden) {
     formen.forEach((f, i) => {
         const maxH = Math.max(...f.werte);
         const key = `huegel_${i}`;
-        const bild = backe(scene, key, f.links, boden - maxH - 20, f.breite, maxH + 20 + 28, (r) => {
+        const basis = f.boden ?? boden, y0 = basis - maxH - 20;
+        const bild = backe(scene, key, f.links, y0, f.breite, (f.unten ?? (basis + 28)) - y0, (r) => {
             zeichneHuegel(r, new Phaser.Math.RandomDataGenerator([key]), f, boden);
         });
         bild.setDepth(1.5);       // über dem flachen Boden, unter Figuren und Dekoration

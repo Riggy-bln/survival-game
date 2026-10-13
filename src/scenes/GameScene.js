@@ -76,6 +76,12 @@ export default class GameScene extends Phaser.Scene {
         // "p" steht für einen Eintrag. Fehlt "color", gilt die Standardfarbe nach dem "??".
         for (const p of level.platforms) {
             this.addPlatform(p.x, p.y, p.w, p.h, p.color ?? 0x6b5b4a);
+            if (p.brechbar) {                        // brüchige Erdwand: hält ein paar Treffer aus und zerbricht dann
+                const wand = this.platforms[this.platforms.length - 1];
+                wand.brechbar = true;
+                wand.hp = p.hp ?? 5;
+                wand.maxHp = wand.hp;
+            }
             if (p.kollision) {                       // Stufenblock eines sanften Hügels: unsichtbar, nur zum Laufen
                 const block = this.platforms[this.platforms.length - 1];
                 block.setVisible(false);
@@ -213,6 +219,8 @@ export default class GameScene extends Phaser.Scene {
         this.totalEnemies = this.enemies.length;     // alle Gegner im Level, Kreatur eingeschlossen
 
         // --- Zustand und Neustart ---
+        this.zuZerbrechen = [];       // brüchige Wände, die am Anfang des nächsten Bildes zerbrechen
+        this.naechsterStaub = 0;
         this.gameOver = false;
         // Neustart auf Enter, denn R bedeutet jetzt Nachladen.
         this.restartKey = this.input.keyboard.addKey('ENTER');
@@ -587,7 +595,11 @@ export default class GameScene extends Phaser.Scene {
             if (this.player.range > 0) bullet.diesAt = this.time.now + this.player.range;
 
             // Trifft die Kugel eine Plattform, verschwindet sie.
-            this.physics.add.collider(bullet, this.platforms, () => { this.fx.sparks(bullet.x, bullet.y, 3); bullet.destroy(); });
+            this.physics.add.collider(bullet, this.platforms, (b, platte) => {
+                if (platte.brechbar) this.treffeBroeckelig(platte, b.x, b.y);   // Spielerkugeln können brüchige Wände zerstören
+                this.fx.sparks(b.x, b.y, 3);
+                b.destroy();
+            });
             this.bullets.push(bullet);
         }
     }
@@ -637,6 +649,9 @@ export default class GameScene extends Phaser.Scene {
         this.cameras.main.shake(200, 0.01);
         sfx.play('explosion');
         this.fx.explosion(x, y);
+        for (const p of this.platforms) {                      // Explosionen zerstören brüchige Wände in der Nähe
+            if (p.brechbar && p.hp > 0 && Phaser.Math.Distance.Between(x, y, p.x, p.y) <= radius + 50) { p.hp = 0; this.zuZerbrechen.push(p); }
+        }
 
         for (const enemy of this.enemies) {
             if (!enemy.active) continue;
@@ -653,6 +668,35 @@ export default class GameScene extends Phaser.Scene {
         if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius) {
             this.player.takeDamage(selbstschaden, x);  // Eigenbeschuss: Abstand halten!
         }
+    }
+
+    // Eine Kugel trifft eine brüchige Erdwand: Brocken fliegen, das Bild zuckt. Nach genug Treffern zerbricht sie.
+    treffeBroeckelig(wand, x, y) {
+        if (!wand.active || wand.hp <= 0) return;
+        wand.hp -= 1;
+        this.fx.truemmerE.explode(6, x, y);
+        sfx.play('hit');
+        if (wand.deko) {
+            wand.deko.setAlpha(0.55);
+            this.time.delayedCall(70, () => { if (wand.deko && wand.deko.active) wand.deko.setAlpha(1); });
+        }
+        if (wand.hp <= 0) this.zuZerbrechen.push(wand);      // erst am Anfang des nächsten Bildes entfernen (nicht mitten in der Physik)
+    }
+
+    // Entfernt eine zerbrochene Wand: Staub, Brocken, Rauch, ein Knall und eine Meldung. Der Weg ist frei.
+    zerbrich(wand) {
+        if (!wand.active) return;
+        const x = wand.x, y = wand.y;
+        this.fx.truemmerE.explode(44, x, y);
+        this.fx.staubE.explode(26, x, y);
+        this.fx.rauchE.explode(8, x, y);
+        this.cameras.main.shake(240, 0.01);
+        sfx.play('explosion');
+        if (wand.deko) wand.deko.destroy();
+        const i = this.platforms.indexOf(wand);
+        if (i >= 0) this.platforms.splice(i, 1);              // aus der Liste, die die Physik benutzt (dieselbe Liste bleibt bestehen)
+        wand.destroy();
+        this.showMessage('Die brüchige Erde gibt nach!\nEin verschütteter Gang wird frei.');
     }
 
     // Erzeugt eine Gegner-Kugel. Wird vom Fernkämpfer aufgerufen.
@@ -673,6 +717,21 @@ export default class GameScene extends Phaser.Scene {
                 this.scene.restart();  // create() läuft komplett neu: alles startet frisch
             }
             return;
+        }
+
+        // Brüchige Wände, die in diesem Bild zerbrechen sollen
+        if (this.zuZerbrechen.length) {
+            this.zuZerbrechen.forEach(w => this.zerbrich(w));
+            this.zuZerbrechen = [];
+        }
+        // Hinweis für den Spieler: Aus der brüchigen Wand rieselt in regelmäßigen Abständen etwas Staub
+        if (this.time.now > this.naechsterStaub) {
+            this.naechsterStaub = this.time.now + 650;
+            for (const p of this.platforms) {
+                if (p.brechbar && p.active && Math.abs(p.x - this.player.x) < 700 && Math.abs(p.y - this.player.y) < 400) {
+                    this.fx.staubE.explode(2, p.x + Phaser.Math.Between(-26, 26), p.y + Phaser.Math.Between(-40, 0));
+                }
+            }
         }
 
         // Pause: Esc friert diese Szene ein und legt die PauseScene darüber.

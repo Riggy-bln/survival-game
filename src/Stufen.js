@@ -10,13 +10,16 @@ export function stufenHilfe(wesen, richtung) {
     if (!(richtung > 0 ? body.blocked.right : body.blocked.left)) return;
     const fuss = body.bottom;
     const vorneX = richtung > 0 ? body.right + 1 : body.left - 1;
+    // Alle Hindernisse direkt vor der Figur: Ihre Oberkante liegt über den Füßen, und sie reichen in die Körperhöhe.
+    // Maßgeblich ist das HÖCHSTE Hindernis. Ragt hinter einer kleinen Stufe eine hohe Wand auf, ist es eine Wand
+    // und keine Stufe: Dann wird nicht angehoben (sonst zappelt die Figur vor der Wand auf und ab).
+    let hoechste = Infinity;
     for (const p of wesen.scene.platforms) {
         const b = p.body;
         if (!b || vorneX < b.left || vorneX > b.right) continue;
-        const hoehe = fuss - b.top;
-        if (hoehe > 0.5 && hoehe <= STUFE_MAX) {
-            wesen.y -= hoehe + 0.5;       // das Spielobjekt anheben (der Körper folgt ihm im nächsten Schritt)
-            return;
-        }
+        if (b.bottom <= body.top || b.top >= fuss - 0.5) continue;      // ganz über dem Kopf oder nicht über den Füßen
+        if (b.top < hoechste) hoechste = b.top;
     }
+    const hoehe = fuss - hoechste;
+    if (hoehe > 0.5 && hoehe <= STUFE_MAX) wesen.y -= hoehe + 0.5;       // das Spielobjekt anheben (der Körper folgt im nächsten Schritt)
 }

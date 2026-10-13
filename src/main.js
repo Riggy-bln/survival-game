@@ -2,12 +2,13 @@ import MenuScene from './scenes/MenuScene.js';
 import GameScene from './scenes/GameScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import LobbyScene from './scenes/LobbyScene.js';
+import { breiteFuerFenster, haltePassend, SPIEL_HOEHE } from './Anpassung.js';
 
 // Die Konfiguration beschreibt unser Spiel: Größe, Physik und welche Szenen es gibt.
 const config = {
     type: Phaser.AUTO,       // Phaser wählt selbst die beste Darstellungsart (WebGL oder Canvas)
-    width: 1280,             // Breite des Spielfensters in Pixeln (größer = man sieht mehr von der Welt)
-    height: 720,             // Höhe des Spielfensters in Pixeln
+    width: breiteFuerFenster(),   // Breite des Spielfensters: richtet sich nach der Fensterform (1280 bis 1800), damit nichts schwarz bleibt
+    height: SPIEL_HOEHE,          // Höhe des Spielfensters in Pixeln
     // FIT: Das Spiel wird passend ins Browserfenster eingepasst und mittig angezeigt.
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     backgroundColor: '#3a4a5a',
@@ -21,4 +22,5 @@ const config = {
     scene: [MenuScene, GameScene, PauseScene, LobbyScene]  // die erste (Menü) startet automatisch
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+haltePassend(game);

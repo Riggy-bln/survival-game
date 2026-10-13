@@ -1,3 +1,4 @@
+import { MAX_BREITE } from './Anpassung.js';
 // Alles Optische, was nicht zur Spiellogik gehört: Himmel, Hintergrund-Schichten,
 // Oberflächen der Plattformen und Partikel (Blut, Funken, Staub, Explosionen).
 // Die Szene ruft nur noch ein paar kurze Funktionen auf.
@@ -10,15 +11,15 @@ export function buildSky(scene) {
     const von = Phaser.Display.Color.ValueToColor(0x1c1a2e);
     const bis = Phaser.Display.Color.ValueToColor(0xc4623a);
     const streifen = 18;
-    const B = scene.scale.width, H = scene.scale.height;   // Fenstergröße
+    const B = MAX_BREITE, H = scene.scale.height;   // so breit wie das breiteste mögliche Fenster
     for (let i = 0; i < streifen; i++) {
         const c = Phaser.Display.Color.Interpolate.ColorWithColor(von, bis, streifen - 1, i);
         g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
         g.fillRect(0, (H / streifen) * i, B, H / streifen + 1);
     }
     // Große, blasse Sonne hinter dem Dunst
-    scene.add.circle(B * 0.73, H * 0.61, 100, 0xffb36b, 0.55).setScrollFactor(0.03).setDepth(-29);
-    scene.add.circle(B * 0.73, H * 0.61, 145, 0xff9a55, 0.18).setScrollFactor(0.03).setDepth(-29);
+    scene.add.circle(934, H * 0.61, 100, 0xffb36b, 0.55).setScrollFactor(0.03).setDepth(-29);
+    scene.add.circle(934, H * 0.61, 145, 0xff9a55, 0.18).setScrollFactor(0.03).setDepth(-29);
 }
 
 // Eine Schicht Stadtsilhouette. Je kleiner scrollFaktor, desto "weiter weg": Sie bewegt
@@ -31,7 +32,7 @@ export function buildSkyline(scene, worldWidth, boden, scrollFaktor, farbe, hoeh
     const tief = boden - 60 - scene.scale.height / 2;
     const fuss = (boden - tief) + scrollFaktor * tief + 40;
     g.fillStyle(farbe);
-    const reichweite = worldWidth * scrollFaktor + scene.scale.width + 200;
+    const reichweite = worldWidth * scrollFaktor + MAX_BREITE + 200;
     for (let x = -50; x < reichweite; ) {
         const breite = rnd.between(50, 130);
         const hoehe = rnd.between(hoeheMin, hoeheMax);
@@ -723,7 +724,7 @@ export function buildBerge(scene, worldWidth, boden, scrollFaktor, farbe, mitte,
     const fuss = (boden - tief) + scrollFaktor * tief + 40;
     const p1 = rnd.frac() * 6, p2 = rnd.frac() * 6, p3 = rnd.frac() * 6;
     g.fillStyle(farbe);
-    const reichweite = worldWidth * scrollFaktor + scene.scale.width + 200;
+    const reichweite = worldWidth * scrollFaktor + MAX_BREITE + 200;
     for (let x = -50; x < reichweite; x += 8) {
         const h = mitte + amp * (0.5 * Math.sin(x * 0.004 + p1) + 0.3 * Math.sin(x * 0.011 + p2) + 0.2 * Math.sin(x * 0.027 + p3));
         const hq = Math.round(h / 8) * 8, basis = fuss - hq;
@@ -739,9 +740,9 @@ export function buildBerge(scene, worldWidth, boden, scrollFaktor, farbe, mitte,
 // Dunkle Ränder wie bei einem alten Film: die Mitte bleibt hell, die Ecken werden dunkel.
 // Das Bild entsteht einmal auf einer Canvas-Fläche (einem Mal-Brett des Browsers).
 export function buildVignette(scene) {
-    if (!scene.textures.exists('vignette')) {
-        const B = scene.scale.width, H = scene.scale.height;
-        const tex = scene.textures.createCanvas('vignette', B, H);
+    const B = scene.scale.width, H = scene.scale.height, key = `vignette_${B}`;   // pro Fensterbreite ein eigenes Bild
+    if (!scene.textures.exists(key)) {
+        const tex = scene.textures.createCanvas(key, B, H);
         const ctx = tex.getContext();
         const grad = ctx.createRadialGradient(B / 2, H / 2, H * 0.37, B / 2, H / 2, B * 0.65);
         grad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -750,13 +751,14 @@ export function buildVignette(scene) {
         ctx.fillRect(0, 0, B, H);
         tex.refresh();
     }
-    scene.add.image(0, 0, 'vignette').setOrigin(0, 0).setScrollFactor(0).setDepth(15);
+    if (scene.vignetteBild) scene.vignetteBild.destroy();
+    scene.vignetteBild = scene.add.image(0, 0, key).setOrigin(0, 0).setScrollFactor(0).setDepth(15);
 }
 
 // Glut und Asche, die über den ganzen Bildschirm nach oben treiben (Stimmung).
 export function buildEmbers(scene) {
     scene.add.particles(0, 0, 'px', {
-        x: { min: 0, max: scene.scale.width }, y: scene.scale.height + 20, lifespan: 7000, frequency: 140,
+        x: { min: 0, max: MAX_BREITE }, y: scene.scale.height + 20, lifespan: 7000, frequency: 140,
         speedY: { min: -70, max: -25 }, speedX: { min: -25, max: 25 },
         scale: { start: 1, end: 0.3 }, alpha: { start: 0.8, end: 0 },
         tint: [0xff9944, 0xffcc66, 0x888888],

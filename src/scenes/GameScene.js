@@ -31,7 +31,7 @@ const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28, sword: 30, fist: 14 }
 
 // Inventarleiste unten in der Mitte: vier Plätze
 const SLOT = 64, SLOT_ABSTAND = 8;
-const SLOT_X0 = (1280 - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2, SLOT_Y = 720 - SLOT - 14;
+const SLOT_Y = 720 - SLOT - 14;       // die x-Mitte der Leiste richtet sich nach der Fensterbreite (this.slotX0)
 
 // Seilbahn
 const SEIL_TEMPO = 640;      // Fahrgeschwindigkeit auf dem Seil (Pixel pro Sekunde)
@@ -264,6 +264,9 @@ export default class GameScene extends Phaser.Scene {
         this.hiebe = [];              // laufende Schwerthiebe aller Spieler
         this.erzeugeHotbar();         // Inventarleiste unten
         this.touch = new Touch(this);   // Touch-Steuerung (schaltet sich am Handy selbst ein)
+        // Ändert sich die Fensterbreite, ordnen wir die Anzeigen neu an (und räumen beim Verlassen der Szene wieder auf)
+        this.scale.on('resize', this.layoutHud, this);
+        this.events.once('shutdown', () => this.scale.off('resize', this.layoutHud, this));
 
         // --- Lebensanzeige der starken Kreatur (oben in der Mitte, erst sichtbar, wenn sie erwacht) ---
         const mitteX = this.scale.width / 2;   // Fenstermitte (das Fenster ist jetzt 1280 breit)
@@ -799,6 +802,31 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    // ---------- Fensterform ----------
+
+    // Das Fenster hat seine Breite geändert (Drehen, Vollbild): Alles, was mittig oder rechts am Bildschirm hängt, neu setzen.
+    layoutHud() {
+        if (!this.bossBack || !this.slotRects || !this.touch) return;      // Szene ist noch nicht fertig aufgebaut
+        const B = this.scale.width, mitte = B / 2;
+        this.bossBack.setX(mitte);
+        this.bossBar.setX(mitte - 150);
+        this.bossLabel.setX(mitte);
+        [100, 200].forEach((dx, i) => this.bossKerben[i].setX(mitte - 150 + dx));
+        this.belebenHinweis.setX(mitte);
+        if (this.seilHinweis) this.seilHinweis.setX(mitte);
+        this.slotX0 = (B - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2;
+        for (let i = 0; i < 4; i++) {
+            const x = this.slotX0 + i * (SLOT + SLOT_ABSTAND);
+            this.slotRects[i].x = x;
+            this.slotZahl[i].setPosition(x + 5, SLOT_Y + 3);
+            this.slotTexte[i].setPosition(x + SLOT - 4, SLOT_Y + SLOT - 17);
+        }
+        this.slotName.setX(this.slotX0 + (4 * SLOT + 3 * SLOT_ABSTAND) / 2);
+        this.touch.layout();
+        if (this.mp) this.mp.layout();
+        buildVignette(this);
+    }
+
     // ---------- Inventarleiste ----------
 
     // Ein kleines Symbol für einen Platz (cx, cy = Mitte). dunkel = nicht verfügbar.
@@ -842,16 +870,17 @@ export default class GameScene extends Phaser.Scene {
     erzeugeHotbar() {
         this.hotbar = this.add.graphics().setScrollFactor(0).setDepth(20);
         const stil = { fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3, fontFamily: 'monospace' };
+        this.slotX0 = (this.scale.width - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2;
         this.slotRects = [];
         this.slotZahl = [];
         this.slotTexte = [];
         for (let i = 0; i < 4; i++) {
-            const x = SLOT_X0 + i * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
+            const x = this.slotX0 + i * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
             this.slotRects.push({ x, y, w: SLOT, h: SLOT });
             this.slotZahl.push(this.add.text(x + 5, y + 3, String(i + 1), { ...stil, color: '#cfd8dc' }).setScrollFactor(0).setDepth(21));
             this.slotTexte.push(this.add.text(x + SLOT - 4, y + SLOT - 17, '', stil).setOrigin(1, 0).setScrollFactor(0).setDepth(21));
         }
-        this.slotName = this.add.text(SLOT_X0 + (4 * SLOT + 3 * SLOT_ABSTAND) / 2, SLOT_Y - 14, '', { ...stil, fontSize: '15px', color: '#ffdd55' })
+        this.slotName = this.add.text(this.slotX0 + (4 * SLOT + 3 * SLOT_ABSTAND) / 2, SLOT_Y - 14, '', { ...stil, fontSize: '15px', color: '#ffdd55' })
             .setOrigin(0.5).setScrollFactor(0).setDepth(21);
         // Mausrad wechselt den Platz (höchstens alle 120 ms, denn ein Trackpad schickt sehr viele Meldungen)
         this.letztesRad = 0;
@@ -870,7 +899,7 @@ export default class GameScene extends Phaser.Scene {
         const arten = ['', p.weapon, p.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'];
         const leer = p.magAmmo === 0 && p.ammo === 0;
         for (let i = 1; i <= 4; i++) {
-            const x = SLOT_X0 + (i - 1) * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
+            const x = this.slotX0 + (i - 1) * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
             const gewaehlt = p.auswahl === i;
             const gesperrt = false;
             const keins = (i === 3 && p.grenades === 0) || (i === 4 && p.medkits === 0);

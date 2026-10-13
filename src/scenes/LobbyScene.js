@@ -15,7 +15,7 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     create() {
-        this.cameras.main.setZoom(this.scale.width / 960).centerOn(480, 270);
+        this.cameras.main.setZoom(this.scale.height / 540).centerOn(480, 270);   // nach der Höhe, die Breite passt sich an
         const host = this.rolle === 'host';
         this.add.text(480, 60, host ? 'RAUM ERSTELLEN' : 'RAUM BEITRETEN', { fontSize: '40px', color: '#e0e6ea', fontStyle: 'bold' }).setOrigin(0.5);
 

@@ -63,6 +63,13 @@ export default class Mehrspieler {
     sendeAnHost(daten) { if (!this.istHost) this.netz.sende(daten); }
     sendeAn(nr, daten) { if (this.istHost) this.netz.sendeAn(nr, daten); }
 
+    // Das Fenster hat seine Form geändert: Anzeigen am rechten Rand und in der Mitte neu setzen.
+    layout() {
+        const B = this.scene.scale.width;
+        this.anzeige.setX(B - 20);
+        this.banner.setX(B / 2);
+    }
+
     // Die Liste oben rechts: Wer ist dabei?
     aktualisiereAnzeige() {
         if (!this.anzeige || !this.anzeige.active) return;

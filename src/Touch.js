@@ -14,20 +14,21 @@ const GRANATE_R = 170;           // so weit zieht man vom Granatenknopf für den
 const TIPP_ZEIT = 260;           // so kurz muss ein Tippen sein (ms)
 const ZIELHILFE = 0.2;           // so nah (im Bogenmaß) muss ein Gegner an der Zielrichtung liegen, damit sie einrastet
 
-// Knöpfe: Position und Größe im 1280 x 720 Spielfenster
-const KNOEPFE = {
-    sprung:     { x: 1090, y: 430, r: 46 },
-    nachladen:  { x: 1090, y: 305, r: 34 },
-    granate:    { x: 1200, y: 305, r: 38 },
-    heilen:     { x: 1200, y: 430, r: 38 },
-    interaktion:{ x: 930,  y: 470, r: 46 },
-    pause:      { x: 1238, y: 40,  r: 26 },
-    vollbild:   { x: 1172, y: 40,  r: 26 },
-};
+// Knöpfe: Position und Größe im Spielfenster (720 hoch, rechts verankert: B = Fensterbreite)
+const knoepfeFuer = (B) => ({
+    sprung:     { x: B - 190, y: 430, r: 46 },
+    nachladen:  { x: B - 190, y: 305, r: 34 },
+    granate:    { x: B - 80,  y: 305, r: 38 },
+    heilen:     { x: B - 80,  y: 430, r: 38 },
+    interaktion:{ x: B - 350, y: 470, r: 46 },
+    pause:      { x: B - 42,  y: 40,  r: 26 },
+    vollbild:   { x: B - 108, y: 40,  r: 26 },
+});
 
 export default class Touch {
     constructor(scene) {
         this.scene = scene;
+        this.K = knoepfeFuer(scene.scale.width);
         const dev = scene.sys.game.device;
         const param = new URLSearchParams(window.location.search).get('touch');
         this.erzwungen = param === '1';                         // Testmodus mit der Maus
@@ -54,10 +55,10 @@ export default class Touch {
         scene.input.addPointer(3);                              // bis zu fünf Finger
         this.g = scene.add.graphics().setScrollFactor(0).setDepth(40);
         const stil = { fontSize: '16px', color: '#ffffff', stroke: '#000000', strokeThickness: 3, fontFamily: 'monospace' };
-        this.eText = scene.add.text(KNOEPFE.interaktion.x, KNOEPFE.interaktion.y, 'E', { ...stil, fontSize: '34px', fontStyle: 'bold' }).setOrigin(0.5).setScrollFactor(0).setDepth(41);
-        this.eLabel = scene.add.text(KNOEPFE.interaktion.x, KNOEPFE.interaktion.y - 62, '', { ...stil, fontSize: '18px' }).setOrigin(0.5).setScrollFactor(0).setDepth(41);
-        this.zahlGranate = scene.add.text(KNOEPFE.granate.x + 26, KNOEPFE.granate.y + 24, '', stil).setOrigin(0.5).setScrollFactor(0).setDepth(41);
-        this.zahlHeilen = scene.add.text(KNOEPFE.heilen.x + 26, KNOEPFE.heilen.y + 24, '', stil).setOrigin(0.5).setScrollFactor(0).setDepth(41);
+        this.eText = scene.add.text(this.K.interaktion.x, this.K.interaktion.y, 'E', { ...stil, fontSize: '34px', fontStyle: 'bold' }).setOrigin(0.5).setScrollFactor(0).setDepth(41);
+        this.eLabel = scene.add.text(this.K.interaktion.x, this.K.interaktion.y - 62, '', { ...stil, fontSize: '18px' }).setOrigin(0.5).setScrollFactor(0).setDepth(41);
+        this.zahlGranate = scene.add.text(this.K.granate.x + 26, this.K.granate.y + 24, '', stil).setOrigin(0.5).setScrollFactor(0).setDepth(41);
+        this.zahlHeilen = scene.add.text(this.K.heilen.x + 26, this.K.heilen.y + 24, '', stil).setOrigin(0.5).setScrollFactor(0).setDepth(41);
 
         scene.input.on('pointerdown', (p) => this.runter(p));
         scene.input.on('pointermove', (p) => this.bewegt(p));
@@ -65,6 +66,16 @@ export default class Touch {
         scene.input.on('pointerupoutside', (p) => this.hoch(p));
         // Beim Verlassen der Szene aufräumen (die Ereignisse hängen an der Eingabe der Szene und verschwinden mit ihr)
         this.setzeSichtbar();
+    }
+
+    // Das Fenster hat seine Form geändert: Knöpfe rechts neu verankern.
+    layout() {
+        this.K = knoepfeFuer(this.scene.scale.width);
+        const k = this.K;
+        this.eText.setPosition(k.interaktion.x, k.interaktion.y);
+        this.eLabel.setPosition(k.interaktion.x, k.interaktion.y - 62);
+        this.zahlGranate.setPosition(k.granate.x + 26, k.granate.y + 24);
+        this.zahlHeilen.setPosition(k.heilen.x + 26, k.heilen.y + 24);
     }
 
     setzeSichtbar() {
@@ -79,7 +90,7 @@ export default class Touch {
     // ---------- Eingaben ----------
 
     knopfBei(x, y) {
-        for (const [name, k] of Object.entries(KNOEPFE)) {
+        for (const [name, k] of Object.entries(this.K)) {
             if (name === 'interaktion' && !this.interaktionText) continue;
             if (Math.hypot(x - k.x, y - k.y) <= k.r + 10) return name;
         }
@@ -107,7 +118,7 @@ export default class Touch {
             }
         }
         if (p.y < 130) return;
-        const st = p.x < 640 ? this.links : this.rechts;
+        const st = p.x < s.scale.width / 2 ? this.links : this.rechts;
         if (st.id !== null) return;
         st.id = p.id; st.bx = p.x; st.by = p.y; st.x = 0; st.y = 0;
         if (st === this.rechts) { st.t0 = s.time.now; st.bewegt = false; }
@@ -130,7 +141,7 @@ export default class Touch {
 
     bewegt(p) {
         if (this.granatenZiel && this.granatenZiel.id === p.id) {
-            const k = KNOEPFE.granate;
+            const k = this.K.granate;
             let dx = p.x - k.x, dy = p.y - k.y;
             const len = Math.hypot(dx, dy);
             if (len > GRANATE_R) { dx *= GRANATE_R / len; dy *= GRANATE_R / len; }
@@ -274,14 +285,14 @@ export default class Touch {
             g.lineStyle(2, 0xffffff, st.id !== null ? 0.7 : 0.3).strokeCircle(kx, ky, 38);
         };
         stick(this.links, 170, 585, 0x66c2ff);
-        stick(this.rechts, 1110, 585, 0xff8a5c);
+        stick(this.rechts, s.scale.width - 170, 585, 0xff8a5c);
         if (this.rechts.id !== null && this.feuer) {                    // Zielrichtung als Linie
             g.lineStyle(3, 0xff8a5c, 0.5).beginPath().moveTo(this.rechts.bx, this.rechts.by).lineTo(this.rechts.bx + this.rechts.x * R * 1.6, this.rechts.by + this.rechts.y * R * 1.6).strokePath();
         }
         // Granate zielen: gepunktete Flugbahn und Aufschlagpunkt (in Weltkoordinaten berechnet, auf den Bildschirm umgerechnet)
         const gz = this.granatenZiel;
         if (gz) {
-            const cam = s.cameras.main, kn = KNOEPFE.granate;
+            const cam = s.cameras.main, kn = this.K.granate;
             const len = Math.hypot(gz.x, gz.y);
             const w = len < 26 ? this.naechsterWinkel() : Math.atan2(gz.y, gz.x);
             const abstand = len < 26 ? 340 : 140 + (len / GRANATE_R) * 520;
@@ -302,7 +313,7 @@ export default class Touch {
             g.fillStyle(0xffffff, 0.5).fillCircle(kn.x + gz.x, kn.y + gz.y, 16);
         }
         // Knöpfe
-        const k = KNOEPFE;
+        const k = this.K;
         ring(k.sprung.x, k.sprung.y, k.sprung.r, this.gedrueckt.sprung);
         g.fillStyle(0xffffff, 0.85).fillTriangle(k.sprung.x, k.sprung.y - 20, k.sprung.x - 18, k.sprung.y + 8, k.sprung.x + 18, k.sprung.y + 8);
         g.fillTriangle(k.sprung.x, k.sprung.y - 4, k.sprung.x - 18, k.sprung.y + 24, k.sprung.x + 18, k.sprung.y + 24);

@@ -13,7 +13,7 @@ export default class MenuScene extends Phaser.Scene {
 
     create() {
         // Das Menü ist für 960 x 540 gebaut: Die Kamera vergrößert es passend auf das größere Fenster.
-        this.cameras.main.setZoom(this.scale.width / 960).centerOn(480, 270);
+        this.cameras.main.setZoom(this.scale.height / 540).centerOn(480, 270);   // nach der Höhe, die Breite passt sich an
 
         this.add.text(480, 80, 'SURVIVAL GAME', { fontSize: '64px', color: '#e0e6ea', fontStyle: 'bold' }).setOrigin(0.5);
         this.add.text(480, 138, 'Level 01: Verlassene Militärzone', { fontSize: '22px', color: '#9fb0bd' }).setOrigin(0.5);

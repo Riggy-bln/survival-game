@@ -9,7 +9,8 @@ import { sfx } from './Sound.js';
 // Das Touch-Modul schaltet sich selbst ein, sobald der erste Finger den Bildschirm berührt (oder auf Handys/Tablets sofort).
 // Zum Testen am Computer: Adresse mit ?touch=1 öffnen, dann steuert die Maus die Sticks (immer nur ein "Finger").
 
-const R = 85;                    // Radius eines Sticks
+const R = 105;                   // Radius eines Sticks (größer = unempfindlicher: man muss weiter ziehen)
+const GRANATE_R = 170;           // so weit zieht man vom Granatenknopf für den weitesten Wurf
 const TIPP_ZEIT = 260;           // so kurz muss ein Tippen sein (ms)
 const ZIELHILFE = 0.2;           // so nah (im Bogenmaß) muss ein Gegner an der Zielrichtung liegen, damit sie einrastet
 
@@ -47,6 +48,8 @@ export default class Touch {
         this.sprungTipp = false;                                // Sprungknopf oder Stick nach oben neu gedrückt
         this.sprungVorher = false;
         this.interaktionText = null;                            // wird von der Szene gesetzt, solange etwas zum Benutzen da ist
+        this.granatenZiel = null;                               // {id, x, y}: gerade wird eine Granate gezielt (Knopf gedrückt und gezogen)
+        this.granatenWurf = null;                               // {winkel, abstand}: Wurf, den die Szene im nächsten Bild ausführt
 
         scene.input.addPointer(3);                              // bis zu fünf Finger
         this.g = scene.add.graphics().setScrollFactor(0).setDepth(40);
@@ -116,7 +119,10 @@ export default class Touch {
         this.finger.set(id, name);
         this.gedrueckt[name] = true;
         if (name === 'nachladen') p.touchEin.nachladen = true;
-        else if (name === 'granate') p.touchEin.granate = true;
+        else if (name === 'granate') {
+            if (p.grenades > 0 && !p.tot) this.granatenZiel = { id, x: 0, y: 0 };      // zielen: ziehen, loslassen wirft
+            else s.showMessage('Keine Granaten mehr!');
+        }
         else if (name === 'heilen') p.touchEin.heilen = true;
         else if (name === 'interaktion') this.eTipp = true;
         else if (name === 'pause') s.touchPause();
@@ -124,6 +130,13 @@ export default class Touch {
     }
 
     bewegt(p) {
+        if (this.granatenZiel && this.granatenZiel.id === p.id) {
+            const k = KNOEPFE.granate;
+            let dx = p.x - k.x, dy = p.y - k.y;
+            const len = Math.hypot(dx, dy);
+            if (len > GRANATE_R) { dx *= GRANATE_R / len; dy *= GRANATE_R / len; }
+            this.granatenZiel.x = dx; this.granatenZiel.y = dy;
+        }
         for (const st of [this.links, this.rechts]) {
             if (st.id !== p.id) continue;
             let dx = p.x - st.bx, dy = p.y - st.by;
@@ -135,13 +148,20 @@ export default class Touch {
             }
             st.x = Phaser.Math.Clamp(dx / R, -1, 1);
             st.y = Phaser.Math.Clamp(dy / R, -1, 1);
-            if (st === this.rechts && Math.hypot(st.x, st.y) > 0.3) st.bewegt = true;
+            if (st === this.rechts && Math.hypot(st.x, st.y) > 0.4) st.bewegt = true;
         }
     }
 
     hoch(p) {
         const name = this.finger.get(p.id);
         if (name) { this.finger.delete(p.id); this.gedrueckt[name] = false; }
+        if (this.granatenZiel && this.granatenZiel.id === p.id) {
+            const z = this.granatenZiel, len = Math.hypot(z.x, z.y);
+            this.granatenZiel = null;
+            if (len < 26) this.granatenWurf = { winkel: this.naechsterWinkel(), abstand: 340 };          // nur getippt: auf den nächsten Gegner
+            else this.granatenWurf = { winkel: Math.atan2(z.y, z.x), abstand: 140 + (len / GRANATE_R) * 520 };   // gezogen: Richtung und Weite
+            this.zielSichtbarBis = 0;
+        }
         if (this.links.id === p.id) { this.links.id = null; this.links.x = 0; this.links.y = 0; }
         if (this.rechts.id === p.id) {
             const kurz = this.scene.time.now - this.rechts.t0 < TIPP_ZEIT;
@@ -158,12 +178,17 @@ export default class Touch {
         const eTippJetzt = this.eTipp; this.eTipp = false; this.eTippAktuell = eTippJetzt;
         if (!this.aktiv) return;
         const lebt = !p.tot && !s.gameOver;
+        if (!lebt) this.granatenZiel = null;
+        if (this.granatenWurf) {                                // der gezielte Wurf
+            const w = this.granatenWurf; this.granatenWurf = null;
+            if (lebt && p.grenades > 0) { this.winkel = w.winkel; s.throwGrenade(w.winkel, w.abstand); }
+        }
 
         // Bewegung: links/rechts laufen, nach oben schieben (oder Sprungknopf) springt
         const lx = lebt ? this.links.x : 0, ly = lebt ? this.links.y : 0;
-        ein.links = lx < -0.28;
-        ein.rechts = lx > 0.28;
-        const sprung = lebt && (ly < -0.6 || !!this.gedrueckt.sprung);
+        ein.links = lx < -0.35;
+        ein.rechts = lx > 0.35;
+        const sprung = lebt && (ly < -0.65 || !!this.gedrueckt.sprung);
         ein.sprung = sprung;
         this.sprungTipp = sprung && !this.sprungVorher;
         this.sprungVorher = sprung;
@@ -172,16 +197,18 @@ export default class Touch {
         const m = Math.hypot(this.rechts.x, this.rechts.y);
         const jetzt = s.time.now;
         const vorherFeuer = this.feuer;
-        this.feuer = lebt && this.rechts.id !== null && m > 0.3;
+        this.feuer = lebt && this.rechts.id !== null && m > 0.4;
         this.feuerBeginn = this.feuer && !vorherFeuer;
         if (this.feuer) {
-            this.winkel = this.hilfe(Math.atan2(this.rechts.y, this.rechts.x));
+            // Der Winkel folgt dem Daumen etwas träge: Das glättet Zittern und macht das Zielen ruhiger
+            const ziel = this.hilfe(Math.atan2(this.rechts.y, this.rechts.x));
+            this.winkel += Phaser.Math.Angle.Wrap(ziel - this.winkel) * (this.feuerBeginn ? 1 : 0.4);
             this.zielSichtbarBis = jetzt + 400;
         } else if (this.tippEvent && lebt) {
             this.winkel = this.naechsterWinkel();
             this.tippBis = jetzt + 120;
             this.zielSichtbarBis = jetzt + 300;
-        } else if (jetzt > this.zielSichtbarBis && Math.abs(lx) > 0.28) {
+        } else if (jetzt > this.zielSichtbarBis && Math.abs(lx) > 0.35) {
             this.winkel = lx > 0 ? 0 : Math.PI;                 // ohne Zielen schaut die Figur in Laufrichtung
         }
 
@@ -251,6 +278,29 @@ export default class Touch {
         stick(this.rechts, 1110, 585, 0xff8a5c);
         if (this.rechts.id !== null && this.feuer) {                    // Zielrichtung als Linie
             g.lineStyle(3, 0xff8a5c, 0.5).beginPath().moveTo(this.rechts.bx, this.rechts.by).lineTo(this.rechts.bx + this.rechts.x * R * 1.6, this.rechts.by + this.rechts.y * R * 1.6).strokePath();
+        }
+        // Granate zielen: gepunktete Flugbahn und Aufschlagpunkt (in Weltkoordinaten berechnet, auf den Bildschirm umgerechnet)
+        const gz = this.granatenZiel;
+        if (gz) {
+            const cam = s.cameras.main, kn = KNOEPFE.granate;
+            const len = Math.hypot(gz.x, gz.y);
+            const w = len < 26 ? this.naechsterWinkel() : Math.atan2(gz.y, gz.x);
+            const abstand = len < 26 ? 340 : 140 + (len / GRANATE_R) * 520;
+            const tempo = Phaser.Math.Clamp(abstand * 1.6, 250, 650);
+            let x = p.x, y = p.y - 10, vx = Math.cos(w) * tempo, vy = Math.sin(w) * tempo - 180, treffer = null;
+            for (let t = 0; t < 1.5 && !treffer; t += 0.04) {
+                vy += 900 * 0.04; x += vx * 0.04; y += vy * 0.04;
+                for (const pl of s.platforms) {
+                    const b = pl.body;
+                    if (b && x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) { treffer = { x, y }; break; }
+                }
+                if (!treffer) g.fillStyle(0xffffff, 0.75).fillCircle(x - cam.worldView.x, y - cam.worldView.y, 3);
+            }
+            const ex = (treffer ?? { x, y }).x - cam.worldView.x, ey = (treffer ?? { x, y }).y - cam.worldView.y;
+            g.lineStyle(3, 0xff5533, 0.9).strokeCircle(ex, ey, 18);
+            g.fillStyle(0xff5533, 0.25).fillCircle(ex, ey, 18);
+            g.lineStyle(3, 0xffffff, 0.5).beginPath().moveTo(kn.x, kn.y).lineTo(kn.x + gz.x, kn.y + gz.y).strokePath();
+            g.fillStyle(0xffffff, 0.5).fillCircle(kn.x + gz.x, kn.y + gz.y, 16);
         }
         // Knöpfe
         const k = KNOEPFE;

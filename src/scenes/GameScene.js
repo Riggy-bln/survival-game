@@ -1542,11 +1542,12 @@ export default class GameScene extends Phaser.Scene {
 
     // Wirft eine Granate Richtung Maus. Je weiter die Maus weg ist, desto weiter fliegt sie.
     // Ein Gast erzeugt nur ein Bild (sofortige Rückmeldung) und meldet den Wurf; die echte Granate rechnet der Gastgeber.
-    throwGrenade() {
+    // Mit Vorgabe (Handy: Richtung und Weite vom gezogenen Granatenknopf) oder zur Maus.
+    throwGrenade(winkelVorgabe, abstandVorgabe) {
         const p = this.player;
         const zp = this.zielPunkt();
-        const winkel = Phaser.Math.Angle.Between(p.x, p.y, zp.x, zp.y);
-        const abstand = Phaser.Math.Distance.Between(p.x, p.y, zp.x, zp.y);
+        const winkel = winkelVorgabe ?? Phaser.Math.Angle.Between(p.x, p.y, zp.x, zp.y);
+        const abstand = abstandVorgabe ?? Phaser.Math.Distance.Between(p.x, p.y, zp.x, zp.y);
         const tempo = Phaser.Math.Clamp(abstand * 1.6, 250, 650);
         // Etwas nach oben zusätzlich (-180), damit sie einen Bogen fliegt statt gerade.
         const vx = Math.cos(winkel) * tempo, vy = Math.sin(winkel) * tempo - 180;

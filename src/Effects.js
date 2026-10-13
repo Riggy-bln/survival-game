@@ -102,10 +102,21 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
 // Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief detailliert wird.
 // Schneidet aus einem Malwerkzeug Rechtecke heraus (z. B. abgerundete Ecken): alles, was in "weg" liegt, wird nicht gemalt.
 function mitAusschnitt(r, weg) {
+    const Z = 64, raster = new Map();                  // grobes Raster: welche Ausschnitte liegen in welchem 64er-Feld?
+    weg.forEach((w, i) => {
+        for (let cy = Math.floor(w[1] / Z); cy <= Math.floor((w[1] + w[3] - 1) / Z); cy++)
+            for (let cx = Math.floor(w[0] / Z); cx <= Math.floor((w[0] + w[2] - 1) / Z); cx++) {
+                const k = cx + ',' + cy; if (!raster.has(k)) raster.set(k, []); raster.get(k).push(i);
+            }
+    });
     const rect = (c, x, y, w, h, a = 1) => {
+        const idx = new Set();
+        for (let cy = Math.floor(y / Z); cy <= Math.floor((y + h - 1) / Z); cy++)
+            for (let cx = Math.floor(x / Z); cx <= Math.floor((x + w - 1) / Z); cx++) { const l = raster.get(cx + ',' + cy); if (l) for (const i of l) idx.add(i); }
+        if (!idx.size) { r.rect(c, x, y, w, h, a); return; }
         let teile = [[x, y, w, h]];
-        for (const [wx, wy, ww, wh] of weg) {
-            const neu = [];
+        for (const i of idx) {
+            const [wx, wy, ww, wh] = weg[i], neu = [];
             for (const [px, py, pw, ph] of teile) {
                 if (px >= wx + ww || px + pw <= wx || py >= wy + wh || py + ph <= wy) { neu.push([px, py, pw, ph]); continue; }
                 if (py < wy) neu.push([px, py, pw, wy - py]);                                     // darüber
@@ -131,33 +142,58 @@ function zackenProfil(n, rn) {                       // zufälliger Weg: jeder W
     for (let i = 0; i < n; i++) { d = Math.max(0, Math.min(8, d + rn.pick([-4, 0, 0, 4]))); out.push(d); }
     return out;
 }
+// zellenTiefen: für n Randzellen (je 4 Pixel) die Tiefe in Zellen (0 bis 4), mit sanftem Verlauf plus feinem Pixelrauschen.
+function zellenTiefen(n, rn) {
+    const out = []; let d = rn.between(0, 2);
+    for (let i = 0; i < n; i++) {
+        d = Math.max(0, Math.min(4, d + rn.pick([-1, 0, 0, 0, 1])));
+        out.push(Math.max(0, Math.min(4, d + rn.pick([-1, 0, 0, 1]))));
+    }
+    return out;
+}
+// Der Rand löst sich in 4-Pixel-Zellen auf: Die Kante liegt mal 0, mal bis zu 16 Pixel weiter innen (wie ausgebröckelt), die ersten
+// Zellen dahinter sind gesprenkelt dunkler (Übergang zum Hintergrund), und außen kleben vereinzelt Krümel. So gibt es keine glatte Linie.
 function randKerben(l, t, w, u, frei, kanten, oberflaeche, rn) {
-    const weg = [], saum = [], offen = { oben: [], unten: [], links: [], rechts: [] };
-    const sammle = (seite, a, b) => { for (let k = a; k < b; k += 8) if (frei[seite](k + 4)) offen[seite].push(k); };
-    if (kanten.oben && !oberflaeche) sammle('oben', l, l + w);
-    if (kanten.unten) sammle('unten', l, l + w);
-    if (kanten.links) sammle('links', t, u);
-    if (kanten.rechts) sammle('rechts', t, u);
-    const d = {};
-    for (const seite of ['oben', 'unten', 'links', 'rechts']) d[seite] = zackenProfil(offen[seite].length, rn);
-    offen.oben.forEach((x, i) => { if (d.oben[i]) weg.push([x, t, 8, d.oben[i]]); saum.push([x, t + d.oben[i], 8, 4 * rn.between(1, 3)]); });
-    offen.unten.forEach((x, i) => { const th = 4 * rn.between(1, 3); if (d.unten[i]) weg.push([x, u - d.unten[i], 8, d.unten[i]]); saum.push([x, u - d.unten[i] - th, 8, th]); });
-    offen.links.forEach((y, i) => { if (d.links[i]) weg.push([l, y, d.links[i], 8]); saum.push([l + d.links[i], y, 4 * rn.between(1, 3), 8]); });
-    offen.rechts.forEach((y, i) => { const th = 4 * rn.between(1, 3); if (d.rechts[i]) weg.push([l + w - d.rechts[i], y, d.rechts[i], 8]); saum.push([l + w - d.rechts[i] - th, y, th, 8]); });
-    // abgerundete Außenecken in zwei Pixelstufen, wo beide anliegenden Seiten offen sind
-    const istOffen = (liste, v) => liste.includes(v);
+    const weg = [], saum = [];
+    const zelle = {                                   // Zelle a entlang der Kante, Tiefe k (k < 0 = außerhalb)
+        oben: (a, k) => [a, t + 4 * k], unten: (a, k) => [a, u - 4 - 4 * k],
+        links: (a, k) => [l + 4 * k, a], rechts: (a, k) => [l + w - 4 - 4 * k, a],
+    };
+    const strecken = [];
+    if (kanten.oben && !oberflaeche) strecken.push(['oben', l, l + w]);
+    if (kanten.unten) strecken.push(['unten', l, l + w]);
+    if (kanten.links) strecken.push(['links', t, u]);
+    if (kanten.rechts) strecken.push(['rechts', t, u]);
+    const offenAn = {};
+    for (const [seite, a0, a1] of strecken) {
+        const n = Math.floor((a1 - a0) / 4), tiefen = zellenTiefen(n, rn);
+        offenAn[seite] = new Set();
+        for (let i = 0; i < n; i++) {
+            const a = a0 + i * 4;
+            if (!frei[seite](a + 2)) continue;
+            offenAn[seite].add(a);
+            const d = tiefen[i];
+            for (let k = 0; k < d; k++) { const [x, y] = zelle[seite](a, k); weg.push([x, y, 4, 4]); }
+            for (let k = d; k < d + 3; k++) {              // dunkel gesprenkelter Übergang hinter der Kante
+                if (rn.frac() < [0.6, 0.35, 0.15][k - d]) { const [x, y] = zelle[seite](a, k); saum.push([x, y, 4, 4, true]); }
+            }
+            if (d === 0 && (seite === 'oben' || seite === 'unten') && rn.frac() < 0.12) { const [x, y] = zelle[seite](a, -1); saum.push([x, y, 4, 4, false]); }   // Krümel außen
+        }
+    }
+    // Außenecken zusätzlich abrunden, wo beide anliegenden Seiten offen sind
     const ecke = (ox, oy, sx, sy) => { for (let k = 1; k <= 2; k++) weg.push([sx > 0 ? ox : ox - 4 * (3 - k), sy > 0 ? oy + 4 * (k - 1) : oy - 4 * k, 4 * (3 - k), 4]); };
-    if (istOffen(offen.oben, l) && istOffen(offen.links, t)) ecke(l, t, 1, 1);
-    if (istOffen(offen.oben, l + w - 8) && istOffen(offen.rechts, t)) ecke(l + w, t, -1, 1);
-    if (istOffen(offen.unten, l) && istOffen(offen.links, u - 8)) ecke(l, u, 1, -1);
-    if (istOffen(offen.unten, l + w - 8) && istOffen(offen.rechts, u - 8)) ecke(l + w, u, -1, -1);
-    return { weg, saum, offen };
+    const has = (seite, a) => offenAn[seite] && offenAn[seite].has(a);
+    if (has('oben', l) && has('links', t)) ecke(l, t, 1, 1);
+    if (has('oben', l + w - 4) && has('rechts', t)) ecke(l + w, t, -1, 1);
+    if (has('unten', l) && has('links', u - 4)) ecke(l, u, 1, -1);
+    if (has('unten', l + w - 4) && has('rechts', u - 4)) ecke(l + w, u, -1, -1);
+    return { weg, saum };
 }
 // zeichneSaum: malt die Säume (Liste von Rechtecken) über die Erde, von außen nach innen heller werdend; ab und zu ein Moosfleck.
 function zeichneSaum(r, saum, fels, rn) {
     for (const [x, y, w, h] of saum) {
         r.rect(rn.pick(fels ? SAUM_FELS : SAUM_ERDE), x, y, w, h);
-        if (!fels && rn.frac() < 0.18) r.rect(rn.pick(SAUM_MOOS), x + rn.between(0, 2), y + rn.between(0, 2), Math.min(w, 4), Math.min(h, 4));
+        if (!fels && rn.frac() < 0.1) r.rect(rn.pick(SAUM_MOOS), x, y, 4, 4);
     }
 }
 
@@ -845,11 +881,11 @@ function zeichneHuegel(r, rnd, f, boden) {
     for (let i = 0; i <= spalten; i++) {
         const bx = f.links + i * f.schritt, hl = hoeheAn(i - 1), hr = hoeheAn(i);
         const wand = (links, top, fuss) => {              // links = true: Wand auf der linken Seite der höheren Spalte
-            const n = Math.max(0, Math.floor((fuss - top - 12) / 8)), prof = zackenProfil(n, rk);
+            const n = Math.max(0, Math.floor((fuss - top - 12) / 4)), prof = zellenTiefen(n, rk);
             for (let k = 0; k < n; k++) {
-                const y = top + 12 + k * 8, dd = prof[k], th = 4 * rk.between(1, 3);
-                if (links) { if (dd) wegH.push([bx, y, dd, 8]); saumH.push([bx + dd, y, th, 8]); }
-                else { if (dd) wegH.push([bx - dd, y, dd, 8]); saumH.push([bx - dd - th, y, th, 8]); }
+                const y = top + 12 + k * 4, dd = prof[k];
+                for (let q = 0; q < dd; q++) wegH.push([links ? bx + 4 * q : bx - 4 - 4 * q, y, 4, 4]);
+                for (let q = dd; q < dd + 3; q++) if (rk.frac() < [0.6, 0.35, 0.15][q - dd]) saumH.push([links ? bx + 4 * q : bx - 4 - 4 * q, y, 4, 4]);
             }
             for (let k = 1; k <= 2; k++) wegH.push([links ? bx : bx - 4 * (3 - k), top + 4 * (k - 1), 4 * (3 - k), 4]);   // obere Ecke abrunden
         };

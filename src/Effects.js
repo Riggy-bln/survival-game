@@ -211,18 +211,18 @@ export function decoratePlatforms(scene, platforms, boden) {
     let nr = 0;
 
     for (const p of platforms) {
-        const l = p.x - p.w / 2, t = p.y - p.h / 2, b = t + p.h;
+        const l = p.x - p.width / 2, t = p.y - p.height / 2, b = t + p.height;
         const grundfarbe = p.fillColor;
-        const istErde = ERDFARBEN.includes(grundfarbe) && p.h >= 40;
+        const istErde = ERDFARBEN.includes(grundfarbe) && p.height >= 40;
 
         if (istErde) {
             const anOberflaeche = t <= boden + 1;
-            const istDecke = !anOberflaeche && p.h <= 80;
-            const tiefe = Math.min(p.h, TIEFE);
+            const istDecke = !anOberflaeche && p.height <= 80;
+            const tiefe = Math.min(p.height, TIEFE);
             nr += 1;
             // Große Plattformen in Stücke von höchstens 2048 Pixeln Breite teilen (Grenze für Bilder).
-            for (let cx = l, i = 0; cx < l + p.w; cx += 2048, i++) {
-                const cw = Math.min(2048, l + p.w - cx);
+            for (let cx = l, i = 0; cx < l + p.width; cx += 2048, i++) {
+                const cw = Math.min(2048, l + p.width - cx);
                 const oben = 16, unten = istDecke ? 24 : 0;     // Platz für Halme oben und Tropfsteine unten
                 const key = `erde_${nr}_${i}`;
                 backe(scene, key, cx, t - oben, cw, tiefe + oben + unten, (r) => {
@@ -230,31 +230,31 @@ export function decoratePlatforms(scene, platforms, boden) {
                     zeichneErde(r, lokal, cx, t, cw, tiefe, grundfarbe, anOberflaeche, istDecke);
                 });
             }
-        } else if (p.h < 40) {
+        } else if (p.height < 40) {
             // --- Dünne Platte (Beton, Stahl): Kanten, Nieten, Risse, Rost ---
-            g.fillStyle(variiere(grundfarbe, 22)).fillRect(l, t, p.w, 3);
-            g.fillStyle(variiere(grundfarbe, -40)).fillRect(l, b - 4, p.w, 4);
-            for (let x = l + 10; x < l + p.w - 6; x += 44) g.fillStyle(variiere(grundfarbe, -50)).fillRect(x, t + 8, 4, 4);
-            for (let i = 0; i < p.w / 120; i++) {
-                const x = l + rnd.between(6, Math.max(7, p.w - 12));
+            g.fillStyle(variiere(grundfarbe, 22)).fillRect(l, t, p.width, 3);
+            g.fillStyle(variiere(grundfarbe, -40)).fillRect(l, b - 4, p.width, 4);
+            for (let x = l + 10; x < l + p.width - 6; x += 44) g.fillStyle(variiere(grundfarbe, -50)).fillRect(x, t + 8, 4, 4);
+            for (let i = 0; i < p.width / 120; i++) {
+                const x = l + rnd.between(6, Math.max(7, p.width - 12));
                 g.lineStyle(1, variiere(grundfarbe, -55)).beginPath().moveTo(x, t + 3).lineTo(x + rnd.between(-6, 6), b - 4).strokePath();
             }
-            for (let i = 0; i < p.w / 90; i++) {                           // Rostspuren nach unten
-                const x = l + rnd.between(4, Math.max(5, p.w - 4));
+            for (let i = 0; i < p.width / 90; i++) {                           // Rostspuren nach unten
+                const x = l + rnd.between(4, Math.max(5, p.width - 4));
                 g.fillStyle(0x6b3a22, 0.7).fillRect(x, b, 2, rnd.between(5, 15));
             }
         } else {
             // --- Dicke Blöcke (Beton, Kisten): Ziegelmuster mit Fugen ---
             const fuge = variiere(grundfarbe, -45);
-            for (let ry = 0; ry < p.h; ry += 20) {
-                g.fillStyle(fuge).fillRect(l, t + ry, p.w, 2);
+            for (let ry = 0; ry < p.height; ry += 20) {
+                g.fillStyle(fuge).fillRect(l, t + ry, p.width, 2);
                 const versatz = (ry / 20) % 2 === 0 ? 0 : 20;
-                for (let x = l + versatz; x < l + p.w; x += 40) {
+                for (let x = l + versatz; x < l + p.width; x += 40) {
                     if (x > l) g.fillStyle(fuge).fillRect(x, t + ry, 2, 20);
                     if (rnd.frac() < 0.12) g.fillStyle(variiere(grundfarbe, rnd.between(-14, 14))).fillRect(x + 3, t + ry + 3, 34, 15);
                 }
             }
-            g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.w, 3);
+            g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.width, 3);
         }
     }
 }

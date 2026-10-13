@@ -16,10 +16,9 @@ const ZIELHILFE = 0.2;           // so nah (im Bogenmaß) muss ein Gegner an der
 
 // Knöpfe: Position und Größe im Spielfenster (720 hoch, rechts verankert: B = Fensterbreite)
 const knoepfeFuer = (B) => ({
-    sprung:     { x: B - 190, y: 430, r: 46 },
-    nachladen:  { x: B - 190, y: 305, r: 34 },
-    granate:    { x: B - 80,  y: 305, r: 38 },
-    heilen:     { x: B - 80,  y: 430, r: 38 },
+    nachladen:  { x: B - 195, y: 390, r: 36 },
+    granate:    { x: B - 85,  y: 330, r: 40 },
+    heilen:     { x: B - 85,  y: 450, r: 40 },
     interaktion:{ x: B - 350, y: 470, r: 46 },
     pause:      { x: B - 42,  y: 40,  r: 26 },
     vollbild:   { x: B - 108, y: 40,  r: 26 },
@@ -46,7 +45,8 @@ export default class Touch {
         this.zielSichtbarBis = 0;
         this.endeTipp = false;
         this.eTipp = false;                                     // Interaktion getippt (ein Bild lang)
-        this.sprungTipp = false;                                // Sprungknopf oder Stick nach oben neu gedrückt
+        this.sprungTipp = false;                                // Stick nach oben neu gedrückt
+        this.druckZeit = {};                                    // wann ein Knopf zuletzt gedrückt wurde (für die Welle)
         this.sprungVorher = false;
         this.interaktionText = null;                            // wird von der Szene gesetzt, solange etwas zum Benutzen da ist
         this.granatenZiel = null;                               // {id, x, y}: gerade wird eine Granate gezielt (Knopf gedrückt und gezogen)
@@ -128,6 +128,7 @@ export default class Touch {
         const s = this.scene, p = s.player;
         this.finger.set(id, name);
         this.gedrueckt[name] = true;
+        this.druckZeit[name] = this.scene.time.now;
         if (name === 'nachladen') p.touchEin.nachladen = true;
         else if (name === 'granate') {
             if (p.grenades > 0 && !p.tot) this.granatenZiel = { id, x: 0, y: 0 };      // zielen: ziehen, loslassen wirft
@@ -168,7 +169,7 @@ export default class Touch {
         if (this.granatenZiel && this.granatenZiel.id === p.id) {
             const z = this.granatenZiel, len = Math.hypot(z.x, z.y);
             this.granatenZiel = null;
-            if (len < 26) this.granatenWurf = { winkel: this.naechsterWinkel(), abstand: 340 };          // nur getippt: auf den nächsten Gegner
+            if (len < 26) this.granatenWurf = { winkel: this.naechsterWinkel(true), abstand: 340 };          // nur getippt: auf den nächsten Gegner
             else this.granatenWurf = { winkel: Math.atan2(z.y, z.x), abstand: 140 + (len / GRANATE_R) * 520 };   // gezogen: Richtung und Weite
             this.zielSichtbarBis = 0;
         }
@@ -198,7 +199,7 @@ export default class Touch {
         const lx = lebt ? this.links.x : 0, ly = lebt ? this.links.y : 0;
         ein.links = lx < -0.35;
         ein.rechts = lx > 0.35;
-        const sprung = lebt && (ly < -0.65 || !!this.gedrueckt.sprung);
+        const sprung = lebt && ly < -0.65;                      // nach oben schieben = springen (es gibt keinen Sprungknopf)
         ein.sprung = sprung;
         this.sprungTipp = sprung && !this.sprungVorher;
         this.sprungVorher = sprung;
@@ -253,17 +254,22 @@ export default class Touch {
     }
 
     // Der Winkel zum nächsten Gegner (für den Schnellschuss). Ohne Gegner in der Nähe: in Blickrichtung.
-    naechsterWinkel() {
+    // Die Zielhilfe ist bewusst nur mittelstark: kürzere Reichweite, und der Schuss geht nur zu 80 % in Richtung des Gegners
+    // (der Rest bleibt waagerecht), also etwas ungenauer als ein exakter Treffer. exakt = true (Granatenwurf) zielt voll.
+    naechsterWinkel(exakt = false) {
         const p = this.scene.player;
         let beste = null, bd = Infinity;
         for (const e of this.scene.enemies) {
             if (!e.active) continue;
             const dx = e.x - p.x, dy = e.y - p.y;
-            if (Math.abs(dx) > 800 || Math.abs(dy) > 450) continue;
+            if (Math.abs(dx) > (exakt ? 800 : 640) || Math.abs(dy) > (exakt ? 450 : 340)) continue;
             const d = Math.hypot(dx, dy);
             if (d < bd) { bd = d; beste = Math.atan2(dy, dx); }
         }
-        return beste ?? (Math.cos(this.winkel) >= 0 ? 0 : Math.PI);
+        if (beste === null) return Math.cos(this.winkel) >= 0 ? 0 : Math.PI;
+        if (exakt) return beste;
+        const waagerecht = Math.cos(beste) >= 0 ? 0 : Math.PI;
+        return waagerecht + Phaser.Math.Angle.Wrap(beste - waagerecht) * 0.8;
     }
 
     // ---------- Zeichnen ----------
@@ -271,18 +277,38 @@ export default class Touch {
     zeichne(zeigeE) {
         const g = this.g, s = this.scene, p = s.player;
         g.clear();
-        const ring = (x, y, r, aktiv) => {
-            g.fillStyle(0x000000, aktiv ? 0.45 : 0.25).fillCircle(x, y, r);
-            g.lineStyle(3, 0xffffff, aktiv ? 0.85 : 0.45).strokeCircle(x, y, r);
+        const jetzt = s.time.now;
+        // Ein "Glasknopf": durchsichtiger Farbton, dunklere Mulde unten, heller Rand oben links, Glanzbogen und Glanzfleck.
+        // Beim Drücken wird er etwas kleiner und heller, und eine Welle läuft nach außen.
+        const glas = (name, x, y, r, farbe, aktiv, schwach = false) => {
+            const rr = r * (aktiv ? 0.93 : 1), a = schwach ? 0.5 : 1;
+            g.fillStyle(0x000000, 0.2 * a).fillCircle(x + 2, y + 4, rr + 2);                              // weicher Schatten
+            g.fillStyle(farbe, (aktiv ? 0.5 : 0.26) * a).fillCircle(x, y, rr);                            // Glaskörper
+            g.fillStyle(0x000000, 0.16 * a).fillCircle(x, y + rr * 0.2, rr * 0.8);                        // Mulde unten
+            g.fillStyle(0xffffff, (aktiv ? 0.14 : 0.07) * a).fillCircle(x - rr * 0.1, y - rr * 0.15, rr * 0.62);
+            g.lineStyle(3, 0xffffff, (aktiv ? 0.85 : 0.5) * a).strokeCircle(x, y, rr);                    // Rand
+            g.lineStyle(3, 0xffffff, (aktiv ? 0.9 : 0.6) * a).beginPath().arc(x, y, rr - 5, Math.PI * 1.05, Math.PI * 1.6, false).strokePath();   // Glanzbogen
+            g.lineStyle(2, 0x000000, 0.28 * a).beginPath().arc(x, y, rr - 4, Math.PI * 0.05, Math.PI * 0.55, false).strokePath();               // Schattenbogen
+            g.fillStyle(0xffffff, 0.3 * a).fillEllipse(x - rr * 0.34, y - rr * 0.56, rr * 0.5, rr * 0.2);  // Glanzfleck
+            const t0 = this.druckZeit[name];
+            if (t0 !== undefined && jetzt - t0 < 380) {
+                const alter = jetzt - t0;
+                g.lineStyle(3, 0xffffff, 0.5 * (1 - alter / 380)).strokeCircle(x, y, r + alter * 0.06);   // Welle
+            }
         };
         // Sticks: im Ruhezustand ein blasser Hinweis, beim Berühren wandert die Mitte zum Finger
         const stick = (st, mx, my, farbe) => {
-            const bx = st.id !== null ? st.bx : mx, by = st.id !== null ? st.by : my;
-            g.fillStyle(0x000000, st.id !== null ? 0.28 : 0.14).fillCircle(bx, by, R);
-            g.lineStyle(3, farbe, st.id !== null ? 0.7 : 0.3).strokeCircle(bx, by, R);
+            const an = st.id !== null;
+            const bx = an ? st.bx : mx, by = an ? st.by : my;
+            g.fillStyle(farbe, an ? 0.12 : 0.06).fillCircle(bx, by, R);                                  // Scheibe
+            g.lineStyle(3, farbe, an ? 0.55 : 0.25).strokeCircle(bx, by, R);
+            g.lineStyle(2, 0xffffff, an ? 0.2 : 0.1).strokeCircle(bx, by, R * 0.55);                      // innerer Ring
+            for (let k = 0; k < 4; k++) {                                                               // Kerben an den Himmelsrichtungen
+                const w = k * Math.PI / 2;
+                g.lineStyle(3, 0xffffff, an ? 0.4 : 0.18).beginPath().moveTo(bx + Math.cos(w) * (R - 12), by + Math.sin(w) * (R - 12)).lineTo(bx + Math.cos(w) * (R - 3), by + Math.sin(w) * (R - 3)).strokePath();
+            }
             const kx = bx + st.x * R, ky = by + st.y * R;
-            g.fillStyle(farbe, st.id !== null ? 0.55 : 0.25).fillCircle(kx, ky, 38);
-            g.lineStyle(2, 0xffffff, st.id !== null ? 0.7 : 0.3).strokeCircle(kx, ky, 38);
+            glas('stick', kx, ky, 40, farbe, an, !an);                                                  // Griff aus Glas
         };
         stick(this.links, 170, 585, 0x66c2ff);
         stick(this.rechts, s.scale.width - 170, 585, 0xff8a5c);
@@ -294,7 +320,7 @@ export default class Touch {
         if (gz) {
             const cam = s.cameras.main, kn = this.K.granate;
             const len = Math.hypot(gz.x, gz.y);
-            const w = len < 26 ? this.naechsterWinkel() : Math.atan2(gz.y, gz.x);
+            const w = len < 26 ? this.naechsterWinkel(true) : Math.atan2(gz.y, gz.x);
             const abstand = len < 26 ? 340 : 140 + (len / GRANATE_R) * 520;
             const tempo = Phaser.Math.Clamp(abstand * 1.6, 250, 650);
             let x = p.x, y = p.y - 10, vx = Math.cos(w) * tempo, vy = Math.sin(w) * tempo - 180, treffer = null;
@@ -312,28 +338,28 @@ export default class Touch {
             g.lineStyle(3, 0xffffff, 0.5).beginPath().moveTo(kn.x, kn.y).lineTo(kn.x + gz.x, kn.y + gz.y).strokePath();
             g.fillStyle(0xffffff, 0.5).fillCircle(kn.x + gz.x, kn.y + gz.y, 16);
         }
-        // Knöpfe
+        // Knöpfe (aus Glas, jeder mit eigenem Farbton)
         const k = this.K;
-        ring(k.sprung.x, k.sprung.y, k.sprung.r, this.gedrueckt.sprung);
-        g.fillStyle(0xffffff, 0.85).fillTriangle(k.sprung.x, k.sprung.y - 20, k.sprung.x - 18, k.sprung.y + 8, k.sprung.x + 18, k.sprung.y + 8);
-        g.fillTriangle(k.sprung.x, k.sprung.y - 4, k.sprung.x - 18, k.sprung.y + 24, k.sprung.x + 18, k.sprung.y + 24);
-        ring(k.nachladen.x, k.nachladen.y, k.nachladen.r, this.gedrueckt.nachladen || p.isReloading());
-        g.lineStyle(5, 0xffdd55, 0.9).beginPath().arc(k.nachladen.x, k.nachladen.y, 14, 0.5, 5.4, false).strokePath();
-        g.fillStyle(0xffdd55, 0.9).fillTriangle(k.nachladen.x + 6, k.nachladen.y - 20, k.nachladen.x + 20, k.nachladen.y - 6, k.nachladen.x + 20, k.nachladen.y - 22);
-        ring(k.granate.x, k.granate.y, k.granate.r, this.gedrueckt.granate);
+        const nachlaedt = p.isReloading();
+        glas('nachladen', k.nachladen.x, k.nachladen.y, k.nachladen.r, 0xffc933, this.gedrueckt.nachladen || nachlaedt);
+        g.lineStyle(5, 0xfff0b0, 0.95).beginPath().arc(k.nachladen.x, k.nachladen.y, 13, 0.5 + (nachlaedt ? jetzt * 0.006 : 0), 5.4 + (nachlaedt ? jetzt * 0.006 : 0), false).strokePath();   // dreht sich beim Nachladen
+        const ax = k.nachladen.x + Math.cos(0.5 + (nachlaedt ? jetzt * 0.006 : 0)) * 13, ay = k.nachladen.y + Math.sin(0.5 + (nachlaedt ? jetzt * 0.006 : 0)) * 13;
+        g.fillStyle(0xfff0b0, 0.95).fillCircle(ax, ay, 4);
+        glas('granate', k.granate.x, k.granate.y, k.granate.r, 0x7ccf5a, this.gedrueckt.granate || !!this.granatenZiel, p.grenades === 0);
         s.zeichneSymbol(g, 'grenade', k.granate.x, k.granate.y - 2, p.grenades > 0 ? 1 : 0.3);
-        ring(k.heilen.x, k.heilen.y, k.heilen.r, this.gedrueckt.heilen);
+        glas('heilen', k.heilen.x, k.heilen.y, k.heilen.r, 0xff5a5a, this.gedrueckt.heilen, p.medkits === 0 || p.health >= p.maxHealth);
         s.zeichneSymbol(g, 'medkit', k.heilen.x, k.heilen.y - 2, p.medkits > 0 ? 1 : 0.3);
-        if (zeigeE) ring(k.interaktion.x, k.interaktion.y, k.interaktion.r, this.gedrueckt.interaktion);
-        ring(k.pause.x, k.pause.y, k.pause.r, false);
-        g.fillStyle(0xffffff, 0.85).fillRect(k.pause.x - 9, k.pause.y - 10, 6, 20).fillRect(k.pause.x + 3, k.pause.y - 10, 6, 20);
-        {
-            ring(k.vollbild.x, k.vollbild.y, k.vollbild.r, false);
-            g.lineStyle(3, 0xffffff, 0.85);
-            const c = k.vollbild, d = 11, l = 6;
-            for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-                g.beginPath().moveTo(c.x + sx * d, c.y + sy * (d - l)).lineTo(c.x + sx * d, c.y + sy * d).lineTo(c.x + sx * (d - l), c.y + sy * d).strokePath();
-            }
+        if (zeigeE) {                                                                                  // Interaktion: atmet leicht, damit man sie bemerkt
+            const atem = 1 + 0.04 * Math.sin(jetzt * 0.006);
+            glas('interaktion', k.interaktion.x, k.interaktion.y, k.interaktion.r * atem, 0x66c2ff, this.gedrueckt.interaktion);
+        }
+        glas('pause', k.pause.x, k.pause.y, k.pause.r, 0xcfd8dc, this.gedrueckt.pause);
+        g.fillStyle(0xffffff, 0.85).fillRoundedRect(k.pause.x - 9, k.pause.y - 10, 6, 20, 2).fillRoundedRect(k.pause.x + 3, k.pause.y - 10, 6, 20, 2);
+        glas('vollbild', k.vollbild.x, k.vollbild.y, k.vollbild.r, 0xcfd8dc, this.gedrueckt.vollbild);
+        g.lineStyle(3, 0xffffff, 0.85);
+        const c = k.vollbild, d = 11, l = 6;
+        for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+            g.beginPath().moveTo(c.x + sx * d, c.y + sy * (d - l)).lineTo(c.x + sx * d, c.y + sy * d).lineTo(c.x + sx * (d - l), c.y + sy * d).strokePath();
         }
     }
 }

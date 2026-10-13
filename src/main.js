@@ -10,7 +10,7 @@ const config = {
     width: breiteFuerFenster(),   // Breite des Spielfensters: richtet sich nach der Fensterform (1280 bis 1800), damit nichts schwarz bleibt
     height: SPIEL_HOEHE,          // Höhe des Spielfensters in Pixeln
     // FIT: Das Spiel wird passend ins Browserfenster eingepasst und mittig angezeigt.
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.NO_CENTER },   // zentriert wird per CSS (index.html); beides zusammen würde das Bild nach rechts verschieben
     backgroundColor: '#3a4a5a',
     physics: {
         default: 'arcade',   // Einfache, schnelle 2D-Physik

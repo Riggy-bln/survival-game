@@ -1113,57 +1113,66 @@ export default class GameScene extends Phaser.Scene {
 
     // ---------- Checkpoint (große Fahne) ----------
 
-    // Die feste Hälfte der Fahne: Mast, Knauf und Sockel (der Stoff weht und wird jedes Bild neu gemalt).
+    // Die festen Teile jeder Fahne: Mast, Knauf und Sockel (der Stoff wird jedes Bild neu gemalt).
     baueFlagge() {
-        const f = level.flagge;
-        if (!f) return;
-        const g = this.add.graphics().setDepth(2.7);
-        g.fillStyle(0x4a4f55).fillRect(f.x - 18, f.y - 14, 36, 14);              // Sockel aus Steinen
-        g.fillStyle(0x5e646b).fillRect(f.x - 18, f.y - 14, 36, 4);
-        g.fillStyle(0x2f3338).fillRect(f.x - 3, f.y - 194, 6, 182);              // Mast
-        g.fillStyle(0x6b7178).fillRect(f.x - 1, f.y - 194, 2, 182);
-        g.fillStyle(0xe8c030).fillRect(f.x - 6, f.y - 202, 12, 10);              // goldener Knauf
-        g.fillStyle(0xfff0a0).fillRect(f.x - 4, f.y - 200, 4, 4);
+        this.flaggen = (level.flaggen ?? []).map((f) => ({ ...f, erreicht: false, hissStart: 0 }));
+        for (const f of this.flaggen) {
+            const g = this.add.graphics().setDepth(2.7);
+            g.fillStyle(0x4a4f55).fillRect(f.x - 18, f.y - 14, 36, 14);              // Sockel aus Steinen
+            g.fillStyle(0x5e646b).fillRect(f.x - 18, f.y - 14, 36, 4);
+            g.fillStyle(0x2f3338).fillRect(f.x - 3, f.y - 194, 6, 182);              // Mast
+            g.fillStyle(0x6b7178).fillRect(f.x - 1, f.y - 194, 2, 182);
+            g.fillStyle(0xe8c030).fillRect(f.x - 6, f.y - 202, 12, 10);              // goldener Knauf
+            g.fillStyle(0xfff0a0).fillRect(f.x - 4, f.y - 200, 4, 4);
+        }
     }
 
-    // Der wehende Stoff. Rot = noch nicht erreicht, grün = Checkpoint aktiv.
+    // Der Stoff aller Fahnen. Noch nicht erreicht: schlaff unten am Mast. Erreicht: wird langsam (4 Sekunden) nach oben gehisst und weht dann grün.
     zeichneFlagge(g) {
-        const f = level.flagge;
-        if (!f) return;
-        const t = this.time.now, aktiv = !!this.checkpoint;
-        const hell = aktiv ? 0x4fd477 : 0xc23a3a, dunkel = aktiv ? 0x2f9a52 : 0x8a2626;
-        const oben = f.y - 190, breite = 112, hoehe = 66;
-        for (let i = 0; i < breite; i += 8) {
-            const welle = Math.sin(t * 0.004 - i * 0.1) * (1 + i * 0.07);
-            const h = hoehe - i * 0.14;
-            g.fillStyle(((i / 8) | 0) % 2 ? hell : dunkel).fillRect(f.x + 3 + i, oben + welle, 8, h);
-            g.fillStyle(0x000000, 0.18).fillRect(f.x + 3 + i, oben + welle + h - 4, 8, 4);        // Saum
-        }
-        const ew = Math.sin(t * 0.004 - 4) * 2;                                   // Emblem: ein weißes Kreuz auf dem Stoff
-        g.fillStyle(0xffffff, 0.9).fillRect(f.x + 36, oben + 14 + ew, 8, 32).fillRect(f.x + 24, oben + 26 + ew, 32, 8);
-        if (aktiv) {                                                              // leuchtender Schein
-            g.fillStyle(0x66ff99, 0.10 + 0.05 * Math.sin(t * 0.005)).fillCircle(f.x + 55, oben + 32, 80);
+        const t = this.time.now;
+        for (const f of this.flaggen ?? []) {
+            const hiss = f.erreicht ? Math.min(1, (t - f.hissStart) / 4000) : 0;
+            const oben = f.y - 190 + (1 - hiss) * 112, breite = 112, hoehe = 66;
+            const fertig = hiss >= 1;
+            const hell = fertig ? 0x4fd477 : 0xc23a3a, dunkel = fertig ? 0x2f9a52 : 0x8a2626;
+            const wehen = f.erreicht ? 1 : 0.25;                                       // unten hängt der Stoff fast still
+            const breiteJetzt = f.erreicht ? breite : 44;
+            for (let i = 0; i < breiteJetzt; i += 8) {
+                const welle = Math.sin(t * 0.004 - i * 0.1) * (1 + i * 0.07) * wehen;
+                const h = (f.erreicht ? hoehe - i * 0.14 : 40 - i * 0.5);
+                g.fillStyle(((i / 8) | 0) % 2 ? hell : dunkel).fillRect(f.x + 3 + i, oben + welle, 8, h);
+                g.fillStyle(0x000000, 0.18).fillRect(f.x + 3 + i, oben + welle + h - 4, 8, 4);        // Saum
+            }
+            if (f.erreicht) {
+                const ew = Math.sin(t * 0.004 - 4) * 2;                                 // Emblem: ein weißes Kreuz auf dem Stoff
+                g.fillStyle(0xffffff, 0.9).fillRect(f.x + 36, oben + 14 + ew, 8, 32).fillRect(f.x + 24, oben + 26 + ew, 32, 8);
+            }
+            if (fertig) g.fillStyle(0x66ff99, 0.10 + 0.05 * Math.sin(t * 0.005)).fillCircle(f.x + 55, oben + 32, 80);   // leuchtender Schein
         }
     }
 
-    // Kommt ein lebender Spieler an der Fahne vorbei, ist der Checkpoint erreicht.
+    // Kommt ein lebender Spieler an einer noch nicht erreichten Fahne vorbei, ist dieser Checkpoint erreicht.
     pruefeFlagge() {
-        const f = level.flagge;
-        if (!f || this.checkpoint || this.player.tot) return;
+        if (this.player.tot) return;
         const p = this.player;
-        if (p.x >= f.x - 24 && p.x <= f.x + 140 && p.y > f.y - 140 && p.y < f.y + 30) {
-            this.checkpointErreicht(false);
-            if (this.mp) this.mp.meldeCheckpoint();
-        }
+        (this.flaggen ?? []).forEach((f, i) => {
+            if (f.erreicht) return;
+            if (p.x >= f.x - 24 && p.x <= f.x + 140 && p.y > f.y - 140 && p.y < f.y + 30) {
+                this.checkpointErreicht(false, i);
+                if (this.mp) this.mp.meldeCheckpoint(i);
+            }
+        });
     }
 
-    checkpointErreicht(vomNetz) {
-        if (this.checkpoint) return;
-        const f = level.flagge;
-        this.checkpoint = { x: f.x + 50, y: f.y - 40 };
+    checkpointErreicht(vomNetz, nr = 0) {
+        const f = this.flaggen && this.flaggen[nr];
+        if (!f || f.erreicht) return;
+        f.erreicht = true;
+        f.hissStart = this.time.now;
+        if (!this.checkpoint || f.x > this.checkpoint.x) this.checkpoint = { x: f.x + 50, y: f.y - 40 };   // zählt immer die am weitesten erreichte Fahne
         sfx.play('win');
         this.fx.pickup(f.x, f.y - 60, 0x66ee88, 'CHECKPOINT');
-        this.showMessage(vomNetz ? 'The team reached the checkpoint!\nYou restart here after dying.' : 'Checkpoint reached!\nYou restart here after dying.');
+        this.showMessage(vomNetz ? 'The team reached a checkpoint!\nYou restart here after dying.' : 'Checkpoint reached!\nYou restart here after dying.');
     }
 
     // Einzelspieler: Leben auf null, aber es gibt einen Checkpoint. Man liegt kurz am Boden und steht dann an der Fahne wieder auf.

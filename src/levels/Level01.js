@@ -1179,7 +1179,7 @@ export default {
     rangedEnemies,
     skelette,
     // Die große Fahne auf dem Gipfel (Checkpoint) und die Seilbahn vom Gipfel bis kurz vor die Arena
-    flagge: { x: 14492, y: BODEN - 544 },
+    flaggen: [{ x: 5730, y: BODEN - 64 }, { x: 10020, y: BODEN }, { x: 14492, y: BODEN - 544 }],   // Checkpoints (Fahnen werden beim Erreichen gehisst)
     seilbahn: { x0: 14610, y0: BODEN - 544 - 100, x1: 16100, y1: BODEN - 150,
                 masten: [15100, 15560].map(x => ({ x, boden: bodenBei(x) })) },
     boss: { x: 8250 + V, y: BODEN - 60, left: 8040 + V, right: 8620 + V, hp: 80 },

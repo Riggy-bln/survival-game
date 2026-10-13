@@ -276,7 +276,7 @@ export default class Mehrspieler {
     meldeNiederlage() { this.sendeAnAlle({ t: 'niederlage' }); }
 
     // Ein Spieler hat die Fahne erreicht: Der Checkpoint gilt für das ganze Team.
-    meldeCheckpoint() { this.netz.sende({ t: 'cp' }); }
+    meldeCheckpoint(nr) { this.netz.sende({ t: 'cp', nr }); }
     // Alle liegen am Boden, es gibt einen Checkpoint: Der Gastgeber schickt alle dorthin zurück.
     meldeRespawn() { this.sendeAnAlle({ t: 'respawn' }); }
 
@@ -317,7 +317,7 @@ export default class Mehrspieler {
             case 'niederlage': sz.zeigeNiederlage(); return;
             case 'cp':
                 if (this.istHost) this.netz.sende(daten);              // an alle Gäste weitergeben
-                sz.checkpointErreicht(true);
+                sz.checkpointErreicht(true, daten.nr ?? 0);
                 return;
             case 'respawn': sz.respawnAnCheckpoint(); return;
             case 'neustart': sz.scene.restart(); return;

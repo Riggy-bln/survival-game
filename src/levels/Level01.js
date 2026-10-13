@@ -28,6 +28,7 @@ const pickups = [];
 const hoehlen = [];   // Hintergründe von Höhlen und Gräben (werden als Bilder gemalt)
 const lampen = [];    // x-Positionen der Deckenlampen (für Lichtkegel)
 const signs = [];
+const faesser = [];   // explosive Fässer
 
 // ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
 const BREITE = 13000;           // Breite der Welt
@@ -87,6 +88,8 @@ const fernkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
 const munition = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'ammo' });
 const heilung = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'health' });
 const schrotflinte = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'shotgun' });
+// fass: ein explosives Fass auf dem Boden (oben = y der Standfläche)
+const fass = (x, oben = BODEN) => faesser.push({ x, y: oben - 19 });
 const granate = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'grenade' });
 const waffe = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'rifle' });   // das Sturmgewehr
 
@@ -449,6 +452,23 @@ schwebend(11640, BODEN - 120, 140);
 schwebend(11830, BODEN - 170, 140);
 schwebend(12020, BODEN - 120, 140);
 
+// =====================================================================
+// Explosive Fässer: stehen bei Gegnergruppen. Ein Schuss oder eine Granate lässt sie explodieren,
+// benachbarte Fässer folgen (Kettenreaktion). Auch der Spieler nimmt Schaden: Abstand halten!
+// =====================================================================
+fass(1250);                                  // Zone A, beim ersten Gegner
+fass(1850, BODEN - 140);                     // Zone B, auf dem Deck beim Schützen
+fass(2150);
+fass(3440, BODEN);                           // Zone D, im Graben beim Nahkämpfer
+fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
+fass(4900); fass(5200);                      // Zone E, auf dem offenen Feld
+fass(6250);                                  // Zone G, vor dem Hochhaus
+fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
+fass(7330); fass(7900, BODEN - 140);         // Zone J, vor dem Schacht und auf der Klippe
+fass(8900, MINE_BODEN);                      // in der Kaverne
+fass(10200);                                 // am Funkturm
+fass(11700); fass(12150);                    // in der Boss-Arena: den Boss damit locken
+
 export default {
     width: BREITE,   // Breite der Welt in Pixeln
     height: HOEHE,   // Höhe der Welt in Pixeln
@@ -461,6 +481,7 @@ export default {
     rangedEnemies,
     boss: { x: 8250 + V, y: BODEN - 60, left: 7980 + V, right: 8650 + V, hp: 50 },
     pickups,
+    faesser,
     hoehlen,
     lampen,
 };

@@ -6,6 +6,7 @@ import RangedEnemy from '../entities/RangedEnemy.js';
 import Boss from '../entities/Boss.js';
 import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
+import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
 import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
@@ -98,6 +99,9 @@ export default class GameScene extends Phaser.Scene {
         this.enemyBullets = [];  // Kugeln der Gegner
         // Eine collider-Zeile für alle Gegner: Sie stehen auf Boden und Plattformen.
         this.physics.add.collider(this.enemies, this.platforms);
+
+        // --- Explosive Fässer ---
+        this.faesser = (level.faesser ?? []).map(f => new Fass(this, f.x, f.y));
 
         // --- Gegenstände ---
         // Die Positionen stehen in Level01.js (Boden: y = 490).
@@ -338,6 +342,18 @@ export default class GameScene extends Phaser.Scene {
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
 
+        // --- Fässer: rot mit Rand, Bändern, Glanz und gelbem Warnzeichen. Blinken kurz vor der Explosion. ---
+        for (const f of this.faesser) {
+            if (!f.active || Math.abs(f.x - mitte.x) > 800 || Math.abs(f.y - mitte.y) > 500) continue;
+            const blink = f.zuendet && Math.floor(this.time.now / 60) % 2 === 0;
+            g.fillStyle(blink ? 0xffffff : 0xb03a2a).fillRect(f.x - 13, f.y - 19, 26, 38);
+            g.fillStyle(blink ? 0xffffff : 0xd05a44).fillRect(f.x - 13, f.y - 19, 4, 38);       // Glanz links
+            g.fillStyle(0x7a2218).fillRect(f.x - 13, f.y - 19, 26, 4).fillRect(f.x - 13, f.y + 15, 26, 4);   // Deckel/Boden
+            g.fillStyle(0x4a1a14).fillRect(f.x - 13, f.y - 8, 26, 3).fillRect(f.x - 13, f.y + 6, 26, 3);    // Bänder
+            g.fillStyle(0xe8c030).fillRect(f.x - 5, f.y - 4, 10, 10);                               // Warnzeichen
+            g.fillStyle(0x1a1a1a).fillRect(f.x - 1, f.y - 2, 2, 5).fillRect(f.x - 1, f.y + 4, 2, 2);
+        }
+
         // --- Gegner (nur in der Nähe der Kamera, spart Rechenzeit) ---
         for (const e of this.enemies) {
             if (!e.active || Math.abs(e.x - mitte.x) > 800 || Math.abs(e.y - mitte.y) > 500) continue;
@@ -496,6 +512,17 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    // Zündet ein Fass: Nach "verzoegerung" Millisekunden explodiert es (kleinerer Radius, weniger Eigenschaden).
+    zuendeFass(fass, verzoegerung = 0) {
+        if (!fass.active || fass.zuendet) return;
+        fass.zuendet = true;
+        this.time.delayedCall(verzoegerung, () => {
+            const x = fass.x, y = fass.y;
+            fass.destroy();
+            this.explode(x, y, 120, 25);
+        });
+    }
+
     // Wirft eine Granate Richtung Maus. Je weiter die Maus weg ist, desto weiter fliegt sie.
     throwGrenade() {
         const p = this.player;
@@ -512,8 +539,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Explosion: Schaden an allen im Radius (auch am Spieler!) plus ein Feuerball als Optik.
-    explode(x, y) {
-        const radius = 140;
+    explode(x, y, radius = 140, selbstschaden = 30) {
         const ball = this.add.circle(x, y, radius, 0xffaa33, 0.7).setDepth(5);
         this.tweens.add({
             targets: ball, alpha: 0, scale: 1.25, duration: 350,
@@ -531,8 +557,12 @@ export default class GameScene extends Phaser.Scene {
             }
         }
         this.enemies = this.enemies.filter(e => e.active);  // gestorbene sofort aus der Liste nehmen
+        // Fässer in der Nähe fangen Feuer und explodieren kurz danach (Kettenreaktion)
+        for (const f of this.faesser) {
+            if (f.active && !f.zuendet && Phaser.Math.Distance.Between(x, y, f.x, f.y) <= radius + 20) this.zuendeFass(f, 160);
+        }
         if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius) {
-            this.player.takeDamage(30, x);  // Eigenbeschuss: Abstand halten!
+            this.player.takeDamage(selbstschaden, x);  // Eigenbeschuss: Abstand halten!
         }
     }
 
@@ -692,6 +722,19 @@ export default class GameScene extends Phaser.Scene {
                 }
             }
         }
+        // Kugeln (von beiden Seiten) treffen Fässer
+        for (const kugel of this.bullets.concat(this.enemyBullets)) {
+            if (!kugel.active) continue;
+            for (const f of this.faesser) {
+                if (f.active && !f.zuendet &&
+                    Phaser.Geom.Intersects.RectangleToRectangle(kugel.getBounds(), f.getBounds())) {
+                    kugel.destroy();
+                    this.zuendeFass(f);
+                    break;
+                }
+            }
+        }
+        this.faesser = this.faesser.filter(f => f.active);
         // Tote Gegner aus der Liste entfernen (nur die, die noch leben, bleiben).
         this.enemies = this.enemies.filter(e => e.active);
 

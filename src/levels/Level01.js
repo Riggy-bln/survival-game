@@ -64,6 +64,7 @@ const fernkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
 // Gegenstände: "oben" = y der Fläche, auf der sie liegen.
 const munition = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'ammo' });
 const heilung = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'health' });
+const schrotflinte = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'shotgun' });
 const granate = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'grenade' });
 const waffe = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'rifle' });   // das Sturmgewehr
 
@@ -257,6 +258,7 @@ munition(6430, BODEN - 500);                                             // Belo
 // ZONE H: Vor der Arena (x 7400 bis 7850). Hier rüstet man sich aus.
 // =====================================================================
 signs.push({ x: 7500, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
+schrotflinte(7800);                              // Alternative zum Gewehr für den Bosskampf
 granate(7500);                                   // vor dem Boss: Granaten aufsparen
 heilung(7600);
 munition(7660);

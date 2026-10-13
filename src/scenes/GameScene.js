@@ -276,11 +276,17 @@ export default class GameScene extends Phaser.Scene {
         const winkel = Phaser.Math.Angle.Between(
             this.player.x, this.player.y, zielX, zielY
         );
-        const bullet = new Bullet(this, this.player.x, this.player.y, winkel, 900);
+        // Eine Schrotflinte feuert mehrere Kugeln, jede mit zufälliger Abweichung (Streuung).
+        for (let i = 0; i < this.player.pellets; i++) {
+            const streuung = Phaser.Math.FloatBetween(-this.player.spread, this.player.spread);
+            const bullet = new Bullet(this, this.player.x, this.player.y, winkel + streuung, 900);
+            // Hat die Waffe nur kurze Reichweite, verschwindet die Kugel nach "range" Millisekunden.
+            if (this.player.range > 0) bullet.diesAt = this.time.now + this.player.range;
 
-        // Trifft die Kugel eine Plattform, verschwindet sie.
-        this.physics.add.collider(bullet, this.platforms, () => bullet.destroy());
-        this.bullets.push(bullet);
+            // Trifft die Kugel eine Plattform, verschwindet sie.
+            this.physics.add.collider(bullet, this.platforms, () => bullet.destroy());
+            this.bullets.push(bullet);
+        }
     }
 
     // Wirft eine Granate Richtung Maus. Je weiter die Maus weg ist, desto weiter fliegt sie.
@@ -455,7 +461,7 @@ export default class GameScene extends Phaser.Scene {
         // --- Aufräumen: zerstörte und weit entfernte Kugeln entfernen ---
         this.bullets = this.bullets.filter(b => {
             if (!b.active) return false;
-            if (b.isOutside(WORLD_WIDTH, WORLD_HEIGHT)) {
+            if (b.isOutside(WORLD_WIDTH, WORLD_HEIGHT) || (b.diesAt && this.time.now > b.diesAt)) {
                 b.destroy();
                 return false;
             }

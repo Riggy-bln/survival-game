@@ -4,7 +4,8 @@
 const TYPES = {
     health: { color: 0x44ff88, amount: 0 },                // grün: Verbandskasten (wird mit H benutzt)
     ammo:   { color: 0xddaa33, amount: 15 },               // gelb: gibt 15 Schuss
-    rifle:  { color: 0xff7a3d, amount: 0, w: 38, h: 14 },  // orange und länglich wie eine Waffe
+    rifle:  { color: 0xff7a3d, amount: 0, w: 38, h: 14, weapon: 'rifle', msg: 'Sturmgewehr gefunden!\nSchneller feuern, 30 Schuss pro Magazin' },  // orange und länglich wie eine Waffe
+    shotgun:{ color: 0xb5452a, amount: 0, w: 42, h: 14, weapon: 'shotgun', msg: 'Schrotflinte gefunden!\nSechs Kugeln pro Schuss: stark auf kurze Distanz\n(ersetzt deine bisherige Waffe)' },
     grenade:{ color: 0x556b2f, amount: 2, w: 16, h: 16 },  // olivgrün: 2 Granaten
 };
 
@@ -43,11 +44,12 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
         } else if (this.type === 'grenade') {
             if (player.grenades >= player.maxGrenades) return this.meldeVoll('Granaten voll');
             player.grenades = Math.min(player.maxGrenades, player.grenades + this.amount);
-        } else if (this.type === 'rifle') {
-            if (player.weapon === 'rifle') return false;  // schon ausgerüstet
-            player.equip('rifle');
+        } else if (TYPES[this.type].weapon) {
+            const waffe = TYPES[this.type].weapon;
+            if (player.weapon === waffe) return false;  // schon ausgerüstet
+            player.equip(waffe);
             // this.scene ist die Szene, in der der Gegenstand liegt.
-            this.scene.showMessage('Sturmgewehr gefunden!\nSchneller feuern, 30 Schuss pro Magazin');
+            this.scene.showMessage(TYPES[this.type].msg);
         }
         this.destroy();
         return true;

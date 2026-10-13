@@ -3,6 +3,8 @@
 const WAFFEN = {
     pistol: { name: 'Pistole',     fireDelay: 150, magSize: 12, reloadTime: 1200 },
     rifle:  { name: 'Sturmgewehr', fireDelay: 85,  magSize: 30, reloadTime: 1700 },
+    // Schrotflinte: pellets = Schrotkugeln pro Schuss, spread = Streuung (Bogenmaß), range = Reichweite (ms Flugzeit)
+    shotgun:{ name: 'Schrotflinte', fireDelay: 700, magSize: 6, reloadTime: 2000, pellets: 6, spread: 0.3, range: 330 },
 };
 
 // Der Spieler: ein grünes Rechteck, das sich selbst steuern kann.
@@ -70,6 +72,9 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         this.fireDelay = w.fireDelay;
         this.magSize = w.magSize;
         this.reloadTime = w.reloadTime;
+        this.pellets = w.pellets ?? 1;   // normale Waffen schießen eine Kugel
+        this.spread = w.spread ?? 0;
+        this.range = w.range ?? 0;       // 0 = unbegrenzt
         this.reloadingUntil = 0;  // laufendes Nachladen abbrechen
         const kugeln = Math.min(this.magSize - this.magAmmo, this.ammo);
         this.magAmmo += kugeln;

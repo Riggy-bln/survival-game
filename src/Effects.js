@@ -131,44 +131,19 @@ function randKerben(l, t, w, u, frei, kanten, oberflaeche, rn) {
     if (kanten.unten) notch('unten', l, l + w);
     if (kanten.links) notch('links', t, u);
     if (kanten.rechts) notch('rechts', t, u);
-    const tief = () => (rn.frac() < 0.5 ? 4 : 8);
-    for (const x of offen.oben) if (!oberflaeche && rn.frac() < 0.4) weg.push([x, t, rn.frac() < 0.5 ? 8 : 4, tief()]);
-    for (const x of offen.unten) if (rn.frac() < 0.45) { const d = tief(); weg.push([x, u - d, rn.frac() < 0.5 ? 8 : 4, d]); }
-    for (const y of offen.links) if (rn.frac() < 0.4) weg.push([l, y, tief(), rn.frac() < 0.5 ? 8 : 4]);
-    for (const y of offen.rechts) if (rn.frac() < 0.4) { const d = tief(); weg.push([l + w - d, y, d, rn.frac() < 0.5 ? 8 : 4]); }
+    const tief = () => 4;
+    for (const x of offen.oben) if (!oberflaeche && rn.frac() < 0.22) weg.push([x, t, 8, tief()]);
+    for (const x of offen.unten) if (rn.frac() < 0.25) { const d = tief(); weg.push([x, u - d, 8, d]); }
+    for (const y of offen.links) if (rn.frac() < 0.22) weg.push([l, y, tief(), 8]);
+    for (const y of offen.rechts) if (rn.frac() < 0.22) { const d = tief(); weg.push([l + w - d, y, d, 8]); }
     // abgerundete Außenecken (in drei Pixelstufen), wo beide anliegenden Seiten offen sind
     const istOffen = (liste, v) => liste.includes(v);
-    const ecke = (ox, oy, sx, sy) => { for (let k = 1; k <= 3; k++) weg.push([sx > 0 ? ox : ox - 4 * (4 - k), sy > 0 ? oy + 4 * (k - 1) : oy - 4 * k, 4 * (4 - k), 4]); };
+    const ecke = (ox, oy, sx, sy) => { for (let k = 1; k <= 2; k++) weg.push([sx > 0 ? ox : ox - 4 * (3 - k), sy > 0 ? oy + 4 * (k - 1) : oy - 4 * k, 4 * (3 - k), 4]); };
     if (kanten.oben && !oberflaeche && istOffen(offen.oben, l) && istOffen(offen.links, t)) ecke(l, t, 1, 1);
     if (kanten.oben && !oberflaeche && istOffen(offen.oben, l + w - 8) && istOffen(offen.rechts, t)) ecke(l + w, t, -1, 1);
     if (kanten.unten && istOffen(offen.unten, l) && istOffen(offen.links, u - 8)) ecke(l, u, 1, -1);
     if (kanten.unten && istOffen(offen.unten, l + w - 8) && istOffen(offen.rechts, u - 8)) ecke(l + w, u, -1, -1);
     return { weg, offen };
-}
-
-function randDetail(r, l, t, w, u, offen, oberflaeche, rn) {
-    for (const x of offen.oben) {
-        if (!oberflaeche) {
-            r.rect(0x8c7a5c, x, t, 8, 2);                                                    // Lichtkante
-            if (rn.frac() < 0.3) r.rect(0x9a9484, x + rn.between(0, 3), t + 2, 5, 3);        // Steinchen am Rand
-        }
-    }
-    for (const x of offen.unten) {
-        r.rect(0x33271b, x, u - 6, 8, 3);                                                    // Schatten unter der Kante
-        r.rect(0x241a12, x, u - 3, 8, 3);
-        if (rn.frac() < 0.18) r.rect(0x2a1f15, x + rn.between(0, 5), u, 2, rn.between(6, 18));   // hängende Wurzel
-        if (rn.frac() < 0.1) r.rect(0x7d776a, x + 1, u - 8, 6, 4);                           // Stein, der aus der Decke ragt
-    }
-    for (const y of offen.links) {
-        r.rect(0x8c7a5c, l, y, 2, 8);                                                        // Licht von links
-        if (rn.frac() < 0.5) r.rect(0x3a2e22, l + 3, y, 3, 8);
-        if (rn.frac() < 0.12) r.rect(0x7d776a, l + 2, y + 1, 6, 4);
-    }
-    for (const y of offen.rechts) {
-        r.rect(0x241a12, l + w - 4, y, 4, 8);                                                // Schattenseite
-        if (rn.frac() < 0.5) r.rect(0x33271b, l + w - 8, y, 4, 8);
-        if (rn.frac() < 0.12) r.rect(0x6a645a, l + w - 8, y + 1, 6, 4);
-    }
 }
 
 function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei = null, kanten = {}) {
@@ -214,8 +189,6 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei 
             }
         }
     }
-
-    if (offen) randDetail(r, l, t, w, u, offen, oberflaeche, rn);
 
     // --- Steine aus Pixelblöcken (mit Glanz oben links und Schatten unten) ---
     const formen = [[2, 3, 2], [3, 4, 4, 2], [2, 4, 3], [4, 5, 4], [1, 2]];
@@ -376,7 +349,16 @@ function zeichneBroeckelig(scene, p) {
             const wx = l + x, wy = t + y;
             let c = mische(0x7a5a3c, 0x4b3b2a, Math.max(0, Math.min(1, (wy - 900) / 260)));    // wie der Hang daneben
             c = variiere(c, Math.round((kachelZufall(wx, wy) - 0.5) * 16) + 5);                // +5: ein ganz kleines bisschen heller
-            g.fillStyle(c).fillRect(wx, wy, 8, 8);
+            // weiche Ränder: die Ecken des Blocks fehlen (in zwei Stufen), und einzelne Randkacheln sind nur halb so tief
+            const sx = x / 8, sy = y / 8, nx = w / 8 - 1 - sx, ny = h / 8 - 1 - sy;
+            const eck = Math.min(sx, nx) + Math.min(sy, ny);
+            if (eck === 0) continue;                                                            // ganz in der Ecke: weg
+            let kw = 8, kh = 8, kx = wx, ky = wy;
+            if (eck > 1 && kachelZufall(wx, wy, 7) < 0.22) {                                          // zufällige Kerbe am Rand
+                if (sy === 0) { ky += 4; kh = 4; } else if (ny === 0) kh = 4;
+                else if (sx === 0) { kx += 4; kw = 4; } else if (nx === 0) kw = 4;
+            }
+            g.fillStyle(c).fillRect(kx, ky, kw, kh);
             if (kachelZufall(wx, wy, 1) < 0.5) {                                                // feine Körnung wie in der normalen Erde
                 g.fillStyle(variiere(c, kachelZufall(wx, wy, 2) < 0.5 ? -16 : 14)).fillRect(wx + Math.floor(kachelZufall(wx, wy, 3) * 5), wy + Math.floor(kachelZufall(wx, wy, 4) * 5), 2, 2);
             }
@@ -834,21 +816,19 @@ function zeichneHuegel(r, rnd, f, boden) {
     // Stufenkanten: An jeder Stelle, wo ein Nachbar niedriger ist, entsteht eine senkrechte Wand. Dort werden Kerben herausgebrochen,
     // die oberen Ecken abgerundet und Licht und Schatten aufgemalt (statt einer geraden Kante).
     const rk = new Phaser.Math.RandomDataGenerator(['kante' + f.links + '_' + f.breite]);
-    const wegH = [], wand = [];
+    const wegH = [];
     const spalten = f.werte.length, hoeheAn = (i) => (i < 0 || i >= spalten ? 0 : f.werte[i]);
     for (let i = 0; i <= spalten; i++) {
         const bx = f.links + i * f.schritt, hl = hoeheAn(i - 1), hr = hoeheAn(i);
         if (hr > hl && hr > 0) {                      // Wand links der Spalte i (Licht fällt von links: helle Kante)
             const top = boden - hr, fuss = boden - Math.max(hl, 0);
-            for (let y = top + 8; y < fuss - 4 && y < top + 8 + 200; y += 8) if (rk.frac() < 0.4) wegH.push([bx, y, rk.frac() < 0.5 ? 4 : 8, rk.frac() < 0.5 ? 8 : 4]);
-            for (let k = 1; k <= 3; k++) wegH.push([bx, top + 4 * (k - 1), 4 * (4 - k), 4]);
-            wand.push([bx, top + 12, fuss, 'L']);
+            for (let y = top + 8; y < fuss - 4 && y < top + 8 + 200; y += 8) if (rk.frac() < 0.2) wegH.push([bx, y, 4, 8]);
+            for (let k = 1; k <= 2; k++) wegH.push([bx, top + 4 * (k - 1), 4 * (3 - k), 4]);
         }
         if (hl > hr && hl > 0) {                      // Wand rechts der Spalte i-1 (Schattenseite)
             const top = boden - hl, fuss = boden - Math.max(hr, 0);
-            for (let y = top + 8; y < fuss - 4 && y < top + 8 + 200; y += 8) if (rk.frac() < 0.4) { const d = rk.frac() < 0.5 ? 4 : 8; wegH.push([bx - d, y, d, rk.frac() < 0.5 ? 8 : 4]); }
-            for (let k = 1; k <= 3; k++) wegH.push([bx - 4 * (4 - k), top + 4 * (k - 1), 4 * (4 - k), 4]);
-            wand.push([bx, top + 12, fuss, 'R']);
+            for (let y = top + 8; y < fuss - 4 && y < top + 8 + 200; y += 8) if (rk.frac() < 0.2) wegH.push([bx - 4, y, 4, 8]);
+            for (let k = 1; k <= 2; k++) wegH.push([bx - 4 * (3 - k), top + 4 * (k - 1), 4 * (3 - k), 4]);
         }
     }
     if (wegH.length) r = mitAusschnitt(r, wegH);
@@ -879,13 +859,6 @@ function zeichneHuegel(r, rnd, f, boden) {
         if (!fels && rnd.frac() < 0.8) {
             const h = rnd.between(4, 10);
             r.rect(rnd.pick([0x6aa032, 0x7ab83c, 0x8bc84a, 0x5d9029]), x + rnd.between(0, 5), top - h, 2, h);
-        }
-    }
-    for (const [bx, y0, y1, seite] of wand) {          // Licht- und Schattenkante an den Wänden, ab und zu ein Stein darin
-        for (let y = y0; y < y1 - 2 && y < y0 + 220; y += 8) {
-            if (seite === 'L') { r.rect(fels ? 0xa49f90 : 0x9a7e56, bx, y, 2, 8); if (rk.frac() < 0.5) r.rect(0x3a2e22, bx + 3, y, 3, 8); }
-            else { r.rect(0x241a12, bx - 4, y, 4, 8); if (rk.frac() < 0.5) r.rect(0x33271b, bx - 8, y, 4, 8); }
-            if (rk.frac() < 0.1) r.rect(0x7d776a, bx + (seite === 'L' ? 2 : -8), y + 1, 6, 4);
         }
     }
     // Steine im Hügel (Pixelblöcke mit Licht und Schatten)

@@ -700,7 +700,7 @@ function offeneSeiten(h) {
 // (Zufallsmuster), sodass kein gerader Strich zwischen Höhle und Landschaft bleibt, sondern ein unregelmäßiger, verpixelter Übergang.
 function verpixelterRand(r, h, offen) {
     if (!offen.length) return r;
-    const BAND = 36, Z = 4;
+    const BAND = 14, Z = 4;
     const hash = (x, y) => { let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + 1274126177) | 0; n = Math.imul(n ^ (n >> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
     const abstand = (x, y) => {
         let d = Infinity;

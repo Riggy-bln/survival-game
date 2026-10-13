@@ -38,8 +38,8 @@ export function buildDschungelHimmel(scene) {
         const [ta, ca] = farben[k], [tb, cb] = farben[k + 1];
         g.fillStyle(lerpFarbe(ca, cb, Math.max(0, Math.min(1, (t - ta) / (tb - ta)))));
         const y0 = sh * i;
-        for (let zeile = 0; zeile < 3; zeile++) {
-            const p = [0.6, 0.3, 0.1][zeile];
+        for (let zeile = 0; zeile < 2; zeile++) {
+            const p = [0.35, 0.12][zeile];
             for (let x = 0; x < B; x += Z) if (rh.frac() < p) g.fillRect(x, y0 + zeile * Z, Z, Z);
         }
     }

@@ -451,6 +451,8 @@ export default class GameScene extends Phaser.Scene {
     // Zeichnet die Figur eines Mitspielers (Zustand r kommt aus Mehrspieler.js).
     zeichneFremdenSpieler(g, r) {
         this.zeichneBelebenBalken(g, r.nr, r.x, r.y);
+        if (r.warTot && !r.tot) this.belebtEffekt(r.x, r.y);      // ein Dritter steht wieder auf
+        r.warTot = !!r.tot;
         if (r.tot) { this.zeichneLiegend(g, r.x, r.y, SPIELERFARBEN[(r.nr - 1) % 4]); return; }
         const rueck = Math.max(0, 1 - (r.s ?? 9999) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[r.w] ?? 4);
         this.drawHumanoid(g, r.x, r.y, {
@@ -482,6 +484,7 @@ export default class GameScene extends Phaser.Scene {
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
         this.zeichneBelebenBalken(g, this.meineNr, p.x, p.y);
+        this.zeichneBelebtAnim(g);
 
         if (this.mp) this.mp.zeichne(g, mitte);   // Figuren der Mitspieler
 
@@ -825,8 +828,37 @@ export default class GameScene extends Phaser.Scene {
         p.health = 50;
         p.invulnerableUntil = this.time.now + 2500;
         this.cameras.main.startFollow(p, true, 0.1, 0.1);
-        sfx.play('heal');
+        this.belebtEffekt(p.x, p.y);
         this.showMessage('Du wurdest wiederbelebt!');
+    }
+
+    // Animation beim Wiederbeleben: Lichtsäule, aufsteigende Ringe und grüne Funken (dauert knapp eine Sekunde).
+    belebtEffekt(x, y) {
+        (this.belebtAnim ??= []).push({ x, y, t0: this.time.now });
+        this.fx.pickup(x, y, 0x66ee88, '');
+        sfx.play('heal');
+    }
+
+    zeichneBelebtAnim(g) {
+        if (!this.belebtAnim) return;
+        const jetzt = this.time.now;
+        this.belebtAnim = this.belebtAnim.filter((a) => jetzt - a.t0 < 1000);
+        for (const a of this.belebtAnim) {
+            const t = (jetzt - a.t0) / 1000;                       // 0 bis 1
+            const al = 1 - t;
+            g.fillStyle(0x99ffbb, 0.35 * al).fillRect(a.x - 18 * (1 - t * 0.5), a.y - 150, 36 * (1 - t * 0.5), 174);   // Lichtsäule
+            for (let k = 0; k < 3; k++) {                          // Ringe steigen nacheinander auf
+                const u = t * 1.4 - k * 0.25;
+                if (u < 0 || u > 1) continue;
+                const ry = a.y + 24 - u * 90, rw = 30 + u * 14;
+                g.lineStyle(3, 0x66ee88, 1 - u).strokeEllipse(a.x, ry, rw, rw * 0.35);
+            }
+            for (let k = 0; k < 8; k++) {                          // Funken
+                const ph = k * 0.8, fy = a.y + 24 - ((t + k * 0.13) % 1) * 110, fx = a.x + Math.sin(t * 6 + ph) * 22;
+                g.fillStyle(0xccffdd, al).fillRect(fx - 1, fy, 3, 3);
+            }
+            g.fillStyle(0xff4444, 0.9 * al).fillRect(a.x - 2, a.y - 62 - t * 30, 4, 12).fillRect(a.x - 6, a.y - 58 - t * 30, 12, 4);   // Kreuz schwebt davon
+        }
     }
 
     belebenAnzeige(ziel, p) { this.belebenInfo[ziel] = { p, bis: this.time.now + 400 }; }
@@ -865,6 +897,7 @@ export default class GameScene extends Phaser.Scene {
             this.mp.meldeBelebenFortschritt(ziel.nr, p);
             if (p >= 1) {
                 this.mp.meldeBelebt(ziel.nr);
+                ziel.warTot = false; this.belebtEffekt(ziel.x, ziel.y);
                 ziel.tot = false;                     // gleich als wieder da betrachten (der echte Zustand kommt in 50 ms nach)
                 this.belebenZeit = 0;
             }

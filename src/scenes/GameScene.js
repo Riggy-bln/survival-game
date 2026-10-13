@@ -128,6 +128,11 @@ export default class GameScene extends Phaser.Scene {
         this.crosshair.setDepth(10);
         this.input.setDefaultCursor('none');
 
+        // --- Optik der Figuren ---
+        // Die Rechtecke bleiben die "Körper" (Physik und Treffer). Köpfe, Waffen, Augen und Hörner
+        // zeichnen wir in jedem Frame neu auf eine gemeinsame Zeichenfläche darüber.
+        this.charGfx = this.add.graphics().setDepth(6);
+
         // --- Schießen ---
         this.bullets = [];
         this.lastShot = 0;
@@ -171,6 +176,54 @@ export default class GameScene extends Phaser.Scene {
         // Darum Esc kurz sperren (Date.now ist die echte Uhr, die Spieluhr steht ja in der Pause).
         this.pauseBlockedUntil = 0;
         this.events.on('resume', () => { this.pauseBlockedUntil = Date.now() + 300; });
+    }
+
+    // Zeichnet Köpfe, Waffen und Gesichter auf die Körper-Rechtecke.
+    // clear() löscht alles vom letzten Frame, dann wird alles an die neue Position gemalt.
+    drawCharacters() {
+        const g = this.charGfx;
+        g.clear();
+
+        // --- Spieler: Helm, Kopf, Waffe in Zielrichtung ---
+        const p = this.player;
+        const pointer = this.input.activePointer;
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
+        const a = p.alpha;  // blinkt der Körper, blinkt alles mit
+        const nachRechts = Math.cos(winkel) >= 0;
+        const laenge = { pistol: 22, rifle: 36, shotgun: 32 }[p.weapon] ?? 22;
+        g.fillStyle(0xe0b890, a).fillCircle(p.x, p.y - 15, 9);                    // Kopf
+        g.fillStyle(0x3d4a2a, a).fillRect(p.x - 11, p.y - 27, 22, 9);              // Helm
+        g.fillStyle(0xffffff, a).fillRect(p.x + (nachRechts ? 3 : -6), p.y - 17, 3, 3);  // Auge
+        g.lineStyle(5, 0x222222, a).beginPath();                                   // Waffe
+        g.moveTo(p.x, p.y - 2);
+        g.lineTo(p.x + Math.cos(winkel) * laenge, p.y - 2 + Math.sin(winkel) * laenge);
+        g.strokePath();
+
+        // --- Gegner: Kopf mit Auge zum Spieler; Fernkämpfer mit Waffe; Kreatur mit Hörnern ---
+        for (const e of this.enemies) {
+            if (!e.active) continue;
+            const dx = p.x - e.x;
+            const blick = Math.abs(dx) < 700 ? Math.sign(dx) || 1 : (e.direction ?? 1);
+            if (e === this.boss) {
+                const oben = e.y - e.height / 2;
+                g.fillStyle(0x1f4a33).fillRect(e.x - 30, oben - 22, 60, 30);       // Kopf
+                g.fillTriangle(e.x - 30, oben - 20, e.x - 20, oben - 20, e.x - 34, oben - 44);  // Horn links
+                g.fillTriangle(e.x + 30, oben - 20, e.x + 20, oben - 20, e.x + 34, oben - 44);  // Horn rechts
+                g.fillStyle(0xff3333).fillRect(e.x + blick * 12 - 5, oben - 12, 10, 8);          // glühendes Auge
+                continue;
+            }
+            const oben = e.y - e.height / 2;
+            const fern = e.range !== undefined;  // nur der Fernkämpfer hat "range"
+            g.fillStyle(fern ? 0x6a4a99 : 0xaa3333).fillCircle(e.x, oben + 9, 9);   // Kopf
+            g.fillStyle(0xffffff).fillRect(e.x + blick * 4 - 2, oben + 6, 4, 4);    // Auge
+            if (fern) {
+                const w = Phaser.Math.Angle.Between(e.x, e.y, p.x, p.y);
+                g.lineStyle(5, 0x222222).beginPath();
+                g.moveTo(e.x, e.y - 4);
+                g.lineTo(e.x + Math.cos(w) * 26, e.y - 4 + Math.sin(w) * 26);
+                g.strokePath();
+            }
+        }
     }
 
     // Aktualisiert Breite, Farbe und Text des Lebensbalkens.
@@ -401,6 +454,7 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Gegner bewegen ---
         this.enemies.forEach(enemy => enemy.update());
+        this.drawCharacters();
 
         // --- Nahkampf: Gegner berührt den Spieler ---
         // takeDamage entscheidet selbst, ob der Schaden wirklich ankommt (Unverwundbarkeit).

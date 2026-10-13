@@ -5,6 +5,7 @@ import Enemy from '../entities/Enemy.js';
 import RangedEnemy from '../entities/RangedEnemy.js';
 import Boss from '../entities/Boss.js';
 import Pickup from '../entities/Pickup.js';
+import Grenade from '../entities/Grenade.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
@@ -129,6 +130,7 @@ export default class GameScene extends Phaser.Scene {
         // --- Schießen ---
         this.bullets = [];
         this.lastShot = 0;
+        this.grenadeList = [];  // fliegende Granaten
 
         // --- Anzeige (Lebensbalken) ---
         // setScrollFactor(0) heftet ein Objekt an den Bildschirm statt an die Welt.
@@ -138,7 +140,9 @@ export default class GameScene extends Phaser.Scene {
         this.hpText = this.add.text(30, 24, '', { fontSize: '16px', color: '#ffffff' });
         // Alle drei Teile gemeinsam: am Bildschirm festhalten und über alles andere legen.
         this.ammoText = this.add.text(22, 52, '', { fontSize: '16px', color: '#ffdd55' });
-        [this.hpBack, this.hpBar, this.hpText, this.ammoText].forEach(obj => {
+        this.medText = this.add.text(22, 74, '', { fontSize: '16px', color: '#66ee99' });
+        this.grenText = this.add.text(22, 96, '', { fontSize: '16px', color: '#b5c96a' });
+        [this.hpBack, this.hpBar, this.hpText, this.ammoText, this.medText, this.grenText].forEach(obj => {
             obj.setScrollFactor(0).setDepth(20);
         });
 
@@ -177,6 +181,13 @@ export default class GameScene extends Phaser.Scene {
         } else {
             this.ammoText.setText(`${p.weaponName}: ${p.magAmmo} / ${p.magSize}   Reserve: ${p.ammo}`);
         }
+        // Inventar: Verbandskästen als kleine Kästchen-Anzeige, z. B. "Verbandskasten [H]: ■ □"
+        const gefuellt = '■ '.repeat(p.medkits);
+        const leerPlaetze = '□ '.repeat(p.maxMedkits - p.medkits);
+        this.medText.setText(`Verbandskasten [H]: ${gefuellt}${leerPlaetze}`);
+
+        this.grenText.setText(`Granaten [G]: ${'● '.repeat(p.grenades)}${'○ '.repeat(p.maxGrenades - p.grenades)}`);
+
         // Rot, wenn gar keine Munition mehr da ist; orange bei leerem Magazin / beim Nachladen.
         const leer = p.magAmmo === 0 && p.ammo === 0;
         this.ammoText.setColor(leer ? '#ff4444' : (p.isReloading() || p.magAmmo === 0 ? '#ff9944' : '#ffdd55'));
@@ -267,6 +278,41 @@ export default class GameScene extends Phaser.Scene {
         this.bullets.push(bullet);
     }
 
+    // Wirft eine Granate Richtung Maus. Je weiter die Maus weg ist, desto weiter fliegt sie.
+    throwGrenade() {
+        const p = this.player;
+        const pointer = this.input.activePointer;
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
+        const abstand = Phaser.Math.Distance.Between(p.x, p.y, pointer.worldX, pointer.worldY);
+        const tempo = Phaser.Math.Clamp(abstand * 1.6, 250, 650);
+        // Etwas nach oben zusätzlich (-180), damit sie einen Bogen fliegt statt gerade.
+        const g = new Grenade(this, p.x, p.y - 10, Math.cos(winkel) * tempo, Math.sin(winkel) * tempo - 180);
+        this.physics.add.collider(g, this.platforms);
+        this.grenadeList.push(g);
+        p.grenades -= 1;
+    }
+
+    // Explosion: Schaden an allen im Radius (auch am Spieler!) plus ein Feuerball als Optik.
+    explode(x, y) {
+        const radius = 140;
+        const ball = this.add.circle(x, y, radius, 0xffaa33, 0.7).setDepth(5);
+        this.tweens.add({
+            targets: ball, alpha: 0, scale: 1.25, duration: 350,
+            onComplete: () => ball.destroy(),
+        });
+        this.cameras.main.shake(200, 0.01);
+
+        for (const enemy of this.enemies) {
+            if (!enemy.active) continue;
+            if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) <= radius) {
+                if (enemy.takeDamage(6)) this.kills += 1;
+            }
+        }
+        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius) {
+            this.player.takeDamage(30, x);  // Eigenbeschuss: Abstand halten!
+        }
+    }
+
     // Erzeugt eine Gegner-Kugel. Wird vom Fernkämpfer aufgerufen.
     spawnEnemyBullet(x, y, winkel, speed, damage) {
         const bullet = new Bullet(this, x, y, winkel, speed, 0xff6644);  // orange-rot
@@ -302,6 +348,16 @@ export default class GameScene extends Phaser.Scene {
             this.player.magAmmo -= 1;  // jeder Schuss kostet eine Kugel aus dem Magazin
             this.lastShot = this.time.now;
         }
+
+        // --- Granaten: Lunte prüfen, bei Ablauf explodieren ---
+        for (const gr of this.grenadeList) {
+            gr.update();
+            if (gr.isReady()) {
+                this.explode(gr.x, gr.y);
+                gr.destroy();
+            }
+        }
+        this.grenadeList = this.grenadeList.filter(gr => gr.active);
 
         // --- Gegenstände aufsammeln ---
         for (const pickup of this.pickups) {

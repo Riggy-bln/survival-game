@@ -21,6 +21,13 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         this.maxHealth = 100;
         this.health = this.maxHealth;
 
+        // Inventar: Verbandskästen zum Mitführen. Sie heilen erst, wenn man H drückt.
+        this.medkits = 1;          // Start: einer, damit man die Taste kennenlernt
+        this.maxMedkits = 2;       // mehr passen nicht in den Rucksack
+        this.medkitHeal = 40;      // Lebenspunkte pro Verbandskasten
+        this.grenades = 2;         // Granaten im Rucksack (Taste G wirft eine)
+        this.maxGrenades = 4;
+
         // Munition in zwei Teilen, wie bei echten Waffen:
         //   magAmmo = Kugeln im Magazin (die kann man sofort verschießen)
         //   ammo    = Reserve im Rucksack (die kommt beim Nachladen ins Magazin)
@@ -41,7 +48,16 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Tasten, die der Spieler abfragt
         this.cursors = scene.input.keyboard.createCursorKeys();
-        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R');
+        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G');
+    }
+
+    // Benutzt einen Verbandskasten, aber nur wenn es sinnvoll ist:
+    // einer vorhanden, Leben nicht voll. Gibt true zurück, wenn er benutzt wurde.
+    useMedkit() {
+        if (this.medkits <= 0 || this.health >= this.maxHealth || this.isDead()) return false;
+        this.medkits -= 1;
+        this.health = Math.min(this.maxHealth, this.health + this.medkitHeal);  // nie über das Maximum
+        return true;
     }
 
     // Rüstet eine Waffe aus der Tabelle aus: Werte übernehmen und das Magazin
@@ -123,6 +139,12 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Nachladen: Taste R startet es. JustDown ist nur im Moment des Drückens wahr.
         if (Phaser.Input.Keyboard.JustDown(this.keys.R)) this.startReload();
+        // Heilen: Taste H (nur im Moment des Drückens).
+        if (Phaser.Input.Keyboard.JustDown(this.keys.H)) this.useMedkit();
+        // Granate werfen: Die Szene kennt Maus und Welt, deshalb ruft der Spieler sie nur an.
+        if (Phaser.Input.Keyboard.JustDown(this.keys.G) && this.grenades > 0) {
+            this.scene.throwGrenade();
+        }
         // Ist das Magazin leer, aber noch Reserve da? Dann automatisch nachladen.
         if (this.magAmmo === 0) this.startReload();
         this.updateReload();

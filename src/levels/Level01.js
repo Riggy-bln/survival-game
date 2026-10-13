@@ -64,6 +64,7 @@ const fernkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
 // Gegenstände: "oben" = y der Fläche, auf der sie liegen.
 const munition = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'ammo' });
 const heilung = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'health' });
+const granate = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'grenade' });
 const waffe = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'rifle' });   // das Sturmgewehr
 
 // Dekoration (ohne Physik)
@@ -103,7 +104,7 @@ const dunkel = (links, rechts, oben, unten, farbe = 0x14181b) =>
 // =====================================================================
 // ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
 // =====================================================================
-signs.push({ x: 150, y: BODEN - 80, text: 'A / D: Laufen\nLeertaste: Springen\nR: Nachladen' });
+signs.push({ x: 150, y: BODEN - 80, text: 'A / D: Laufen\nLeertaste: Springen\nR: Nachladen\nH: Verbandskasten benutzen' });
 munition(180);                                   // früh: Einsammeln üben
 huegel(250, 30, 100, SAND);                      // Sandsäcke, niedrig
 huegel(350, 60, 100, SAND);                      // Sandsäcke, höher
@@ -131,6 +132,7 @@ nahkaempfer(2200, 2080, 2330, 3);
 versorgungspunkt(2600);
 heilung(2560);
 munition(2640);
+granate(1850, BODEN - 140);                     // im Versteck der Ruine
 
 // =====================================================================
 // ZONE T: Tunnel unter der Erde (x 2740 bis 4220). Ein ALTERNATIVWEG unter Zone D.
@@ -203,7 +205,8 @@ fernkaempfer(4650, 4625, 4680, 3, BODEN - 200);          // Schütze auf der mit
 // also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Etage.
 nahkaempfer(4350, 4320, 4380, 4, BODEN - 100);           // Nahkämpfer unten links
 nahkaempfer(4740, 4725, 4760, 4, BODEN - 100);           // Nahkämpfer unten rechts
-munition(4550, BODEN - 300);                             // Belohnung auf dem Dach
+munition(4550, BODEN - 300);
+granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)                             // Belohnung auf dem Dach
 huegel(4900, 40, 80, SAND);                      // offenes Feld: drei Sandsack-Deckungen
 huegel(5100, 40, 80, SAND);
 huegel(5300, 40, 80, SAND);
@@ -254,6 +257,7 @@ munition(6430, BODEN - 500);                                             // Belo
 // ZONE H: Vor der Arena (x 7400 bis 7850). Hier rüstet man sich aus.
 // =====================================================================
 signs.push({ x: 7500, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
+granate(7500);                                   // vor dem Boss: Granaten aufsparen
 heilung(7600);
 munition(7660);
 munition(7720);

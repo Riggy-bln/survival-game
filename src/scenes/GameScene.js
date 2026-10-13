@@ -82,36 +82,11 @@ export default class GameScene extends Phaser.Scene {
         for (const d of level.decor) {
             this.add.rectangle(d.x, d.y, d.w, d.h, d.color);
         }
-        // Schilder: Text auf einer Holztafel, die auf einem Pfosten steht. Der Pfosten reicht bis zum Boden unter dem Schild
-        // (höchstens 260 Pixel tief; sonst hängt die Tafel einfach an der Wand). So schweben keine Texte in der Luft.
-        // Schilder: kleine, verwitterte Metalltafeln, die leise im Hintergrund stehen. Je näher man kommt, desto deutlicher werden sie.
-        this.schilder = [];
+        // Hinweise: einfach Text in der Landschaft, ohne Tafel und Pfosten.
         for (const sg of level.signs) {
-            const text = this.add.text(sg.x, sg.y, sg.text, {
-                fontSize: '12px', color: '#b4c2c8', align: 'center', lineSpacing: 3, fontFamily: 'monospace',
-            }).setOrigin(0.5).setDepth(2.6);
-            const bw = Math.round(text.width + 16), bh = Math.round(text.height + 12);
-            const gfx = this.add.graphics().setDepth(2.5);
-            const zu = new Phaser.Math.RandomDataGenerator(['schild' + sg.x + '_' + sg.y]);
-            let boden = Infinity;                                                                               // Boden unter dem Schild suchen
-            for (const pl of level.platforms) {
-                const top = pl.y - pl.h / 2;
-                if (top >= sg.y + bh / 2 - 2 && Math.abs(sg.x - pl.x) <= pl.w / 2 && top < boden) boden = top;
-            }
-            if (boden - (sg.y + bh / 2) <= 260) {                                                               // dünner Metallpfosten mit Rostflecken
-                gfx.fillStyle(0x222a30).fillRect(sg.x - 2, sg.y + bh / 2, 4, boden - (sg.y + bh / 2) + 2);
-                gfx.fillStyle(0x3a4650).fillRect(sg.x - 2, sg.y + bh / 2, 1, boden - (sg.y + bh / 2) + 2);
-                for (let ry = sg.y + bh / 2 + 14; ry < boden - 6; ry += zu.between(24, 50)) gfx.fillStyle(0x7a4a2e, 0.8).fillRect(sg.x - 2, ry, 4, zu.between(3, 7));
-            }
-            gfx.fillStyle(0x161c20).fillRect(sg.x - bw / 2 - 2, sg.y - bh / 2 - 2, bw + 4, bh + 4);            // dunkler Rand
-            gfx.fillStyle(0x2f3c44).fillRect(sg.x - bw / 2, sg.y - bh / 2, bw, bh);                             // Blechplatte
-            gfx.fillStyle(0x41535d).fillRect(sg.x - bw / 2, sg.y - bh / 2, bw, 2);                              // Lichtkante oben
-            gfx.fillStyle(0x222c32).fillRect(sg.x - bw / 2, sg.y + bh / 2 - 2, bw, 2);                          // Schatten unten
-            gfx.fillStyle(0xc9a227, 0.55).fillRect(sg.x - bw / 2, sg.y - bh / 2 + 2, 3, bh - 4);                // schmaler Warnstreifen links
-            for (const [nx, ny] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) gfx.fillStyle(0x6f828b).fillRect(sg.x + nx * (bw / 2 - 5) - 1, sg.y + ny * (bh / 2 - 5) - 1, 3, 3);   // Nieten
-            for (let i = 0; i < 3; i++) gfx.fillStyle(0x7a4a2e, 0.6).fillRect(sg.x - bw / 2 + zu.between(6, Math.max(7, bw - 12)), sg.y - bh / 2 + zu.between(3, Math.max(4, bh - 8)), zu.between(3, 8), zu.between(2, 5));   // Rost
-            text.setAlpha(0.45); gfx.setAlpha(0.4);
-            this.schilder.push({ x: sg.x, y: sg.y, text, gfx, a: 0.4 });
+            this.add.text(sg.x, sg.y, sg.text, {
+                fontSize: '16px', color: '#e6ded0', align: 'center', lineSpacing: 2,
+            }).setOrigin(0.5).setDepth(3);
         }
 
         // --- Boden und Plattformen ---
@@ -1071,18 +1046,6 @@ export default class GameScene extends Phaser.Scene {
         return null;
     }
 
-    // Schilder werden deutlicher, wenn man nah genug zum Lesen ist, sonst stehen sie blass im Hintergrund.
-    aktualisiereSchilder() {
-        if (this.time.now < (this.naechsteSchilder ?? 0)) return;
-        this.naechsteSchilder = this.time.now + 100;
-        const p = this.player;
-        for (const sg of this.schilder) {
-            const nah = Math.abs(p.x - sg.x) < 240 && Math.abs(p.y - sg.y) < 240;
-            sg.a += ((nah ? 0.95 : 0.4) - sg.a) * 0.3;
-            sg.text.setAlpha(Math.min(1, sg.a + 0.05)); sg.gfx.setAlpha(sg.a);
-        }
-    }
-
     // ---------- Abgründe ----------
 
     // Fällt der Spieler aus dem Bild (bodenlose Spalte), kostet das Leben, und er steht wieder an der letzten sicheren Stelle,
@@ -2014,7 +1977,6 @@ export default class GameScene extends Phaser.Scene {
         });
 
         this.pruefeAbsturz();
-        this.aktualisiereSchilder();
         this.updateHealthBar();
         if (this.player.isDead()) {
             if (this.mp) { if (!this.player.tot) this.geheNieder(); }      // online: man liegt am Boden und kann wiederbelebt werden

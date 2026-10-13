@@ -412,6 +412,7 @@ huegel(692, 64, 64, SAND);                       // Sandsack-Barrikade in der Se
 wrack(764, 60, 216);                             // ausgebranntes Panzerfahrzeug (begehbar, Oberkante 60)
 signs.push({ x: 1000, y: BODEN - 130, text: 'Maus: Zielen\nLinke Taste: Schießen' });
 nahkaempfer(1200, 1104, 1296, 3, BODEN - 96);    // der erste Gegner, oben auf dem zweiten Hügel
+nahkaempfer(870, 800, 940, 3, BODEN - 60);       // ein Wächter auf dem Dach des Wracks
 
 // =====================================================================
 // ZONE B: Ruine mit zwei Etagen (x 1450 bis 2300).
@@ -424,7 +425,7 @@ schwebend(2010, BODEN - 240, 110);                       // kleines Versteck dar
 fernkaempfer(1780, 1660, 1900, 3, BODEN - 140);          // Schütze auf dem Deck
 nahkaempfer(1800, 1650, 1930, 4);                // Nahkämpfer darunter
 heilung(2065, BODEN - 240);                              // versteckte Heilung im Versteck
-nahkaempfer(2190, 2080, 2276, 3);
+nahkaempfer(2170, 2080, 2250, 3);
 
 // =====================================================================
 // ZONE C: Versorgungspunkt 1 (x 2450 bis 2750). Ruhig, ein Atemzug.
@@ -896,14 +897,14 @@ granate(14240, TUNNEL_BODEN + 100);
 munition(14260, TUNNEL_BODEN + 100);
 tunnelblock(14430, 60, 60);                                              // Deckung vor dem Schützen
 fernkaempfer(14545, 14510, 14580, 4, TUNNEL_BODEN);
-fass(14610, TUNNEL_BODEN);
-nahkaempfer(14690, 14640, 14760, 4, TUNNEL_BODEN);
+fass(14580, TUNNEL_BODEN);
+nahkaempfer(14700, 14650, 14760, 4, TUNNEL_BODEN);
 tunnelblock(14800, 40, 80);
 munition(14840, TUNNEL_BODEN - 40);
 fernkaempfer(14945, 14905, 14985, 4, TUNNEL_BODEN);
 heilung(15010, TUNNEL_BODEN);
 granate(15050, TUNNEL_BODEN);
-nahkaempfer(15110, 15060, 15160, 6, TUNNEL_BODEN);                       // der Wächter vor dem Schacht
+nahkaempfer(15100, 15060, 15140, 6, TUNNEL_BODEN);                       // der Wächter vor dem Schacht
 
 // Die Gipfelroute über der Erde
 gelaende(13640, [[0, 0], [160, 96], [256, 96], [384, 224], [480, 224], [484, 320], [608, 320], [736, 448], [832, 448],
@@ -926,7 +927,7 @@ decor.push({ x: 16160, y: BODEN - 14, w: 64, h: 28, color: 0x5b4a2e });         
 decor.push({ x: 16160, y: BODEN - 14, w: 20, h: 6, color: 0xdd3333 });                    // rotes Kreuz
 decor.push({ x: 16160, y: BODEN - 14, w: 6, h: 20, color: 0xdd3333 });
 signs.push({ x: 16160, y: BODEN - 70, text: 'Vorräte\nfür den Kampf' });
-heilung(16215); munition(16240); munition(16265); granate(16190);
+heilung(16170); granate(16190); munition(16250); munition(16275);
 // Das Tal hinter dem Gebirge
 nahkaempfer(15540, 15500, 15600, 4);
 stacheldraht(15500);
@@ -978,6 +979,25 @@ decor.push({ x: 8800 + V + 20, y: BODEN - 7, w: 6, h: 22, color: 0xd9b43a });   
 decor.push({ x: 8800 + V, y: BODEN - 7, w: 46, h: 6, color: 0xd9b43a });          // H: Querbalken
 for (const dx of [-135, 135]) decor.push({ x: 8800 + V + dx, y: BODEN - 8, w: 6, h: 8, color: 0xcc3333 });   // Randlichter
 
+// ---- Kampfzonen: Abschnitte, die sich hinter dem Spieler verriegeln, bis alle Gegner darin besiegt sind ----
+// x0/x1/y0/y1 = Bereich (die Gegner darin sind die Wachen), rand = so weit muss man hinein, damit sich die Tore schließen,
+// torPos = Tore (x-Mitte, Oberkante, Unterkante). Die Tore stehen auf ebenem Boden und sind höher als jeder Sprung.
+const kampfzone = (x0, x1, y0, y1, rand, tore, text) => ({ x0, x1, y0, y1, rand, torPos: tore.map(([x, oben, unten]) => ({ x, oben, unten })), text });
+const kampfzonen = [
+    kampfzone(1452, 2296, BODEN - 500, BODEN + 60, 60, [[1452, BODEN - 340, BODEN], [2296, BODEN - 340, BODEN]], 'KAMPFZONE: Ruine!\nBesiege alle Gegner, um weiterzukommen.'),
+    kampfzone(4268, 4980, BODEN - 560, BODEN + 60, 60, [[4268, BODEN - 460, BODEN], [4980, BODEN - 460, BODEN]], 'KAMPFZONE: Bunker!\nBesiege alle Gegner, um weiterzukommen.'),
+    kampfzone(4046, 4388, GAL_O - 40, GAL_B + 40, 40, [[4046, GAL_O, GAL_B]], 'Die Tür ist zugefallen!\nBesiege den Wächter.'),
+    kampfzone(5766, 6034, 930, KAT_B + 40, 36, [[5766, KAT_O, KAT_B], [6034, KAT_O, KAT_B]], 'KAMPFZONE: Halle!\nBesiege alle Gegner, um weiterzukommen.'),
+    kampfzone(14614, 15178, BODEN + DECKE - 24, TUNNEL_BODEN + 52, 40, [[14614, BODEN + DECKE, TUNNEL_BODEN], [15178, BODEN + DECKE, TUNNEL_BODEN]], 'KAMPFZONE: Lager!\nBesiege alle Gegner, um weiterzukommen.'),
+    kampfzone(16222, 16890, 0, BODEN + 60, 50, [[16222, BODEN - 700, BODEN], [16890, BODEN - 700, BODEN]], 'DIE ARENA IST VERSIEGELT!\nBesiege die Kreatur.'),
+];
+// Warnschilder vor den Zonen
+signs.push({ x: 1380, y: BODEN - 100, text: 'ACHTUNG:\nKampfzone voraus' });
+signs.push({ x: 4200, y: BODEN - 100, text: 'ACHTUNG:\nKampfzone voraus' });
+signs.push({ x: 5700, y: KAT_B - 120, text: 'ACHTUNG:\nKampfzone voraus' });
+signs.push({ x: 14540, y: TUNNEL_BODEN - 110, text: 'ACHTUNG:\nKampfzone voraus' });
+signs.push({ x: 16110, y: BODEN - 110, text: 'ACHTUNG:\nArena voraus' });
+
 export default {
     width: BREITE,   // Breite der Welt in Pixeln
     height: HOEHE,   // Höhe der Welt in Pixeln
@@ -992,7 +1012,10 @@ export default {
     flagge: { x: 14492, y: BODEN - 544 },
     seilbahn: { x0: 14610, y0: BODEN - 544 - 100, x1: 16100, y1: BODEN - 150,
                 masten: [15100, 15560].map(x => ({ x, boden: bodenBei(x) })) },
-    boss: { x: 8250 + V, y: BODEN - 60, left: 7980 + V, right: 8650 + V, hp: 50 },
+    boss: { x: 8250 + V, y: BODEN - 60, left: 8040 + V, right: 8620 + V, hp: 80 },
+    // Die Brut: schlafende Brutlinge am Arenarand, die die Kreatur in Phase 2 und 3 ruft
+    brutlinge: [16290, 16820, 16340, 16770, 16400, 16720, 16460, 16670].map(x => ({ x, y: BODEN - 18, left: 16240, right: 16860, hp: 2 })),
+    kampfzonen,
     pickups,
     faesser,
     bruecken,

@@ -120,7 +120,7 @@ export default class Mehrspieler {
             const k = abstand > 250 ? 1 : 0.35;                 // sehr weit weg (zum Beispiel nach Teleport): sofort hin
             r.x += (zx - r.x) * k;
             r.y += (zy - r.y) * k;
-            r.vx = r.ziel.vx; r.a = r.ziel.a; r.w = r.ziel.w; r.g = r.ziel.g; r.h = r.ziel.h; r.s = r.ziel.s;
+            r.vx = r.ziel.vx; r.vy = r.ziel.vy; r.a = r.ziel.a; r.w = r.ziel.w; r.g = r.ziel.g; r.h = r.ziel.h; r.s = r.ziel.s;
             r.tot = !!r.ziel.d;
             r.z = !!r.ziel.z;
             r.label.setPosition(r.x, r.y - 58);
@@ -153,14 +153,14 @@ export default class Mehrspieler {
         const jetzt = sz.time.now;
         const e = [];
         for (const g of sz.gegnerNachId) {
-            if (!g.active || !nah(g)) continue;
+            if (!g.active || g.schlaeft || !nah(g)) continue;
             e.push([g.id, Math.round(g.x), Math.round(g.y), Math.round(g.body.velocity.x), g.direction ?? 1,
-                g.health, g.maxHealth, g.fillColor, g.lastShotTime ? Math.round(jetzt - g.lastShotTime) : 9999, g.activated ? 1 : 0]);
+                g.health, g.maxHealth, g.fillColor, g.lastShotTime ? Math.round(jetzt - g.lastShotTime) : 9999, g.activated ? 1 : 0, g.schild ? 1 : 0]);
         }
         const b = [];
         const kugel = (k, besitzer) => b.push([k.id, Math.round(k.x), Math.round(k.y), Math.round(k.rotation * 100) / 100, besitzer, k.speed ?? 900]);
         for (const k of sz.bullets) if (k.active) kugel(k, k.owner ?? 1);
-        for (const k of sz.enemyBullets) if (k.active) kugel(k, 0);                       // Besitzer 0 = Gegner
+        for (const k of sz.enemyBullets) if (k.active) kugel(k, k.gross ? 9 : 0);         // Besitzer 0 = Gegner, 9 = Felsbrocken
         const g = sz.grenadeList.filter((x) => x.active).map((x) => [x.id, Math.round(x.x), Math.round(x.y), x.owner ?? 1]);
         this.netz.sende({ t: 'w', e, b, g, k: sz.kills });
     }
@@ -180,6 +180,7 @@ export default class Mehrspieler {
             g.health = a[5]; g.maxHealth = a[6];
             g.setFillStyle(a[7]);
             g.lastShotTime = a[8] >= 9999 ? undefined : sz.time.now - a[8];
+            g.schild = !!a[10];
             if (g.activated !== undefined) {                       // die Kreatur: erwacht sie gerade?
                 const aktiv = !!a[9];
                 if (aktiv && !g.activated) sfx.play('roar');
@@ -193,8 +194,9 @@ export default class Mehrspieler {
             gesehen.add(id);
             let bild = this.kugelBilder.get(id);
             if (!bild) {
-                bild = sz.add.rectangle(x, y, 14, 4, besitzer === 0 ? 0xff6644 : 0xffdd55).setRotation(ang).setDepth(6);
-                bild.vx = Math.cos(ang) * tempo; bild.vy = Math.sin(ang) * tempo; bild.vonGegner = besitzer === 0;
+                bild = besitzer === 9 ? sz.add.rectangle(x, y, 22, 22, 0x8a7a60).setStrokeStyle(2, 0x4a4238).setDepth(6)
+                    : sz.add.rectangle(x, y, 14, 4, besitzer === 0 ? 0xff6644 : 0xffdd55).setRotation(ang).setDepth(6);
+                bild.vx = Math.cos(ang) * tempo; bild.vy = Math.sin(ang) * tempo; bild.vonGegner = besitzer === 0 || besitzer === 9;
                 this.kugelBilder.set(id, bild);
                 if (besitzer === 0) sfx.play('enemyShot');
             } else { bild.x = x; bild.y = y; }

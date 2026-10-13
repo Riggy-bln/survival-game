@@ -13,11 +13,11 @@ export default class RangedEnemy extends Enemy {
         this.contactDamage = 10;         // Berührung tut weniger weh als beim Nahkämpfer
 
         this.speed = 90;                 // Tempo beim Zurückweichen
-        this.range = 520;                // ab dieser Entfernung (in Pixeln) bemerkt er den Spieler
+        this.range = 600;                // ab dieser Entfernung (in Pixeln) bemerkt er den Spieler
         this.keepDistance = 220;         // näher als das? Dann weicht er zurück
-        this.fireDelay = 2000;           // Pause zwischen zwei Schüssen (ms)
-        this.aimTime = 600;              // Vorwarnzeit: so lange leuchtet er gelb vor dem Schuss
-        this.bulletSpeed = 340;          // langsamer als die Spielerkugeln (900), also ausweichbar
+        this.fireDelay = 1500;           // Pause zwischen zwei Schüssen (ms)
+        this.aimTime = 520;              // Vorwarnzeit: so lange leuchtet er gelb vor dem Schuss
+        this.bulletSpeed = 380;          // langsamer als die Spielerkugeln (900), also ausweichbar
         this.bulletDamage = 15;
 
         this.nextShot = scene.time.now + 1000;  // Zeitpunkt, ab dem er wieder schießen darf
@@ -37,8 +37,14 @@ export default class RangedEnemy extends Enemy {
             if (now >= this.aimingUntil) {
                 // Der Winkel wird erst JETZT berechnet. Wer in der Vorwarnzeit wegläuft,
                 // wird verfehlt. Das macht den Angriff fair.
-                const winkel = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
-                this.scene.spawnEnemyBullet(this.x, this.y, winkel, this.bulletSpeed, this.bulletDamage);
+                // Er zielt etwas VORAUS: Wer geradeaus davonrennt, läuft in den Schuss hinein (Stehenbleiben oder Richtungswechsel hilft).
+                const dist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
+                const flug = Math.min(0.9, dist / this.bulletSpeed) * 0.85;
+                const vx = player.body ? player.body.velocity.x : (player.vx ?? 0), vy = player.body ? player.body.velocity.y : (player.vy ?? 0);
+                const winkel = Phaser.Math.Angle.Between(this.x, this.y, player.x + vx * flug, player.y + Math.max(-60, Math.min(60, vy * flug * 0.5)));
+                // Starke Schützen (5 oder mehr Leben) feuern zwei Kugeln knapp nebeneinander.
+                const kugeln = this.maxHealth >= 5 ? [-0.07, 0.07] : [0];
+                for (const v of kugeln) this.scene.spawnEnemyBullet(this.x, this.y, winkel + v, this.bulletSpeed, this.bulletDamage);
                 // Mündungsfeuer an der Waffe (Schulter y - 6, Arm 12 + Waffe 26) und Rückstoß für die Zeichnung
                 this.scene.zeigeEffekt('muendung', this.x + Math.cos(winkel) * 38, this.y - 6 + Math.sin(winkel) * 38, winkel, 0.9, 0xff7744);
                 this.lastShotTime = now;

@@ -1100,7 +1100,7 @@ stacheldraht(15500);
     const insel = schwebeinsel(11160, 256, BODEN - 470, 128, 19);
     sprossenleiter(11160 - 22, insel.tops[0], bodenBei(11138), 1, 'holz', 28);
     const f = insel.flach(3);
-    skelett((f.x0 + f.x1) / 2, f.x0 + 16, f.x1 - 16, 4, f.top);
+    skelett((f.x0 + f.x1) / 2, f.x0 + 20, f.x1 - 36, 4, f.top);
     granate(f.x0 + 14, f.top);
 }
 {   // Insel 3: hoch über dem Gebirge, östlich vom Gipfel (große Belohnung)

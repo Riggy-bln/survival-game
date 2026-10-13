@@ -42,40 +42,118 @@ export function buildSkyline(scene, worldWidth, boden, scrollFaktor, farbe, hoeh
     }
 }
 
-// Gibt Plattformen eine Oberfläche: helle Kante oben, dunkle unten, Sprenkel dazwischen,
-// auf dicken Erdblöcken zusätzlich Gras. Alles wird einmal gemalt (statisch).
+// Kleine Farbhelfer: zwei Farben mischen und eine Farbe um einen Wert heller/dunkler machen.
+const farbe = Phaser.Display.Color;
+function mische(c1, c2, t) {
+    const a = farbe.ValueToColor(c1), b = farbe.ValueToColor(c2);
+    return farbe.GetColor(Math.round(a.r + (b.r - a.r) * t), Math.round(a.g + (b.g - a.g) * t), Math.round(a.b + (b.b - a.b) * t));
+}
+function variiere(c, n) {
+    const a = farbe.ValueToColor(c);
+    const k = (v) => Math.max(0, Math.min(255, v + n));
+    return farbe.GetColor(k(a.r), k(a.g), k(a.b));
+}
+
+// Gibt allen Plattformen ihr Aussehen. Es gibt drei Arten:
+//  1. Erde an der Oberfläche: Grasdecke, Mutterboden, Steine, Wurzeln, tiefer dunkler.
+//  2. Erde im Untergrund (Tunnel): dunkles Gestein, Kiesel, Tropfsteine an Tunneldecken.
+//  3. Beton/Kisten/Stufen: Fugen, Nieten, Risse, Rostspuren.
+// Alles wird einmal gemalt (statisch). Der feste Startwert macht das Ergebnis immer gleich.
 export function decoratePlatforms(scene, platforms, boden) {
     const g = scene.add.graphics().setDepth(1);
-    const rnd = new Phaser.Math.RandomDataGenerator(['platten']);
-    const hell = (c, n) => Phaser.Display.Color.ValueToColor(c).lighten(n).color;
-    const dunkel = (c, n) => Phaser.Display.Color.ValueToColor(c).darken(n).color;
-    let budget = 6000;  // höchstens so viele Sprenkel insgesamt (hält das Spiel flüssig)
+    const rnd = new Phaser.Math.RandomDataGenerator(['boden']);
+    const KACHEL = 20;     // Größe eines Erdstücks
+    const TIEFE = 140;     // so tief wird die Erde detailliert gemalt (darunter bleibt die Grundfarbe)
+    const ERDFARBEN = [0x5b4a35, 0x4b3b2a];
 
     for (const p of platforms) {
-        const l = p.x - p.w / 2, t = p.y - p.h / 2;
-        const farbe = p.fillColor;
-        const erde = p.h >= 40 && t <= boden + 1;  // Gras nur an der Oberfläche, nicht im Tunnel
+        const l = p.x - p.w / 2, t = p.y - p.h / 2, b = t + p.h;
+        const grundfarbe = p.fillColor;
+        const istErde = ERDFARBEN.includes(grundfarbe) && p.h >= 40;
+        const anOberflaeche = t <= boden + 1;
 
-        // Sprenkel: kleine hellere/dunklere Quadrate
-        const anzahl = Math.min(budget, Math.floor((p.w * p.h) / 1100));
-        budget -= anzahl;
-        for (let i = 0; i < anzahl; i++) {
-            const sx = l + rnd.between(0, Math.max(0, p.w - 6));
-            const sy = t + rnd.between(0, Math.max(0, p.h - 6));
-            g.fillStyle(rnd.frac() < 0.5 ? dunkel(farbe, 12) : hell(farbe, 8));
-            g.fillRect(sx, sy, rnd.between(3, 6), rnd.between(2, 4));
-        }
-        g.fillStyle(dunkel(farbe, 25)).fillRect(l, t + p.h - 3, p.w, 3);   // dunkle Unterkante
-
-        if (erde) {
-            // Grasstreifen oben mit Halmen
-            g.fillStyle(0x4f5f26).fillRect(l, t, p.w, 9);
-            g.fillStyle(0x7a8f3a).fillRect(l, t, p.w, 3);
-            for (let x = l; x < l + p.w; x += rnd.between(6, 14)) {
-                g.fillStyle(0x7a8f3a).fillRect(x, t - rnd.between(2, 5), 2, 5);
+        if (istErde) {
+            // --- Erdschichten als Kacheln: oben braun und warm, nach unten dunkler und kühler ---
+            const bis = Math.min(p.h, TIEFE);
+            const hellOben = anOberflaeche ? 0x6b5238 : 0x5a4a3a;
+            const dunkelUnten = anOberflaeche ? 0x3f3226 : 0x30281f;
+            for (let ty = 0; ty < bis; ty += KACHEL) {
+                for (let tx = l; tx < l + p.w; tx += KACHEL) {
+                    const c = variiere(mische(hellOben, dunkelUnten, ty / TIEFE), rnd.between(-9, 9));
+                    g.fillStyle(c).fillRect(tx, t + ty, Math.min(KACHEL - 1, l + p.w - tx), Math.min(KACHEL - 1, bis - ty));
+                }
+            }
+            // Steine im Boden
+            for (let i = 0; i < p.w / 80; i++) {
+                const sx = l + rnd.between(10, Math.max(11, p.w - 10)), sy = t + rnd.between(24, Math.max(25, bis - 6));
+                const sw = rnd.between(8, 18), sh = rnd.between(6, 11);
+                g.fillStyle(0x6f6a5e).fillEllipse(sx, sy, sw, sh);
+                g.fillStyle(0x8d887a).fillEllipse(sx - 2, sy - 2, sw * 0.5, sh * 0.4);
+            }
+            if (anOberflaeche) {
+                // Wurzeln, die von der Grasdecke nach unten wachsen
+                g.lineStyle(2, 0x2e2318);
+                for (let i = 0; i < p.w / 110; i++) {
+                    let rx = l + rnd.between(6, Math.max(7, p.w - 6)), ry = t + 8;
+                    g.beginPath().moveTo(rx, ry);
+                    for (let k = 0; k < 4; k++) { rx += rnd.between(-6, 6); ry += rnd.between(7, 12); g.lineTo(rx, ry); }
+                    g.strokePath();
+                }
+                // Grasdecke mit ausgefranstem Rand nach unten
+                g.fillStyle(0x4a5e22).fillRect(l, t, p.w, 8);
+                for (let x = l; x < l + p.w; x += 4) g.fillRect(x, t + 8, 4, rnd.between(2, 8));
+                g.fillStyle(0x6f8a34).fillRect(l, t, p.w, 3);
+                // Halme, Blumen und trockene Büschel
+                for (let x = l; x < l + p.w; x += rnd.between(3, 7)) {
+                    const h = rnd.between(3, 9);
+                    g.fillStyle(rnd.frac() < 0.5 ? 0x6f8a34 : 0x86a042).fillRect(x, t - h, 2, h);
+                    if (rnd.frac() < 0.04) {
+                        g.fillStyle(rnd.pick([0xe8d44a, 0xd9534f, 0xf0f0f0])).fillRect(x - 1, t - h - 3, 4, 4);
+                    }
+                }
+                for (let i = 0; i < p.w / 150; i++) {                    // trockene Büschel
+                    const x = l + rnd.between(0, p.w);
+                    g.fillStyle(0x9a8a4a).fillTriangle(x - 5, t, x + 5, t, x, t - 11);
+                }
+            } else {
+                // Untergrund: heller Rand oben, Kiesel, Tropfsteine an dünnen Decken
+                g.fillStyle(0x6d5d4a).fillRect(l, t, p.w, 3);
+                for (let i = 0; i < p.w / 50; i++) {
+                    g.fillStyle(0x7c7466).fillRect(l + rnd.between(0, p.w), t - 2, rnd.between(2, 4), 3);
+                }
+                if (p.h <= 80) {                                          // Tunneldecke
+                    g.fillStyle(0x2c241c).fillRect(l, b - 4, p.w, 4);
+                    for (let x = l + 6; x < l + p.w - 6; x += rnd.between(18, 40)) {
+                        const h = rnd.between(6, 18);
+                        g.fillStyle(0x3a3027).fillTriangle(x - 4, b, x + 4, b, x, b + h);
+                    }
+                }
+            }
+        } else if (p.h < 40) {
+            // --- Dünne Platte (Beton, Stahl): Kanten, Nieten, Risse, Rost ---
+            g.fillStyle(variiere(grundfarbe, 22)).fillRect(l, t, p.w, 3);
+            g.fillStyle(variiere(grundfarbe, -40)).fillRect(l, b - 4, p.w, 4);
+            for (let x = l + 10; x < l + p.w - 6; x += 44) g.fillStyle(variiere(grundfarbe, -50)).fillRect(x, t + 8, 4, 4);
+            for (let i = 0; i < p.w / 120; i++) {
+                const x = l + rnd.between(6, Math.max(7, p.w - 12));
+                g.lineStyle(1, variiere(grundfarbe, -55)).beginPath().moveTo(x, t + 3).lineTo(x + rnd.between(-6, 6), b - 4).strokePath();
+            }
+            for (let i = 0; i < p.w / 90; i++) {                           // Rostspuren nach unten
+                const x = l + rnd.between(4, Math.max(5, p.w - 4));
+                g.fillStyle(0x6b3a22, 0.7).fillRect(x, b, 2, rnd.between(5, 15));
             }
         } else {
-            g.fillStyle(hell(farbe, 18)).fillRect(l, t, p.w, 3);          // helle Oberkante
+            // --- Dicke Blöcke (Beton, Kisten): Ziegelmuster mit Fugen ---
+            const fuge = variiere(grundfarbe, -45);
+            for (let ry = 0; ry < p.h; ry += 20) {
+                g.fillStyle(fuge).fillRect(l, t + ry, p.w, 2);
+                const versatz = (ry / 20) % 2 === 0 ? 0 : 20;
+                for (let x = l + versatz; x < l + p.w; x += 40) {
+                    if (x > l) g.fillStyle(fuge).fillRect(x, t + ry, 2, 20);
+                    if (rnd.frac() < 0.12) g.fillStyle(variiere(grundfarbe, rnd.between(-14, 14))).fillRect(x + 3, t + ry + 3, 34, 15);
+                }
+            }
+            g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.w, 3);
         }
     }
 }

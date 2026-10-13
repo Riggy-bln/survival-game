@@ -91,8 +91,8 @@ const treppe = (links, anzahl, breite, stufe) => {
 };
 
 // dunkel: ein dunkles Rechteck als Hintergrund (Tunnelinneres), gezeichnet hinter allem.
-const dunkel = (links, rechts, oben, unten) =>
-    decor.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, color: 0x14181b });
+const dunkel = (links, rechts, oben, unten, farbe = 0x14181b) =>
+    decor.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, color: farbe });
 
 // =====================================================================
 // ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
@@ -197,22 +197,35 @@ heilung(5810);
 munition(5890);
 
 // =====================================================================
-// ZONE G: Plateaus in verschiedenen Höhen (x 6100 bis 7350).
-// Oben Schützen auf Plattformen, unten Nahkämpfer. Man kann oben oder unten durchlaufen.
+// ZONE G: Hochhaus-Ruine (x 6100 bis 7300). Das Gebäude hat sechs Etagen, jede 100 Pixel höher.
+// Die Etagen sind im ZICKZACK angeordnet: Auf jeder Etage gibt es eine 120 Pixel breite Lücke
+// in der Decke, abwechselnd rechts und links. Man springt durch die Lücke auf die nächste Etage.
+//   ungerade Etagen (1, 3, 5): x 6400 bis 6780, Lücke rechts
+//   gerade Etagen   (2, 4, 6): x 6520 bis 6900, Lücke links
+// Von der 4. Etage führt eine Skybridge nach rechts, ein Abkürzungsweg über den Bodenkämpfen.
 // =====================================================================
-signs.push({ x: 6050, y: BODEN - 80, text: 'Gegner oben UND unten' });
-schwebend(6150, BODEN - 120, 160);
-schwebend(6420, BODEN - 180, 160);
-schwebend(6690, BODEN - 240, 160);
-schwebend(6960, BODEN - 180, 160);
-schwebend(7200, BODEN - 120, 120);
-munition(6230, BODEN - 120);
-heilung(6770, BODEN - 240);
-fernkaempfer(6500, 6445, 6555, 3, BODEN - 180);
-fernkaempfer(6770, 6715, 6825, 4, BODEN - 240);
-fernkaempfer(7040, 6985, 7095, 3, BODEN - 180);
-nahkaempfer(6300, 6150, 6450, 4);
-nahkaempfer(6900, 6700, 7100, 4);
+signs.push({ x: 6200, y: BODEN - 110, text: 'Hochhaus-Ruine:\nGegner auf jeder Etage' });
+dunkel(6400, 6900, BODEN - 620, BODEN, 0x22282c);                        // Fassade (Hintergrund)
+dunkel(6400, 6420, BODEN - 620, BODEN, 0x3a4046);                        // linker Pfeiler
+dunkel(6880, 6900, BODEN - 620, BODEN, 0x3a4046);                        // rechter Pfeiler
+for (let etage = 1; etage <= 6; etage++) {
+    const links = etage % 2 === 1 ? 6400 : 6520;                         // ungerade links, gerade rechts
+    schwebend(links, BODEN - 100 * etage, 380);                          // 380 breit, Oberkante = Etagenhöhe
+}
+schwebend(6900, BODEN - 400, 250);                                       // Skybridge (Oberkante wie Etage 4)
+
+nahkaempfer(6250, 6170, 6330, 4);                                        // am Eingang, links
+nahkaempfer(6590, 6430, 6750, 4, BODEN - 100);                           // Etage 1
+fernkaempfer(6700, 6600, 6820, 3, BODEN - 200);                          // Etage 2
+nahkaempfer(6590, 6430, 6750, 4, BODEN - 300);                           // Etage 3
+fernkaempfer(6700, 6600, 6820, 3, BODEN - 400);                          // Etage 4
+fernkaempfer(6590, 6500, 6680, 3, BODEN - 500);                          // Etage 5
+fernkaempfer(6780, 6700, 6860, 5, BODEN - 600);                          // Scharfschütze auf dem Dach
+fernkaempfer(7050, 6960, 7110, 3, BODEN - 400);                          // auf der Skybridge
+nahkaempfer(7100, 6960, 7250, 4);                                        // am Boden, rechts
+
+heilung(6430, BODEN - 300);                                              // Belohnung auf Etage 3 (linkes Ende)
+munition(6430, BODEN - 500);                                             // Belohnung auf Etage 5 (linkes Ende)
 
 // =====================================================================
 // ZONE H: Vor der Arena (x 7400 bis 7850). Hier rüstet man sich aus.

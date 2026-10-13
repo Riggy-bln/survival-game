@@ -302,7 +302,7 @@ export function buildStuetzen(scene, level) {
         return y;
     };
     // Hier gibt es schon eine eigene Gebäude-Rückwand, ein Gerüst oder einen Schacht: keine Stützen
-    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800]];
+    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800], [2730, 2980]];
     const WAND_MAX = 320;
     for (const p of level.platforms.filter(q => q.h < 40 && !q.kollision)) {
         if (sperre.some(([a, b]) => p.x >= a && p.x <= b)) continue;
@@ -405,6 +405,33 @@ export function buildBruecken(scene, level) {
     }
 }
 
+
+// Die Metalltreppe am Höhleneingang: Wangen (Schrägbalken) unter den Stufen, Warnstreifen an den Stufenkanten,
+// Geländerpfosten mit Handlauf, Rost und eine abgerissene Kette. Die Stufen selbst stehen in Level01.js.
+function buildTreppen(scene, level) {
+    const rnd = new Phaser.Math.RandomDataGenerator(['treppen']);
+    const unten = scene.add.graphics().setDepth(-1);   // hinter den Stufen
+    const oben = scene.add.graphics().setDepth(2);     // vor den Stufen, hinter dem Spieler
+    for (const t of level.treppen ?? []) {
+        const n = t.anzahl, B = t.breite;
+        const x0 = t.links, y0 = t.oben0;
+        const x1 = x0 + n * B, y1 = y0 + (n - 1) * t.hoehe;
+        for (let k = 0; k < 2; k++) strebe(unten, 0x4a4036, x0 + 4, y0 + 10 + k * 4, x1 - 12, y1 + 10 + k * 4);   // zwei Wangen
+        for (let i = 1; i < n; i += 2) {                                                                         // Stützen unter jeder zweiten Stufe
+            const x = x0 + i * B + 14, y = y0 + i * t.hoehe + 12;
+            unten.fillStyle(0x3a342c).fillRect(x, y, 5, Math.min(120, level.boden + 230 - y));
+        }
+        for (let i = 0; i < n; i++) {
+            const x = x0 + i * B, y = y0 + i * t.hoehe;
+            for (let s = 0; s < B; s += 8) oben.fillStyle((s / 8) % 2 ? 0x1a1a1a : 0xc9a227).fillRect(x + s, y, 8, 3);   // Warnstreifen
+            oben.fillStyle(0x5a554f).fillRect(x + B - 8, y - 30, 4, 30);                                          // Geländerpfosten
+            if (rnd.frac() < 0.5) oben.fillStyle(0x8a4a22).fillRect(x + rnd.between(0, B - 4), y + 3, 2, rnd.between(6, 14));   // Rostspur
+        }
+        strebe(oben, 0x7a746c, x0 + B - 8, y0 - 30, x0 + (n - 1) * B + B - 8, y1 - 30);                            // Handlauf
+        for (let k = 0; k < 5; k++) oben.fillStyle(0x6a665e).fillRect(x0 + 8, y0 - 30 + k * 5, 3, 4);              // abgerissene Kette am ersten Pfosten
+    }
+}
+
 // Verteilt alles in der Welt. Die Höhe des Bodens an jeder Stelle liest die Funktion "oben" aus den
 // festen Blöcken (Erde, Fels, Bunker) der Leveldaten. Dort, wo kein Boden ist (Schächte, Schlucht),
 // wird nichts gesetzt.
@@ -446,6 +473,7 @@ export function buildLandscape(scene, level) {
     }
     buildStuetzen(scene, level);   // Säulen und Mauerreste unter bzw. auf den schwebenden Plattformen
     buildBruecken(scene, level);   // Fachwerk, Seile und Autobahn-Reste
+    buildTreppen(scene, level);    // Metalltreppe am Höhleneingang
     // 3. Hohes Gras im Vordergrund (vor dem Spieler, sehr niedrig, damit es nichts verdeckt)
     for (let x = 20; x < level.width - 20; x += rnd.between(60, 130)) {
         const y = oben(x);

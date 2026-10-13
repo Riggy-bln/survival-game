@@ -1,8 +1,8 @@
 // Stufenhilfe: Damit man sanfte Hügel hinauflaufen kann, obwohl die Physik nur Rechtecke kennt.
-// Ein Hang besteht aus vielen kleinen Stufen (je 4 bis 20 Pixel hoch). Ohne Hilfe bliebe man an
+// Ein Hang besteht aus Stufen von je einem Block (32 Pixel). Ohne Hilfe bliebe man an
 // jeder Stufe hängen. Die Hilfe hebt die Figur um die Stufenhöhe an, wenn sie gegen eine
 // niedrige Kante läuft. Höhere Hindernisse (Mauern, Kisten) bleiben Hindernisse: Dafür springt man.
-const STUFE_MAX = 22;
+const STUFE_MAX = 34;   // etwas mehr als ein Block (32), damit die Hänge aus 32er-Stufen begehbar sind
 
 export function stufenHilfe(wesen, richtung) {
     const body = wesen.body;

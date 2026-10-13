@@ -280,13 +280,13 @@ export function decoratePlatforms(scene, platforms, boden) {
         } else {
             // --- Dicke Blöcke (Beton, Kisten): Ziegelmuster mit Fugen ---
             const fuge = variiere(grundfarbe, -45);
-            // Raster = die Blockgröße des Spiels: Steine sind 32 breit und 16 hoch, jede zweite Reihe versetzt
-            for (let ry = 0; ry < p.height; ry += 16) {
-                g.fillStyle(fuge).fillRect(l, t + ry, p.width, 2);
-                const versatz = (ry / 16) % 2 === 0 ? 0 : 16;
-                for (let x = l + versatz; x < l + p.width; x += 32) {
-                    if (x > l) g.fillStyle(fuge).fillRect(x, t + ry, 2, 16);
-                    if (rnd.frac() < 0.12) g.fillStyle(variiere(grundfarbe, rnd.between(-14, 14))).fillRect(x + 3, t + ry + 3, 26, 11);
+            // Raster = die Blockgröße des Spiels (32): Steine sind 64 breit und 32 hoch, jede zweite Reihe versetzt
+            for (let ry = 0; ry < p.height; ry += 32) {
+                g.fillStyle(fuge).fillRect(l, t + ry, p.width, 3);
+                const versatz = (ry / 32) % 2 === 0 ? 0 : 32;
+                for (let x = l + versatz; x < l + p.width; x += 64) {
+                    if (x > l) g.fillStyle(fuge).fillRect(x, t + ry, 3, 32);
+                    if (rnd.frac() < 0.12) g.fillStyle(variiere(grundfarbe, rnd.between(-14, 14))).fillRect(x + 4, t + ry + 4, 56, 24);
                 }
             }
             g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.width, 3);
@@ -769,6 +769,18 @@ export default class Effects {
         const w = this.scene.add.rectangle(x, y, 40, 8, 0xffe0a0, 0.8).setDepth(8);
         this.scene.tweens.add({ targets: w, scaleX: 12, alpha: 0, duration: 350, onComplete: () => w.destroy() });
         this.staubE.explode(10, x - 30, y); this.staubE.explode(10, x + 30, y);
+    }
+
+    // Einsammeln: ein Ring weitet sich, Funken fliegen, ein kurzer Text steigt auf und verblasst.
+    pickup(x, y, farbe, text) {
+        const scene = this.scene;
+        const ring = scene.add.circle(x, y, 8, farbe, 0).setStrokeStyle(3, farbe).setDepth(9);
+        scene.tweens.add({ targets: ring, scale: 3.4, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
+        this.funkenE.explode(12, x, y);
+        const t = scene.add.text(x, y - 16, text, {
+            fontSize: '16px', color: '#ffffff', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(25);
+        scene.tweens.add({ targets: t, y: y - 52, alpha: 0, duration: 950, ease: 'Sine.easeOut', onComplete: () => t.destroy() });
     }
 
     blood(x, y, anzahl = 8) { this.blutE.explode(anzahl, x, y); }

@@ -3,11 +3,11 @@ import { sfx } from '../Sound.js';
 // 'health' (Heilung), 'ammo' (Munition) oder 'rifle' (die Waffe Sturmgewehr).
 // Er braucht keine Physik: Er liegt nur da, und die Szene prüft, ob der Spieler ihn berührt.
 const TYPES = {
-    health: { color: 0x44ff88, amount: 0 },                // grün: Verbandskasten (wird mit H benutzt)
-    ammo:   { color: 0xddaa33, amount: 15 },               // gelb: gibt 15 Schuss
-    rifle:  { color: 0xff7a3d, amount: 0, w: 38, h: 14, weapon: 'rifle', msg: 'Sturmgewehr gefunden!\nSchneller feuern, 30 Schuss pro Magazin' },  // orange und länglich wie eine Waffe
-    shotgun:{ color: 0xb5452a, amount: 0, w: 42, h: 14, weapon: 'shotgun', msg: 'Schrotflinte gefunden!\nSechs Kugeln pro Schuss: stark auf kurze Distanz\n(ersetzt deine bisherige Waffe)' },
-    grenade:{ color: 0x556b2f, amount: 2, w: 16, h: 16 },  // olivgrün: 2 Granaten
+    health: { color: 0x44ff88, amount: 0, label: '+1 Verbandskasten' },                // grün: Verbandskasten (wird mit H benutzt)
+    ammo:   { color: 0xddaa33, amount: 15, label: '+15 Munition' },               // gelb: gibt 15 Schuss
+    rifle:  { color: 0xff7a3d, amount: 0, w: 38, h: 14, weapon: 'rifle', label: 'Sturmgewehr!', msg: 'Sturmgewehr gefunden!\nSchneller feuern, 30 Schuss pro Magazin' },  // orange und länglich wie eine Waffe
+    shotgun:{ color: 0xb5452a, amount: 0, w: 42, h: 14, weapon: 'shotgun', label: 'Schrotflinte!', msg: 'Schrotflinte gefunden!\nSechs Kugeln pro Schuss: stark auf kurze Distanz\n(ersetzt deine bisherige Waffe)' },
+    grenade:{ color: 0x556b2f, amount: 2, w: 16, h: 16, label: '+2 Granaten' },  // olivgrün: 2 Granaten
 };
 
 export default class Pickup extends Phaser.GameObjects.Rectangle {
@@ -15,7 +15,10 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
         // "?? 20" heißt: Gibt der Typ keine Größe an, nimm 20 Pixel.
         super(scene, x, y, TYPES[type].w ?? 20, TYPES[type].h ?? 20, TYPES[type].color);
         scene.add.existing(this);
-        this.setStrokeStyle(2, 0xffffff);  // weißer Rand, damit man sie gut sieht
+        // Das Rechteck bleibt nur als Trefferfläche; gezeichnet und animiert wird der Gegenstand von der Szene
+        // (drawPickup in GameScene.js): schwebend, mit Glanz und Funkeln.
+        this.setVisible(false);
+        this.phase = Math.random() * 6.28;   // jeder Gegenstand schwebt in eigenem Takt
 
         // Leuchtender Schein hinter dem Gegenstand, der sanft pulsiert: so findet man ihn leichter.
         this.glow = scene.add.circle(x, y, 22, TYPES[type].color, 0.25).setDepth(-1);
@@ -63,6 +66,7 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
             this.scene.showMessage(TYPES[this.type].msg);
         }
         sfx.play('pickup');
+        this.scene.fx.pickup(this.x, this.y, TYPES[this.type].color, TYPES[this.type].label);
         this.destroy();
         return true;
     }

@@ -329,6 +329,65 @@ export default class GameScene extends Phaser.Scene {
         g.fillStyle(glut).fillRect(kx - 16, y - 54, 10, 7).fillRect(kx + 6, y - 54, 10, 7);
     }
 
+    // Malt einen Gegenstand mit Animation: Er schwebt auf und ab, Glanz wandert darüber, und es funkelt.
+    // Jeder Typ hat sein eigenes Pixelbild (Verbandskasten, Munitionskiste, Granate, Gewehr, Schrotflinte).
+    drawPickup(g, it) {
+        const t = this.time.now;
+        const bob = Math.round(Math.sin(t * 0.004 + it.phase) * 3);     // sanftes Schweben
+        const x = it.x, y = it.y + bob;
+        let w = 20, h = 16;
+        g.fillStyle(0x000000, 0.28).fillRect(x - 9, it.y + 11, 18, 3);      // Schatten am Boden
+        if (it.type === 'health') {
+            const p = 1 + 0.08 * Math.sin(t * 0.006 + it.phase);          // Herzschlag: pulsiert leicht
+            w = 20 * p; h = 16 * p;
+            g.fillStyle(0xbfbfbf).fillRect(x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2);
+            g.fillStyle(0xf4f4f4).fillRect(x - w / 2, y - h / 2, w, h);
+            g.fillStyle(0xd62f2f).fillRect(x - 2 * p, y - 6 * p, 4 * p, 12 * p).fillRect(x - 6 * p, y - 2 * p, 12 * p, 4 * p);
+            g.fillStyle(0x9a9a9a).fillRect(x - 4, y - h / 2 - 3, 8, 3);                 // Griff
+        } else if (it.type === 'ammo') {
+            w = 22; h = 14;
+            g.fillStyle(0x4a3d26).fillRect(x - 12, y - 6, 24, 15);
+            g.fillStyle(0x6b5b3a).fillRect(x - 11, y - 5, 22, 13);
+            g.fillStyle(0xddaa33).fillRect(x - 11, y, 22, 3);                           // gelbes Band
+            for (let k = 0; k < 4; k++) {                                              // Patronen oben in der Kiste
+                g.fillStyle(0xc9a227).fillRect(x - 9 + k * 5, y - 12, 3, 8);
+                g.fillStyle(0xe0e0e0).fillRect(x - 9 + k * 5, y - 14, 3, 3);
+            }
+        } else if (it.type === 'grenade') {
+            w = 12; h = 15;
+            const wackel = Math.round(Math.sin(t * 0.005 + it.phase) * 2);              // wackelt hin und her
+            g.fillStyle(0x3d4f22).fillRect(x - 7 + wackel, y - 8, 14, 17);
+            g.fillStyle(0x556b2f).fillRect(x - 6 + wackel, y - 7, 12, 15);
+            g.fillStyle(0x3d4f22).fillRect(x - 6 + wackel, y - 2, 12, 2).fillRect(x - 6 + wackel, y + 3, 12, 2);   // Rillen
+            g.fillStyle(0x2a2a2a).fillRect(x - 3 + wackel, y - 12, 6, 5);               // Zünder
+            g.fillStyle(0x888888).fillRect(x + 3 + wackel, y - 13, 8, 3);               // Bügel
+            g.fillStyle(0xe8c030).fillRect(x + 8 + wackel, y - 11, 5, 5).fillStyle(0x556b2f).fillRect(x + 9 + wackel, y - 10, 3, 3);   // Ring
+        } else {                                                                        // Gewehr oder Schrotflinte
+            const flinte = it.type === 'shotgun';
+            w = flinte ? 42 : 38; h = 12;
+            const akzent = flinte ? 0xb5452a : 0xff7a3d;
+            g.fillStyle(0x6a4a2a).fillRect(x - w / 2, y - 3, 11, 10);                   // Schaft
+            g.fillStyle(0x2a2a2a).fillRect(x - w / 2 + 10, y - 3, w - 18, 6);           // Gehäuse
+            g.fillStyle(0x777777).fillRect(x + w / 2 - 12, y - 2, 12, 3);               // Lauf
+            if (flinte) g.fillStyle(0x6a4a2a).fillRect(x + 1, y + 3, 12, 4);             // Vorderschaft
+            else g.fillStyle(0x333333).fillRect(x - 3, y + 3, 6, 9);                    // Magazin
+            g.fillStyle(akzent).fillRect(x - 8, y - 5, 18, 2);                          // farbiger Akzent
+        }
+        // Glanz: alle 2,4 Sekunden läuft ein heller Streifen von links nach rechts über den Gegenstand
+        const ph = (t % 2400) / 2400;
+        if (ph < 0.3) {
+            const links = x - w / 2, rechts = x + w / 2, sx = links - 4 + (ph / 0.3) * (w + 8);
+            const a = Math.max(links, sx), b = Math.min(rechts, sx + 5);
+            if (b > a) g.fillStyle(0xffffff, 0.6).fillRect(a, y - h / 2, b - a, h);
+        }
+        // Funkeln: zwei kleine Sterne blitzen abwechselnd neben dem Gegenstand auf
+        for (let k = 0; k < 2; k++) {
+            if (Math.sin(t * 0.005 + it.phase * 3 + k * 2.1) < 0.6) continue;
+            const px = x + (k ? 1 : -1) * (w / 2 + 5), py = y - h / 2 - 3 - k * 4;
+            g.fillStyle(0xffffff, 0.9).fillRect(px - 1, py - 4, 2, 8).fillRect(px - 4, py - 1, 8, 2);
+        }
+    }
+
     // Zeichnet alle Figuren. Die Rechtecke sind unsichtbar, bleiben aber Körper und Hitbox;
     // ihre Farbe (fillColor) benutzen wir weiter für den Rumpf, damit Aufblitzen und
     // Warnfarben (Gelb, Orange, Lila) automatisch sichtbar bleiben.
@@ -349,6 +408,12 @@ export default class GameScene extends Phaser.Scene {
             head: 'bandana', strap: true, aim: winkel, gun: WAFFENLAENGE[p.weapon] ?? 18,
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
+
+        // --- Gegenstände: schweben, glänzen und funkeln ---
+        for (const it of this.pickups) {
+            if (!it.active || Math.abs(it.x - mitte.x) > 800 || Math.abs(it.y - mitte.y) > 500) continue;
+            this.drawPickup(g, it);
+        }
 
         // --- Fässer: rot mit Rand, Bändern, Glanz und gelbem Warnzeichen. Blinken kurz vor der Explosion. ---
         for (const f of this.faesser) {

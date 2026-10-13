@@ -8,6 +8,7 @@ import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
 import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
+import { buildLandscape } from '../Landscape.js';
 import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
@@ -38,10 +39,8 @@ export default class GameScene extends Phaser.Scene {
         buildSkyline(this, WORLD_WIDTH, BODEN, 0.3, 0x453a47, 90, 230, 'mitte');
 
         // --- Dekoration: Ruinen im Hintergrund (ohne Physik) ---
-        for (let x = 300; x < WORLD_WIDTH; x += 450) {
-            const hoehe = 100 + (x % 3) * 60;
-            this.add.rectangle(x, BODEN - hoehe / 2, 80, hoehe, 0x2a3540);
-        }
+        // (Die alten Rechtecke sind weg: Verfallene Gebäude und Pflanzen kommen aus Landscape.js.)
+        buildLandscape(this, level);
 
         // --- Dekoration und Schilder aus der Level-Datei (ohne Physik) ---
         for (const d of level.decor) {
@@ -175,9 +174,10 @@ export default class GameScene extends Phaser.Scene {
         });
 
         // --- Lebensanzeige der starken Kreatur (oben in der Mitte, erst sichtbar, wenn sie erwacht) ---
-        this.bossBack = this.add.rectangle(480, 28, 304, 18, 0x000000);
-        this.bossBar = this.add.rectangle(330, 28, 300, 14, 0xcc3333).setOrigin(0, 0.5);
-        this.bossLabel = this.add.text(480, 50, 'MUTIERTE KREATUR', {
+        const mitteX = this.scale.width / 2;   // Fenstermitte (das Fenster ist jetzt 1280 breit)
+        this.bossBack = this.add.rectangle(mitteX, 28, 304, 18, 0x000000);
+        this.bossBar = this.add.rectangle(mitteX - 150, 28, 300, 14, 0xcc3333).setOrigin(0, 0.5);
+        this.bossLabel = this.add.text(mitteX, 50, 'MUTIERTE KREATUR', {
             fontSize: '14px', color: '#ffffff',
         }).setOrigin(0.5);
         this.bossUI = [this.bossBack, this.bossBar, this.bossLabel];
@@ -401,7 +401,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Blendet eine Meldung oben im Bild ein, die nach etwa zwei Sekunden verblasst.
     showMessage(text) {
-        const meldung = this.add.text(480, 100, text, {
+        const meldung = this.add.text(this.scale.width / 2, 100, text, {
             fontSize: '24px', color: '#ffdd55', align: 'center',
             backgroundColor: '#000000bb', padding: { x: 14, y: 8 },
         }).setOrigin(0.5).setScrollFactor(0).setDepth(25);
@@ -445,7 +445,7 @@ export default class GameScene extends Phaser.Scene {
         this.player.setAlpha(1);
 
         // Halbdurchsichtiger dunkler Schleier über dem ganzen Fenster
-        this.add.rectangle(0, 0, 960, 540, 0x000000, 0.65)
+        this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.65)
             .setOrigin(0, 0).setScrollFactor(0).setDepth(30);
 
         // Statistik: Spielzeit in Minuten:Sekunden. padStart(2, '0') füllt vorne mit Nullen auf,
@@ -457,7 +457,7 @@ export default class GameScene extends Phaser.Scene {
 
         // Alle Texte: am Bildschirm festgehalten (ScrollFactor 0) und über dem Schleier (Depth 31).
         const zeige = (y, text, groesse, farbeText) => {
-            this.add.text(480, y, text, { fontSize: groesse, color: farbeText })
+            this.add.text(this.scale.width / 2, y + (this.scale.height - 540) / 2, text, { fontSize: groesse, color: farbeText })
                 .setOrigin(0.5).setScrollFactor(0).setDepth(31);
         };
         zeige(180, titel, '72px', farbe);

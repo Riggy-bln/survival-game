@@ -10,14 +10,15 @@ export function buildSky(scene) {
     const von = Phaser.Display.Color.ValueToColor(0x1c1a2e);
     const bis = Phaser.Display.Color.ValueToColor(0xc4623a);
     const streifen = 18;
+    const B = scene.scale.width, H = scene.scale.height;   // Fenstergröße
     for (let i = 0; i < streifen; i++) {
         const c = Phaser.Display.Color.Interpolate.ColorWithColor(von, bis, streifen - 1, i);
         g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
-        g.fillRect(0, (540 / streifen) * i, 960, 540 / streifen + 1);
+        g.fillRect(0, (H / streifen) * i, B, H / streifen + 1);
     }
     // Große, blasse Sonne hinter dem Dunst
-    scene.add.circle(700, 330, 90, 0xffb36b, 0.55).setScrollFactor(0.03).setDepth(-29);
-    scene.add.circle(700, 330, 130, 0xff9a55, 0.18).setScrollFactor(0.03).setDepth(-29);
+    scene.add.circle(B * 0.73, H * 0.61, 100, 0xffb36b, 0.55).setScrollFactor(0.03).setDepth(-29);
+    scene.add.circle(B * 0.73, H * 0.61, 145, 0xff9a55, 0.18).setScrollFactor(0.03).setDepth(-29);
 }
 
 // Eine Schicht Stadtsilhouette. Je kleiner scrollFaktor, desto "weiter weg": Sie bewegt
@@ -26,10 +27,11 @@ export function buildSkyline(scene, worldWidth, boden, scrollFaktor, farbe, hoeh
     const rnd = new Phaser.Math.RandomDataGenerator([seed]);
     const g = scene.add.graphics().setScrollFactor(scrollFaktor).setDepth(-20 + scrollFaktor);
     // Auf dem Bildschirm soll der Fuß der Gebäude etwa auf Höhe der Oberfläche liegen,
-    // wenn der Spieler dort steht (Kamera ca. 430 Pixel tief).
-    const fuss = (boden - 430) + scrollFaktor * 430 + 40;
+    // wenn der Spieler dort steht. Die Kamera steht dann etwa (boden - 60 - Fensterhöhe/2) tief.
+    const tief = boden - 60 - scene.scale.height / 2;
+    const fuss = (boden - tief) + scrollFaktor * tief + 40;
     g.fillStyle(farbe);
-    const reichweite = worldWidth * scrollFaktor + 1100;
+    const reichweite = worldWidth * scrollFaktor + scene.scale.width + 200;
     for (let x = -50; x < reichweite; ) {
         const breite = rnd.between(50, 130);
         const hoehe = rnd.between(hoeheMin, hoeheMax);
@@ -44,11 +46,11 @@ export function buildSkyline(scene, worldWidth, boden, scrollFaktor, farbe, hoeh
 
 // Kleine Farbhelfer: zwei Farben mischen und eine Farbe um einen Wert heller/dunkler machen.
 const farbe = Phaser.Display.Color;
-function mische(c1, c2, t) {
+export function mische(c1, c2, t) {
     const a = farbe.ValueToColor(c1), b = farbe.ValueToColor(c2);
     return farbe.GetColor(Math.round(a.r + (b.r - a.r) * t), Math.round(a.g + (b.g - a.g) * t), Math.round(a.b + (b.b - a.b) * t));
 }
-function variiere(c, n) {
+export function variiere(c, n) {
     const a = farbe.ValueToColor(c);
     const k = (v) => Math.max(0, Math.min(255, v + n));
     return farbe.GetColor(k(a.r), k(a.g), k(a.b));
@@ -60,7 +62,7 @@ function variiere(c, n) {
 // "zeichne" bekommt ein Werkzeug r, mit dem man in Welt-Koordinaten malt.
 // Das Mal-Werkzeug für die Erde: rechnet Welt-Koordinaten in Bild-Koordinaten um (x0, y0 = Ecke des Bildes).
 // Jede Form hat am Ende eine optionale Deckkraft a (1 = voll sichtbar, 0.2 = fast durchsichtig).
-function werkzeug(g, x0, y0) {
+export function werkzeug(g, x0, y0) {
     return {
         rect: (c, x, y, w, h, a = 1) => g.fillStyle(c, a).fillRect(x - x0, y - y0, w, h),
         tri: (c, x1, y1, x2, y2, x3, y3, a = 1) => g.fillStyle(c, a).fillTriangle(x1 - x0, y1 - y0, x2 - x0, y2 - y0, x3 - x0, y3 - y0),
@@ -203,6 +205,29 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
     }
 }
 
+
+// Pflanzenfarben für Moos, Efeu und Laub (von dunkel nach hell)
+export const GRUEN = [0x2f4a1c, 0x3f5f26, 0x4f7a2e, 0x5f8f38, 0x78a844];
+
+// Lässt eine Plattform zuwachsen: Moos oben, Ranken mit Blättern, die nach unten hängen.
+// "ranken" = wie viele Ranken pro 100 Pixel Breite hängen. Alles in 2- bis 4-Pixel-Blöcken.
+function bewuchs(g, rnd, l, t, w, h, ranken = 1.2, moos = true) {
+    if (moos) {
+        for (let x = l; x < l + w; x += rnd.between(8, 22)) {
+            const bw = rnd.between(8, 22);
+            g.fillStyle(rnd.pick(GRUEN.slice(0, 3))).fillRect(x, t - 2, Math.min(bw, l + w - x), 5);
+            g.fillStyle(rnd.pick(GRUEN.slice(2, 5))).fillRect(x + 2, t - 4, Math.min(bw - 4, l + w - x - 2), 3);
+        }
+    }
+    for (let i = 0; i < w / 100 * ranken; i++) {
+        const x = l + rnd.between(2, Math.max(3, w - 4)), laenge = rnd.between(10, 56);
+        g.fillStyle(GRUEN[0]).fillRect(x, t + h, 3, laenge);
+        for (let y = 6; y < laenge; y += rnd.between(7, 11)) {                    // Blätter links und rechts
+            g.fillStyle(rnd.pick(GRUEN.slice(1, 5))).fillRect(x + (y % 2 ? 3 : -4), t + h + y, 5, 4);
+        }
+    }
+}
+
 // Gibt allen Plattformen ihr Aussehen. Es gibt drei Arten:
 //  1. Erde (Oberfläche und Untergrund): feine 8-Pixel-Kacheln, oben mit Grasschicht.
 //  2. Dünne Platten (Beton, Stahl): Kanten, Nieten, Risse, Rostspuren.
@@ -249,6 +274,7 @@ export function decoratePlatforms(scene, platforms, boden) {
                 const x = l + rnd.between(4, Math.max(5, p.width - 4));
                 g.fillStyle(0x6b3a22, 0.7).fillRect(x, b, 2, rnd.between(5, 15));
             }
+            bewuchs(g, rnd, l, t, p.width, p.height, 1.1);                        // Moos und Ranken: alles wächst zu
         } else {
             // --- Dicke Blöcke (Beton, Kisten): Ziegelmuster mit Fugen ---
             const fuge = variiere(grundfarbe, -45);
@@ -261,6 +287,12 @@ export function decoratePlatforms(scene, platforms, boden) {
                 }
             }
             g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.width, 3);
+            bewuchs(g, rnd, l, t, p.width, 0, 0.6);                               // Moos oben, Ranken am Rand
+            // Efeu wächst an einer Seite die Wand hoch
+            const seite = rnd.frac() < 0.5 ? l : l + p.width - 6;
+            for (let y = p.height; y > Math.max(8, p.height - rnd.between(30, 120)); y -= 6) {
+                g.fillStyle(rnd.pick(GRUEN.slice(1, 5))).fillRect(seite + rnd.between(0, 3), t + y - 6, rnd.between(4, 9), 6);
+            }
         }
     }
 }
@@ -409,13 +441,14 @@ export function buildCaves(scene, hoehlen, lampen) {
 // Das Bild entsteht einmal auf einer Canvas-Fläche (einem Mal-Brett des Browsers).
 export function buildVignette(scene) {
     if (!scene.textures.exists('vignette')) {
-        const tex = scene.textures.createCanvas('vignette', 960, 540);
+        const B = scene.scale.width, H = scene.scale.height;
+        const tex = scene.textures.createCanvas('vignette', B, H);
         const ctx = tex.getContext();
-        const grad = ctx.createRadialGradient(480, 270, 200, 480, 270, 620);
+        const grad = ctx.createRadialGradient(B / 2, H / 2, H * 0.37, B / 2, H / 2, B * 0.65);
         grad.addColorStop(0, 'rgba(0,0,0,0)');
         grad.addColorStop(1, 'rgba(0,0,0,0.6)');
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 960, 540);
+        ctx.fillRect(0, 0, B, H);
         tex.refresh();
     }
     scene.add.image(0, 0, 'vignette').setOrigin(0, 0).setScrollFactor(0).setDepth(15);
@@ -424,7 +457,7 @@ export function buildVignette(scene) {
 // Glut und Asche, die über den ganzen Bildschirm nach oben treiben (Stimmung).
 export function buildEmbers(scene) {
     scene.add.particles(0, 0, 'px', {
-        x: { min: 0, max: 960 }, y: 560, lifespan: 7000, frequency: 140,
+        x: { min: 0, max: scene.scale.width }, y: scene.scale.height + 20, lifespan: 7000, frequency: 140,
         speedY: { min: -70, max: -25 }, speedX: { min: -25, max: 25 },
         scale: { start: 1, end: 0.3 }, alpha: { start: 0.8, end: 0 },
         tint: [0xff9944, 0xffcc66, 0x888888],

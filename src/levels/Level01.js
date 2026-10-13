@@ -41,7 +41,7 @@ const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
 const EINGANG = TUNNEL_LINKS + 200;   // hier beginnt die Felsdecke: der Höhleneingang (x 2940)
 const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
-const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
+const DECKE = 64;               // Mindestdicke der Tunneldecke (Oberfläche bis Unterkante der Basisdecke); Felsen hängen darunter
 const TUNNEL_BODEN = 1048;      // y der Oberkante des Tunnelbodens (288 unter der Oberfläche): der Gang ist 228 hoch
 
 // ---- Die tiefe Mine (zweite Ebene unter der Erde, siehe ZONE K) ----
@@ -53,8 +53,8 @@ const CHASM_R = 8640;           // Schlucht: rechte Kante
 const KAV_R = 9300;             // Ende der großen Kaverne
 const SCHACHT2_L = 9640;        // linke Kante des Ausgangsschachts
 const MINE_BODEN = 1330;        // y des Minenbodens (570 unter der Oberfläche)
-const MINE_DECKE = 1160;        // Unterkante der Decke im Gang (170 Platz bis zum Boden)
-const KAV_DECKE = 960;          // Unterkante der Decke in der hohen Kaverne
+const MINE_DECKE = 1128;        // Unterkante der Basisdecke im Gang (202 Platz bis zum Boden; Felsen hängen bis zu 64 tiefer)
+const KAV_DECKE = 928;          // Unterkante der Basisdecke in der hohen Kaverne
 const HOLZ = 0x6b4a2a;          // Holz (Brücken, Absätze)
 const METALL = 0x3a4046;        // Stahl (Gitterturm)
 
@@ -63,14 +63,9 @@ const erde = (links, rechts, oben, unten, farbe = 0x4b3b2a) =>
     platforms.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, color: farbe });
 
 erde(0, TUNNEL_LINKS, BODEN, HOEHE);                                              // Erde links vom Tunnel
-erde(EINGANG, TUNNEL_RECHTS - SCHACHT, BODEN, BODEN + DECKE);                     // Decke über dem Tunnel (beginnt am Höhleneingang)
 erde(TUNNEL_LINKS, VERLIES_ENDE, TUNNEL_BODEN, HOEHE);                            // Boden des Tunnels (bis zur Waffenkammer)
-erde(TUNNEL_RECHTS, VERLIES_ENDE, BODEN, BODEN + DECKE);                          // Decke über der Waffenkammer
 erde(VERLIES_ENDE, MINE_L, BODEN, HOEHE);                                         // Erde rechts hinter der Kammer bis zum Förderschacht
 erde(MINE_L, MINE_R, MINE_BODEN, HOEHE);                                          // Boden der Mine
-erde(MINE_L + 260, CHASM_L, BODEN, MINE_DECKE);                                   // Decke des Minengangs (links der Schlucht)
-erde(CHASM_R, KAV_R, BODEN, KAV_DECKE);                                           // Decke der hohen Kaverne
-erde(KAV_R, SCHACHT2_L, BODEN, MINE_DECKE);                                       // Decke des Minengangs (rechts der Kaverne)
 erde(MINE_R, 11520, BODEN, HOEHE);                                                // Erde hinter dem Ausgangsschacht (mit sanften Hügeln, ZONE N)
 erde(11520, 11800, MINE_BODEN, HOEHE);                                            // Grund der ersten Schlucht (ZONE N)
 erde(11800, 12420, BODEN, HOEHE);
@@ -147,7 +142,7 @@ const kiste = (links, hoehe, breite, boden = MINE_BODEN) =>
     platforms.push({ x: links + breite / 2, y: boden - hoehe / 2, w: breite, h: hoehe, color: 0x6b5b3a });
 // lampe: eine Deckenlampe unter der Decke "decke" (y der Unterkante); die Szene malt einen Lichtkegel dazu.
 const lampe = (x, decke) => {
-    decor.push({ x: x, y: decke + 8, w: 10, h: 8, color: 0xc9a94e });
+    decor.push({ x: x, y: deckeBei(x, decke) + 8, w: 10, h: 8, color: 0xc9a94e });   // hängt an der tatsächlichen Decke
     lampen.push(x);
 };
 // stuetze: ein Holzpfosten vom Boden bis zur Decke (nur Dekoration).
@@ -208,9 +203,10 @@ const gelaendeAusWerten = (links, werte, fels) => {
 // Macht aus glatten Höhen ein natürliches Gelände: Auf den Hängen kommen Zufallsabweichungen dazu (Buckel, Dellen,
 // unterschiedlich lange Absätze), Kuppen und Plateaus bleiben exakt eben (dort stehen Gegner). Benachbarte Spalten
 // unterscheiden sich höchstens um einen Block, damit man alles hinaufgehen kann. "rau" = Stärke (1 = normal).
-const aufrauen = (glatt, flach, seed, rau = 1) => {
+const aufrauen = (glatt, flach, seed, rau = 1.4) => {
     const zu = zufall(seed);
-    const w = glatt.map((h, i) => flach[i] ? h : Math.max(0, Math.round((h + (zu() - 0.5) * 2 * BLOCK * 0.95 * rau) / BLOCK) * BLOCK));
+    // Zufallsabweichung plus eine sanfte Welle: Hänge werden holprig und ungleichmäßig statt gleichmäßig gestuft
+    const w = glatt.map((h, i) => flach[i] ? h : Math.max(0, Math.round((h + (zu() - 0.5) * 2 * BLOCK * 0.95 * rau + 22 * Math.sin(i * 0.9 + seed)) / BLOCK) * BLOCK));
     for (let i = 1; i < w.length; i++) if (!flach[i]) w[i] = Math.max(w[i - 1] - BLOCK, Math.min(w[i - 1] + BLOCK, w[i]));
     for (let i = w.length - 2; i >= 0; i--) if (!flach[i]) w[i] = Math.max(w[i + 1] - BLOCK, Math.min(w[i + 1] + BLOCK, w[i]));
     return w;
@@ -264,6 +260,66 @@ const bodenBei = (x) => {
 // (Wand links), -1 = ragt nach links (Wand rechts). Macht senkrechte Wände unregelmäßig.
 const felsnase = (wandX, y, breite, richtung = 1) =>
     platforms.push({ x: wandX + richtung * breite / 2, y: y + 32, w: breite, h: 64, color: FELS });
+
+// ---- Unregelmäßige Höhlen: Decken und Böden aus Blöcken, nicht aus glatten Platten ----
+
+// hoehlendecke: Eine Basisplatte bis "basis" und darunter herabhängende Felsblöcke (jeweils 0 bis maxStufen Blöcke
+// tiefer). Wie tief die Decke an jeder Stelle hängt, folgt einem Zufallsweg, bei dem sich benachbarte Spalten um
+// höchstens einen Block unterscheiden: So entstehen Vorsprünge, Nischen und Zacken statt einer glatten Linie.
+// "frei" = Bereiche, in denen die Decke glatt bleiben muss (zum Beispiel direkt am Eingang, wo der Kopf des
+// Spielers Platz braucht). "endeTief" = die letzten Spalten hängen ganz tief (die Höhle läuft aus).
+const decken = [];
+const hoehlendecke = (links, rechts, basis, maxStufen, seed, frei = [], endeTief = false) => {
+    const n = Math.ceil((rechts - links) / BLOCK);
+    const zu = zufall(seed);
+    const ex = [];
+    let e = 0;
+    for (let i = 0; i < n; i++) {
+        const x = links + i * BLOCK;
+        const r = zu();
+        if (r < 0.3 && e < maxStufen) e++;
+        else if (r < 0.6 && e > 0) e--;
+        let wert = e;
+        if (endeTief && i >= n - 2) wert = maxStufen;
+        if (frei.some(([a, b]) => x + BLOCK > a && x < b)) wert = 0;
+        ex.push(wert);
+    }
+    erde(links, rechts, BODEN, basis);
+    let start = 0;
+    for (let i = 1; i <= n; i++) {
+        if (i === n || ex[i] !== ex[start]) {
+            if (ex[start] > 0) erde(links + start * BLOCK, Math.min(rechts, links + i * BLOCK), BODEN, basis + ex[start] * BLOCK);
+            start = i;
+        }
+    }
+    decken.push({ links, rechts, basis, ex });
+};
+// deckeBei: Die Unterkante der Höhlendecke (y) an der Stelle x. Lampen und Stützen richten sich danach.
+const deckeBei = (x, vorgabe = BODEN + DECKE) => {
+    for (const d of decken) {
+        if (x >= d.links && x < d.rechts) return d.basis + d.ex[Math.min(d.ex.length - 1, Math.floor((x - d.links) / BLOCK))] * BLOCK;
+    }
+    return vorgabe;
+};
+// haufen: Ein Geröllhaufen auf dem Höhlenboden. "hoehen" = Höhe je 32-Pixel-Spalte, zum Beispiel [32, 64, 32].
+// Die Blöcke reichen 32 Pixel in den Boden hinein (damit sie als dicke Blöcke zählen).
+const haufen = (links, hoehen, boden = TUNNEL_BODEN) => {
+    let start = 0;
+    for (let i = 1; i <= hoehen.length; i++) {
+        if (i === hoehen.length || hoehen[i] !== hoehen[start]) {
+            if (hoehen[start] > 0) erde(links + start * BLOCK, links + i * BLOCK, boden - hoehen[start], boden + 32, FELS);
+            start = i;
+        }
+    }
+};
+// Die Höhlendecken (siehe die Zonen T und K)
+hoehlendecke(EINGANG, TUNNEL_RECHTS - SCHACHT, BODEN + DECKE, 2, 11, [[EINGANG, 3250]]);   // Tunnel (am Eingang glatt)
+hoehlendecke(TUNNEL_RECHTS, VERLIES_ENDE, BODEN + DECKE, 2, 12, [], true);                  // Waffenkammer, läuft zum Ende tief aus
+hoehlendecke(MINE_L + 260, CHASM_L, MINE_DECKE, 2, 13);                                     // Minengang links der Schlucht
+hoehlendecke(CHASM_R, KAV_R, KAV_DECKE, 1, 14);                                             // Kaverne
+hoehlendecke(KAV_R, SCHACHT2_L, MINE_DECKE, 2, 15);                                         // Minengang rechts der Kaverne
+haufen(3156, [32, 64, 32]);                                                                 // Geröll am Fuß des Eingangs
+haufen(7632, [32, 64, 32], MINE_BODEN);                                                     // Geröll, wo der Förderschacht in den Gang mündet
 
 // =====================================================================
 // ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
@@ -333,7 +389,6 @@ hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_
 hoehlen.push({ links: EINGANG, rechts: TUNNEL_RECHTS - SCHACHT, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
 lampen.push(EINGANG + 70);
 // Holzstützen und Deckenbalken im Eingangsbereich
-decor.push({ x: (EINGANG + 3500) / 2, y: BODEN + DECKE + 5, w: 3500 - EINGANG, h: 10, color: 0x5a3d22 });    // Balken
 for (const sx of [EINGANG + 8, 3110, 3290, 3440]) {
     decor.push({ x: sx, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 10, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x6b4a2a });
     decor.push({ x: sx + 4, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 3, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x4a331d });
@@ -373,13 +428,13 @@ hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODE
 schwebend(TUNNEL_RECHTS - SCHACHT, BODEN, 110, BETON);                      // abgebrochene Decke des Treppenhauses (x 3960 bis 4070)
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
-    decor.push({ x: x, y: BODEN + DECKE + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen
+    decor.push({ x: x, y: deckeBei(x) + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen (an der echten Decke)
     lampen.push(x);
 }
 treppe(TUNNEL_RECHTS - 200, 4, 50, 72);                // Stufen im rechten Schacht (x 4020 bis 4220), je 72 hoch
 tunnelblock(3480, 40, 80);                             // Kiste A als Deckung (x 3480 bis 3560)
 tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
-nahkaempfer(3330, 3224, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang des Gangs
+nahkaempfer(3350, 3290, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang des Gangs
 fernkaempfer(3640, 3590, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
 nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
 munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
@@ -486,8 +541,8 @@ schacht(MINE_L, MINE_L + 260);                                             // F�
 gelaende(7696, [[0, 0], [160, 96], [256, 96], [512, 288], [704, 288]]);   // Klippe: Rampe, Absatz (96), Rampe, Plateau (288) bis x 8400
 schwebend(CHASM_L, BODEN - 288, 100, HOLZ);                                // morsche Brücke über die Schlucht
 schwebend(CHASM_R - 100, BODEN - 288, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
-felsnase(CHASM_L, 880, 64, 1); felsnase(CHASM_L, 1040, 96, 1);      // Felsnasen in der Schluchtwand links
-felsnase(CHASM_R, 820, 96, -1); felsnase(CHASM_R, 910, 64, -1);        // und rechts
+felsnase(CHASM_L, 808, 64, 1); felsnase(CHASM_L, 880, 32, 1); felsnase(CHASM_L, 960, 96, 1); felsnase(CHASM_L, 1040, 64, 1);   // Felsnasen in der Schluchtwand links
+felsnase(CHASM_R, 800, 96, -1); felsnase(CHASM_R, 868, 32, -1);       // und rechts
 bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 288], [CHASM_R - 100, CHASM_R, BODEN - 288]] });   // Seile und Pfosten
 gelaende(CHASM_R, [[0, 288], [192, 288], [416, 160], [512, 160], [768, 0]]);   // Plateau, Rampe, Absatz (160), Rampe hinab bis x 9408
 nahkaempfer(7905, 7874, 7934, 3, BODEN - 96);                              // auf dem Absatz der Klippe
@@ -515,9 +570,6 @@ hoehlen.push({ links: SCHACHT2_L, rechts: MINE_R, oben: BODEN, unten: MINE_BODEN
 lampe(9440, MINE_DECKE);
 [7700, 7920, 8160, 8340].forEach(x => stuetze(x, MINE_DECKE, MINE_BODEN));
 [9340, 9560].forEach(x => stuetze(x, MINE_DECKE, MINE_BODEN));
-decor.push({ x: (MINE_L + 260 + CHASM_L) / 2, y: MINE_DECKE + 5, w: CHASM_L - MINE_L - 260, h: 10, color: 0x5a3d22 });   // Deckenbalken
-decor.push({ x: (CHASM_R + KAV_R) / 2, y: KAV_DECKE + 5, w: KAV_R - CHASM_R, h: 10, color: 0x5a3d22 });
-decor.push({ x: (KAV_R + SCHACHT2_L) / 2, y: MINE_DECKE + 5, w: SCHACHT2_L - KAV_R, h: 10, color: 0x5a3d22 });
 signs.push({ x: 7780, y: MINE_BODEN - 110, text: 'Mine 3\n"Nicht allein hinuntergehen."' });
 
 // Gang 1 (x 7660 bis 8400)

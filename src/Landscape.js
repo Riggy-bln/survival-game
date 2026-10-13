@@ -460,6 +460,25 @@ function buildTreppen(scene, level) {
     }
 }
 
+
+// Gerüst für die Holzabsätze in den Schächten: Eine Strebe (Knagge) stützt jeden Absatz von der Wand her,
+// Bolzen halten sie an der Wand, und am freien Ende hängt eine Kette zum nächsten Absatz (zum Festhalten).
+function buildGeruest(scene, level) {
+    const g = scene.add.graphics().setDepth(-1);      // vor der Höhlenwand, hinter den Absätzen
+    for (const e of level.geruest ?? []) {
+        const links = e.wand === 'links';
+        const wandX = links ? e.x0 : e.x1;
+        const richtung = links ? 1 : -1;
+        // Strebe: von der Wand (60 unter dem Absatz) schräg bis fast zum freien Ende (Unterseite)
+        strebe(g, 0x4a331d, wandX + richtung * 6, e.oben + 62, wandX + richtung * 104, e.oben + 20);
+        strebe(g, 0x4a331d, wandX + richtung * 6, e.oben + 66, wandX + richtung * 104, e.oben + 24);
+        g.fillStyle(0x2a2a2a).fillRect(wandX + (links ? 2 : -8), e.oben + 56, 6, 6).fillRect(wandX + (links ? 2 : -8), e.oben + 8, 6, 6);   // Bolzen
+        // Kette am freien Ende zum nächsten Absatz
+        const kx = links ? e.x1 - 10 : e.x0 + 10;
+        for (let y = e.oben + 20; y < e.oben + 92; y += 6) g.fillStyle(0x6a665e).fillRect(kx - ((y / 6) % 2 ? 2 : 1), y, (y / 6) % 2 ? 4 : 2, 5);
+    }
+}
+
 // Verteilt alles in der Welt. Die Höhe des Bodens an jeder Stelle liest die Funktion "oben" aus den
 // festen Blöcken (Erde, Fels, Bunker) der Leveldaten. Dort, wo kein Boden ist (Schächte, Schlucht),
 // wird nichts gesetzt.
@@ -501,7 +520,8 @@ export function buildLandscape(scene, level) {
     }
     buildStuetzen(scene, level);   // Säulen und Mauerreste unter bzw. auf den schwebenden Plattformen
     buildBruecken(scene, level);   // Fachwerk, Seile und Autobahn-Reste
-    buildTreppen(scene, level);    // Metalltreppe am Höhleneingang
+    buildGeruest(scene, level);    // Streben und Ketten an den Holzabsätzen
+    buildTreppen(scene, level);    // (Treppen-Dekoration, falls vorhanden)
     // Fahrzeugwracks, die in Level01.js als begehbare Blöcke stehen
     for (const w of level.wracks ?? []) {
         const key = `wrack_${w.w}_${w.h}`;

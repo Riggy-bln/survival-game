@@ -32,6 +32,7 @@ const hoehlen = [];   // Hintergründe von Höhlen und Gräben (werden als Bilde
 const lampen = [];    // x-Positionen der Deckenlampen (für Lichtkegel)
 const signs = [];
 const faesser = [];   // explosive Fässer
+const geruest = [];   // Holzabsätze in Schächten (für Stützstreben und Ketten in der Zeichnung)
 
 // ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
 const BREITE = 15400;           // Breite der Welt
@@ -160,13 +161,17 @@ const stuetze = (x, decke, boden) => {
 const schacht = (links, rechts) => {
     schwebend(links, BODEN, 90, HOLZ);
     schwebend(rechts - 90, BODEN, 90, HOLZ);
-    for (let i = 1; i <= 5; i++) schwebend(i % 2 === 1 ? links : rechts - 170, BODEN + 95 * i, 170, HOLZ);
+    leiter(links, rechts);
 };
 
 // leiter: Holzababsätze im Zickzack an den Wänden einer Schlucht (alle 95 Pixel), damit man wieder hinaufkommt.
-const leiter = (links, rechts, anzahl = 5) => {
-    for (let i = 1; i <= anzahl; i++) schwebend(i % 2 === 1 ? links : rechts - 170, BODEN + 95 * i, 170, HOLZ);
-};
+function leiter(links, rechts, anzahl = 5) {
+    for (let i = 1; i <= anzahl; i++) {
+        const x0 = i % 2 === 1 ? links : rechts - 170;
+        schwebend(x0, BODEN + 95 * i, 170, HOLZ);
+        geruest.push({ x0, x1: x0 + 170, oben: BODEN + 95 * i, wand: i % 2 === 1 ? 'links' : 'rechts' });   // für Streben und Ketten
+    }
+}
 // ---- EINE Blockgröße für das ganze Gelände: BLOCK = 32 Pixel ----
 // Alle Hänge, Hügel und Klippen bestehen aus Stufen von 32 Pixel Breite und 32 Pixel Höhe (oder einem
 // Vielfachen davon): etwa so breit wie der Spieler. Das ergibt kräftige Pixelblöcke, aber keine Kästen.
@@ -362,7 +367,10 @@ for (const [bx, by, bw, bh] of [[2820, 824, 22, 14], [2900, 888, 30, 18], [2970,
     decor.push({ x: bx - bw / 4, y: by - bh * 0.8, w: bw / 2, h: bh / 2, color: 0x948c7c });
 }
 signs.push({ x: 2870, y: 806, text: 'EINSTURZ-\nGEFAHR' });
-hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });   // rechter Schacht
+// Der rechte Schacht ist das Treppenhaus eines Bunkers: Betonwände ringsum, oben die abgebrochene Decke (ein Stück
+// Betonplatte ragt vom linken Rand in den Schacht), unten die Stufen. Die Lücke von 150 Pixel ist überspringbar.
+hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODEN, unten: TUNNEL_BODEN, art: 'lager', regale: false });   // rechter Schacht (Treppenhaus)
+schwebend(TUNNEL_RECHTS - SCHACHT, BODEN, 110, BETON);                      // abgebrochene Decke des Treppenhauses (x 3960 bis 4070)
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
     decor.push({ x: x, y: BODEN + DECKE + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen
@@ -657,6 +665,7 @@ export default {
     bruecken,
     treppen,
     wracks,
+    geruest,
     huegelformen,
     hoehlen,
     lampen,

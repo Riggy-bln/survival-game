@@ -503,8 +503,8 @@ function zeichneHoehle(r, rnd, h, lampen) {
         }
     }
     if (h.art === 'lager') {
-        // Regale an der Wand und Warnstreifen am Boden
-        for (let x = 30; x < w - 60; x += rnd.between(110, 170)) {
+        // Regale an der Wand (nicht im Treppenhaus) und Warnstreifen am Boden
+        for (let x = 30; h.regale !== false && x < w - 60; x += rnd.between(110, 170)) {
             r.rect(0x1b1f22, l + x, t + 40, 64, 6);
             r.rect(0x1b1f22, l + x, t + 82, 64, 6);
             r.rect(0x1b1f22, l + x, t + 40, 4, 100); r.rect(0x1b1f22, l + x + 60, t + 40, 4, 100);

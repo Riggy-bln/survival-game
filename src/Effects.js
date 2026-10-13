@@ -242,6 +242,7 @@ export function decoratePlatforms(scene, platforms, boden) {
     let nr = 0;
 
     for (const p of platforms) {
+        if (p.kollisionNur) continue;      // Hügel-Stufenblöcke sind unsichtbar: ihre Optik malt buildHuegel
         const l = p.x - p.width / 2, t = p.y - p.height / 2, b = t + p.height;
         const grundfarbe = p.fillColor;
         const istErde = ERDFARBEN.includes(grundfarbe) && p.height >= 40;
@@ -543,6 +544,16 @@ function zeichneHoehle(r, rnd, h, lampen) {
     if (h.art === 'schacht') {
         for (let y = 0; y < hh; y += 8) r.rect(0x000000, l, t + y, w, 8, 0.7 * y / hh);
     }
+    // Wasser am Grund von Schluchten: dunkles Blau, helle Wellenkämme, Schilf
+    if (h.wasser) {
+        r.rect(0x24475a, l, t + hh - 22, w, 22, 0.92);
+        for (let x = 0; x < w; x += rnd.between(10, 24)) r.rect(0x7fb6c8, l + x, t + hh - 22, rnd.between(6, 14), 2, 0.75);
+        r.rect(0x000000, l, t + hh - 22, w, 22, 0.12);
+        for (let i = 0; i < w / 40; i++) {
+            const sx = l + rnd.between(0, w - 2), sh = rnd.between(10, 22);
+            r.rect(GRUEN[1], sx, t + hh - 22 - sh, 2, sh + 2); r.rect(GRUEN[3], sx + 2, t + hh - 22 - sh + 4, 2, 6);
+        }
+    }
     // --- 10. Schatten an der Decke und an den Seiten, Tageslicht vom Eingang her ---
     for (let y = 0; y < hh * 0.4; y += 8) r.rect(0x000000, l, t + y, w, 8, 0.4 * (1 - y / (hh * 0.4)));
     if (h.licht === 'links') {
@@ -559,6 +570,97 @@ export function buildCaves(scene, hoehlen, lampen) {
         });
         bild.setDepth(-5);
     });
+}
+
+
+// ---- Sanfte Hügel: Erdoberfläche, die der Treppenform der Hügel folgt ----
+
+// Malt einen Hügel in 8-Pixel-Spalten: oben Grasschicht (1 bis 3 Kacheln), darunter Erde, die nach unten
+// dunkler wird. Gleicher Stil wie der flache Boden. f = { links, breite, schritt, werte[] } (siehe Level01.js).
+function zeichneHuegel(r, rnd, f, boden) {
+    const GRAS_OBEN = [0x6aa032, 0x7ab83c, 0x5d9029];
+    const GRAS_MITTE = [0x4f7f27, 0x467022, 0x588a2c];
+    const S = 8, UNTEN = boden + 28;
+    for (let x = f.links; x < f.links + f.breite; x += S) {
+        const hoehe = f.werte[Math.min(f.werte.length - 1, Math.floor((x - f.links) / f.schritt))];
+        if (hoehe <= 0) continue;
+        const top = boden - hoehe;
+        const q = rnd.frac();
+        const grasTiefe = q < 0.25 ? S : (q < 0.8 ? 2 * S : 3 * S);
+        for (let ty = 0; top + ty < UNTEN; ty += S) {
+            const hh = Math.min(S, UNTEN - top - ty);
+            if (ty < grasTiefe) {
+                const letzte = ty + S >= grasTiefe;
+                const c = ty === 0 ? rnd.pick(GRAS_OBEN) : (letzte ? 0x3b5f1d : rnd.pick(GRAS_MITTE));
+                r.rect(c, x, top + ty, S, hh);
+                if (ty === 0 && rnd.frac() < 0.6) r.rect(0x9bd14a, x, top, S, 2);
+                continue;
+            }
+            let c = mische(0x7a5a3c, 0x4b3b2a, Math.min(1, (ty - grasTiefe) / 120));
+            if (ty === grasTiefe) c = variiere(c, -14);                     // Schatten unter dem Gras
+            c = variiere(c, rnd.between(-8, 8));
+            r.rect(c, x, top + ty, S, hh);
+            for (let k = 0; k < rnd.between(0, 2); k++) {
+                r.rect(variiere(c, rnd.pick([-18, -12, 12, 18])), x + rnd.between(0, 5), top + ty + rnd.between(0, 5), 2, 2);
+            }
+        }
+        // Halme auf der Grasdecke
+        if (rnd.frac() < 0.8) {
+            const h = rnd.between(4, 10);
+            r.rect(rnd.pick([0x6aa032, 0x7ab83c, 0x8bc84a, 0x5d9029]), x + rnd.between(0, 5), top - h, 2, h);
+        }
+    }
+    // Steine im Hügel (Pixelblöcke mit Licht und Schatten)
+    for (let i = 0; i < f.breite / 60; i++) {
+        const sx = f.links + rnd.between(8, f.breite - 8);
+        const hoehe = f.werte[Math.min(f.werte.length - 1, Math.floor((sx - f.links) / f.schritt))];
+        if (hoehe < 36) continue;
+        const sy = boden - hoehe + rnd.between(30, Math.max(31, hoehe - 6));
+        for (const [dx, dy, bw, c] of [[0, 0, 12, 0x7d776a], [-2, 4, 16, 0x7d776a], [0, 8, 12, 0x4f4a42]]) r.rect(c, sx + dx, sy + dy, bw, 4);
+        r.rect(0xa49f90, sx, sy, 4, 4);
+    }
+    // Blumen
+    for (let i = 0; i < f.breite / 90; i++) {
+        const bx = Math.round((f.links + rnd.between(10, f.breite - 10)) / 2) * 2;
+        const hoehe = f.werte[Math.min(f.werte.length - 1, Math.floor((bx - f.links) / f.schritt))];
+        if (hoehe <= 0) continue;
+        const top = boden - hoehe, hh = rnd.between(5, 8) * 2, bl = rnd.pick([0xe8d44a, 0xd9534f, 0xf0f0f0, 0xb06ad9]);
+        r.rect(0x4f6b2a, bx, top - hh, 2, hh + 2);
+        r.rect(bl, bx - 3, top - hh - 2, 4, 4); r.rect(bl, bx + 1, top - hh - 2, 4, 4); r.rect(0xffe066, bx - 1, top - hh - 2, 4, 4);
+    }
+}
+
+// Backt die Erdoberflächen aller sanften Hügel und legt sie über den flachen Boden.
+export function buildHuegel(scene, formen, boden) {
+    formen.forEach((f, i) => {
+        const maxH = Math.max(...f.werte);
+        const key = `huegel_${i}`;
+        const bild = backe(scene, key, f.links, boden - maxH - 20, f.breite, maxH + 20 + 28, (r) => {
+            zeichneHuegel(r, new Phaser.Math.RandomDataGenerator([key]), f, boden);
+        });
+        bild.setDepth(1.5);       // über dem flachen Boden, unter Figuren und Dekoration
+    });
+}
+
+// Ferne Berge: eine weiche Silhouette aus 8-Pixel-Spalten (summierte Sinuswellen), optional mit Kiefern.
+export function buildBerge(scene, worldWidth, boden, scrollFaktor, farbe, mitte, amp, seed, baeume = false) {
+    const rnd = new Phaser.Math.RandomDataGenerator([seed]);
+    const g = scene.add.graphics().setScrollFactor(scrollFaktor).setDepth(-25 + scrollFaktor);
+    const tief = boden - 60 - scene.scale.height / 2;
+    const fuss = (boden - tief) + scrollFaktor * tief + 40;
+    const p1 = rnd.frac() * 6, p2 = rnd.frac() * 6, p3 = rnd.frac() * 6;
+    g.fillStyle(farbe);
+    const reichweite = worldWidth * scrollFaktor + scene.scale.width + 200;
+    for (let x = -50; x < reichweite; x += 8) {
+        const h = mitte + amp * (0.5 * Math.sin(x * 0.004 + p1) + 0.3 * Math.sin(x * 0.011 + p2) + 0.2 * Math.sin(x * 0.027 + p3));
+        const hq = Math.round(h / 8) * 8, basis = fuss - hq;
+        g.fillRect(x, basis, 8, hq + 900);
+        if (baeume && rnd.frac() < 0.14) {                         // kleine Kiefer aus Pixelstufen
+            const th = rnd.between(3, 6) * 8;
+            g.fillRect(x + 2, basis - th, 4, th + 2);
+            for (let k = 0; k < 4; k++) g.fillRect(x + 4 - (4 + k * 4), basis - th + k * 8, 8 + k * 8, 6);
+        }
+    }
 }
 
 // Dunkle Ränder wie bei einem alten Film: die Mitte bleibt hell, die Ecken werden dunkel.

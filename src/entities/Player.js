@@ -1,4 +1,6 @@
 import { sfx } from '../Sound.js';
+import { stufenHilfe } from '../Stufen.js';
+
 // Alle Waffen als Tabelle: Name, Pause zwischen Schüssen (ms), Magazingröße, Nachladezeit (ms).
 // Eine neue Waffe ist später nur ein weiterer Eintrag. Der Rest des Spiels liest diese Werte.
 const WAFFEN = {
@@ -169,6 +171,9 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         } else {
             body.setVelocityX(0);
         }
+
+        // Sanfte Hänge hinauflaufen (kleine Stufen werden automatisch genommen)
+        stufenHilfe(this, (this.cursors.left.isDown || this.keys.A.isDown) ? -1 : (this.cursors.right.isDown || this.keys.D.isDown) ? 1 : 0);
 
         // Springen: nur auf festem Grund. In Phaser zeigt "oben" ins Negative!
         const jumpPressed = this.cursors.up.isDown || this.keys.SPACE.isDown;

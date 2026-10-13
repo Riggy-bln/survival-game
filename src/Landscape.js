@@ -291,7 +291,7 @@ function strebe(g, c, x1, y1, x2, y2) {
 export function buildStuetzen(scene, level) {
     const rnd = new Phaser.Math.RandomDataGenerator(['stuetzen']);
     const g = scene.add.graphics().setDepth(-2);
-    const fest = level.platforms.filter(p => p.h >= 40);
+    const fest = level.platforms.filter(p => p.h >= 40 || p.kollision);
     // Die Oberkante des nächsten festen Bodens unter y (ab Höhe yAb) an der Stelle x
     const darunter = (x, yAb) => {
         let y = Infinity;
@@ -302,9 +302,9 @@ export function buildStuetzen(scene, level) {
         return y;
     };
     // Hier gibt es schon eine eigene Gebäude-Rückwand, ein Gerüst oder einen Schacht: keine Stützen
-    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900]];
+    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800]];
     const WAND_MAX = 320;
-    for (const p of level.platforms.filter(q => q.h < 40)) {
+    for (const p of level.platforms.filter(q => q.h < 40 && !q.kollision)) {
         if (sperre.some(([a, b]) => p.x >= a && p.x <= b)) continue;
         const l = p.x - p.w / 2, r = p.x + p.w / 2, unten = p.y + p.h / 2;
         const holz = p.color === 0x6b4a2a;
@@ -335,6 +335,76 @@ export function buildStuetzen(scene, level) {
     }
 }
 
+
+// ---- Brücken: Fachwerk, Seile und Autobahn-Reste über den Planken, die in Level01.js stehen ----
+
+// Stahlfachwerk über einem Brückenstück: Obergurt, Pfosten, Kreuzstreben, Rost und eine Ranke.
+function fachwerk(g, rnd, a, c, oben) {
+    const H = 64;
+    g.fillStyle(0x4a4036).fillRect(a, oben - H, c - a, 6);
+    g.fillStyle(0x62564a).fillRect(a, oben - H, c - a, 2);
+    const n = Math.max(2, Math.round((c - a) / 38));
+    const schritt = (c - a - 6) / n;
+    for (let i = 0; i <= n; i++) g.fillStyle(0x4a4036).fillRect(a + i * schritt, oben - H, 6, H);
+    for (let i = 0; i < n; i++) {
+        const x1 = a + i * schritt + 6, x2 = a + (i + 1) * schritt;
+        if (rnd.frac() < 0.85) strebe(g, 0x4a4036, i % 2 ? x2 : x1, oben - 4, i % 2 ? x1 : x2, oben - H + 6);
+    }
+    for (let i = 0; i < (c - a) / 14; i++) g.fillStyle(rnd.pick([0x8a4a22, 0x6b3a22])).fillRect(a + rnd.between(0, c - a - 2), oben - H + rnd.between(6, H - 10), 2, rnd.between(6, 14));
+    const rx = a + rnd.between(6, Math.max(7, c - a - 6)), len = rnd.between(14, 40);
+    g.fillStyle(0x2a4018).fillRect(rx, oben - H + 6, 2, len);
+    for (let k = 4; k < len; k += 8) g.fillStyle(rnd.pick(GRUEN.slice(1, 4))).fillRect(rx + (k % 16 ? 2 : -4), oben - H + 6 + k, 5, 4);
+}
+
+// Seilbrücke: Holzpfosten an den äußeren Enden, durchhängendes Handseil, kurze Halteseile, lose Enden an der Lücke.
+function seilbruecke(g, rnd, stuecke) {
+    for (const [a, c, oben] of stuecke) {
+        for (const px of [a + 2, c - 6]) {
+            g.fillStyle(0x5a3d22).fillRect(px, oben - 46, 6, 46);
+            g.fillStyle(0x3d2916).fillRect(px + 4, oben - 46, 2, 46);
+        }
+        const x1 = a + 5, x2 = c - 3, y0 = oben - 42;
+        g.fillStyle(0x8a7a52);
+        for (let x = x1; x <= x2; x += 4) {                       // Handseil, in der Mitte durchhängend
+            const u = (x - x1) / Math.max(1, x2 - x1);
+            g.fillRect(x, y0 + Math.round(Math.sin(u * Math.PI) * 6 / 2) * 2, 4, 2);
+        }
+        for (let x = x1 + 10; x < x2 - 6; x += 20) g.fillRect(x, y0 + 4, 2, 38);   // senkrechte Halteseile
+    }
+    // lose, herabhängende Seile an den Enden der Lücke
+    for (let i = 0; i < stuecke.length - 1; i++) {
+        const ende = stuecke[i][1], anfang = stuecke[i + 1][0], oben = stuecke[i][2];
+        g.fillStyle(0x8a7a52).fillRect(ende - 4, oben - 38, 2, rnd.between(20, 34));
+        g.fillStyle(0x8a7a52).fillRect(anfang + 4, oben - 38, 2, rnd.between(16, 30));
+    }
+}
+
+// Autobahn-Reste: Asphaltkappe mit gelber Mittellinie, Leitplanken (an den Bruchenden verbogen), Eisen.
+function autobahnReste(kappe, gelaender, rnd, stuecke) {
+    for (const [a, c, oben] of stuecke) {
+        kappe.fillStyle(0x2a2c2e).fillRect(a, oben, c - a, 5);                          // Asphalt (auf der Platte)
+        kappe.fillStyle(0xd9b43a, 0.9);
+        for (let x = a + 6; x < c - 10; x += 22) kappe.fillRect(x, oben + 1, 10, 2);   // Mittellinie
+        for (let x = a + 8; x < c - 8; x += 36) {
+            gelaender.fillStyle(0x7a7d80).fillRect(x, oben - 22, 4, 22);                // Leitplankenpfosten
+        }
+        gelaender.fillStyle(0x8a8d90).fillRect(a + 4, oben - 20, c - a - 24, 4);        // Leitplanke
+        strebe(gelaender, 0x8a8d90, c - 20, oben - 20, c - 6, oben - 8);                // verbogenes Ende
+        for (let k = 0; k < 3; k++) gelaender.fillStyle(0x2a2420).fillRect(c - 2 + k * 2, oben + 6 + k * 3, 2, rnd.between(8, 16));   // Eisen
+    }
+}
+
+export function buildBruecken(scene, level) {
+    const rnd = new Phaser.Math.RandomDataGenerator(['bruecken']);
+    const g = scene.add.graphics().setDepth(-2);
+    const kappe = scene.add.graphics().setDepth(2);     // Asphalt liegt über den Platten
+    for (const b of level.bruecken ?? []) {
+        if (b.art === 'stahl') b.stuecke.forEach(([a, c, oben]) => fachwerk(g, rnd, a, c, oben));
+        else if (b.art === 'seil') seilbruecke(g, rnd, b.stuecke);
+        else if (b.art === 'autobahn') autobahnReste(kappe, g, rnd, b.stuecke);
+    }
+}
+
 // Verteilt alles in der Welt. Die Höhe des Bodens an jeder Stelle liest die Funktion "oben" aus den
 // festen Blöcken (Erde, Fels, Bunker) der Leveldaten. Dort, wo kein Boden ist (Schächte, Schlucht),
 // wird nichts gesetzt.
@@ -342,14 +412,14 @@ export function buildLandscape(scene, level) {
     const rnd = new Phaser.Math.RandomDataGenerator(['landschaft']);
     erzeugeTexturen(scene);
     const BODEN = level.boden;
-    const fest = level.platforms.filter(p => p.h >= 40 && p.y - p.h / 2 <= BODEN + 1);
+    const fest = level.platforms.filter(p => (p.h >= 40 || p.kollision) && p.y - p.h / 2 <= BODEN + 1);
     const oben = (x) => {
         let y = Infinity;
         for (const p of fest) if (Math.abs(x - p.x) <= p.w / 2 - 3) y = Math.min(y, p.y - p.h / 2);
         return y;
     };
     // Bereiche mit wichtigen Bauwerken (Bunker, Hochhaus, Funkturm, Arena): hier nur kleine Pflanzen
-    const sperre = [[4250, 4800], [6300, 7300], [10150, 10700], [11450, 12450]];
+    const sperre = [[4250, 4800], [6300, 7300], [10150, 10700], [13850, 14850]];
     const gesperrt = (x) => sperre.some(([a, b]) => x >= a && x <= b);
     const bild = (key, x, y, tiefe, ursprungY = 1) => scene.add.image(x, y, key).setOrigin(0.5, ursprungY).setDepth(tiefe);
 
@@ -375,6 +445,7 @@ export function buildLandscape(scene, level) {
         else if (wurf < 0.62) bild(`truemmer_${rnd.between(0, 2)}`, x, y + 3, -3);
     }
     buildStuetzen(scene, level);   // Säulen und Mauerreste unter bzw. auf den schwebenden Plattformen
+    buildBruecken(scene, level);   // Fachwerk, Seile und Autobahn-Reste
     // 3. Hohes Gras im Vordergrund (vor dem Spieler, sehr niedrig, damit es nichts verdeckt)
     for (let x = 20; x < level.width - 20; x += rnd.between(60, 130)) {
         const y = oben(x);

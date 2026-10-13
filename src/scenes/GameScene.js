@@ -9,7 +9,7 @@ import Grenade from '../entities/Grenade.js';
 import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
 import { buildLandscape } from '../Landscape.js';
-import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves } from '../Effects.js';
+import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves, buildHuegel, buildBerge } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
@@ -35,6 +35,8 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Himmel und Hintergrund-Schichten (Parallax: weiter weg = langsamer) ---
         buildSky(this);
+        buildBerge(this, WORLD_WIDTH, BODEN, 0.05, 0x8a5a5c, 150, 120, 'berge1');                 // ferne Berge
+        buildBerge(this, WORLD_WIDTH, BODEN, 0.17, 0x5a4254, 100, 70, 'berge2', true);            // nähere Hügel mit Kiefern
         buildSkyline(this, WORLD_WIDTH, BODEN, 0.12, 0x6b4a52, 120, 260, 'fern');
         buildSkyline(this, WORLD_WIDTH, BODEN, 0.3, 0x453a47, 90, 230, 'mitte');
 
@@ -58,8 +60,14 @@ export default class GameScene extends Phaser.Scene {
         // "p" steht für einen Eintrag. Fehlt "color", gilt die Standardfarbe nach dem "??".
         for (const p of level.platforms) {
             this.addPlatform(p.x, p.y, p.w, p.h, p.color ?? 0x6b5b4a);
+            if (p.kollision) {                       // Stufenblock eines sanften Hügels: unsichtbar, nur zum Laufen
+                const block = this.platforms[this.platforms.length - 1];
+                block.setVisible(false);
+                block.kollisionNur = true;
+            }
         }
 
+        buildHuegel(this, level.huegelformen, BODEN);   // Erdoberfläche der sanften Hügel
         buildCaves(this, level.hoehlen, level.lampen);  // Höhlenwände (statt schwarzer Flächen)
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
         this.fx = new Effects(this);                       // Partikel

@@ -25,13 +25,15 @@ const decor = [];
 const enemies = [];
 const rangedEnemies = [];
 const pickups = [];
+const bruecken = [];  // Brücken (für die Zeichnung der Geländer, Streben und Seile)
+const huegelformen = [];  // sanfte Hügel (für die Zeichnung der Erdoberfläche)
 const hoehlen = [];   // Hintergründe von Höhlen und Gräben (werden als Bilder gemalt)
 const lampen = [];    // x-Positionen der Deckenlampen (für Lichtkegel)
 const signs = [];
 const faesser = [];   // explosive Fässer
 
 // ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
-const BREITE = 13000;           // Breite der Welt
+const BREITE = 15400;           // Breite der Welt
 const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
@@ -41,7 +43,7 @@ const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterk
 const TUNNEL_BODEN = 990;       // y der Oberkante des Tunnelbodens (230 unter der Oberfläche)
 
 // ---- Die tiefe Mine (zweite Ebene unter der Erde, siehe ZONE K) ----
-const V = 3600;                 // Verschiebung der Boss-Zonen H und I nach rechts (das Level ist länger geworden)
+const V = 6000;                 // Verschiebung der Boss-Zonen H und I nach rechts (das Level ist länger geworden)
 const MINE_L = 7400;            // linke Kante des Förderschachts
 const MINE_R = 9900;            // rechte Kante des Ausgangsschachts
 const CHASM_L = 8400;           // Schlucht: linke Kante
@@ -67,7 +69,11 @@ erde(MINE_L, MINE_R, MINE_BODEN, HOEHE);                                        
 erde(MINE_L + 260, CHASM_L, BODEN, MINE_DECKE);                                   // Decke des Minengangs (links der Schlucht)
 erde(CHASM_R, KAV_R, BODEN, KAV_DECKE);                                           // Decke der hohen Kaverne
 erde(KAV_R, SCHACHT2_L, BODEN, MINE_DECKE);                                       // Decke des Minengangs (rechts der Kaverne)
-erde(MINE_R, BREITE, BODEN, HOEHE);                                               // Erde hinter dem Ausgangsschacht
+erde(MINE_R, 11520, BODEN, HOEHE);                                                // Erde hinter dem Ausgangsschacht (mit sanften Hügeln, ZONE N)
+erde(11520, 11800, MINE_BODEN, HOEHE);                                            // Grund der ersten Schlucht (ZONE N)
+erde(11800, 12420, BODEN, HOEHE);
+erde(12420, 12800, 950, HOEHE);                                                   // Grund der zweiten, flachen Schlucht (190 tief)
+erde(12800, BREITE, BODEN, HOEHE);
 
 // huegel: ein fester Block, der AUF DEM BODEN steht. Angabe: linke Kante, Höhe, Breite.
 // Aus der Höhe wird die Mitte berechnet (Rechtecke werden von ihrer Mitte aus gezeichnet).
@@ -148,6 +154,34 @@ const schacht = (links, rechts) => {
     schwebend(links, BODEN, 90, HOLZ);
     schwebend(rechts - 90, BODEN, 90, HOLZ);
     for (let i = 1; i <= 5; i++) schwebend(i % 2 === 1 ? links : rechts - 170, BODEN + 95 * i, 170, HOLZ);
+};
+
+// leiter: Holzababsätze im Zickzack an den Wänden einer Schlucht (alle 95 Pixel), damit man wieder hinaufkommt.
+const leiter = (links, rechts, anzahl = 5) => {
+    for (let i = 1; i <= anzahl; i++) schwebend(i % 2 === 1 ? links : rechts - 170, BODEN + 95 * i, 170, HOLZ);
+};
+// sanfterHuegel: ein Hügel mit weichen Hängen und flacher Kuppe. Er besteht aus vielen 16 Pixel breiten
+// Stufenblöcken (unsichtbar, nur zum Laufen); die Stufenhilfe (Stufen.js) lässt Spieler und Gegner hinaufgehen.
+// Angabe: linke Kante, Breite, Höhe der Kuppe, Anteil der flachen Kuppe an der Breite (0 bis 1).
+const sanfterHuegel = (links, breite, hoehe, plateau = 0.3) => {
+    const SCHRITT = 16;
+    const n = Math.round(breite / SCHRITT);
+    const werte = [];
+    for (let i = 0; i < n; i++) {
+        const u = (i + 0.5) / n, rand = (1 - plateau) / 2;
+        const v = u < rand ? u / rand : (u > 1 - rand ? (1 - u) / rand : 1);
+        const glatt = v * v * (3 - 2 * v);                          // weiche S-Kurve (Smoothstep)
+        werte.push(Math.round(hoehe * glatt / 4) * 4);              // auf 4 Pixel gerundet: kleine Stufen
+    }
+    let start = 0;                                                   // gleich hohe Nachbarn zu einem Block verschmelzen
+    for (let i = 1; i <= n; i++) {
+        if (i === n || werte[i] !== werte[start]) {
+            const h = werte[start];
+            if (h > 0) platforms.push({ x: links + (start + i) * SCHRITT / 2, y: BODEN - h / 2, w: (i - start) * SCHRITT, h, color: ERDE, kollision: true });
+            start = i;
+        }
+    }
+    huegelformen.push({ links, breite: n * SCHRITT, schritt: SCHRITT, werte });
 };
 
 // =====================================================================
@@ -355,6 +389,7 @@ huegel(8000, 210, 150, FELS);
 huegel(8150, 280, 250, FELS);                                              // Plateau (Oberkante 480), x 8150 bis 8400
 schwebend(CHASM_L, BODEN - 280, 100, HOLZ);                                // morsche Brücke über die Schlucht
 schwebend(CHASM_R - 100, BODEN - 280, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
+bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 280], [CHASM_R - 100, CHASM_R, BODEN - 280]] });   // Seile und Pfosten
 huegel(CHASM_R, 280, 250, FELS);                                           // Plateau auf der anderen Seite, x 8640 bis 8890
 huegel(8890, 210, 150, FELS);                                              // Abstieg
 huegel(9040, 140, 150, FELS);
@@ -436,23 +471,68 @@ nahkaempfer(10650, 10560, 10760, 4);
 fernkaempfer(10850, 10780, 10920, 3);
 
 // =====================================================================
-// ZONE H: Vor der Arena (x 11000 bis 11450). Hier rüstet man sich aus.
+// ZONE N: Das Tal der Brücken (x 10950 bis 13400). Sanfte Hügel, zwei Schluchten und zwei kaputte Brücken.
+//   Hügel 1 (x 11020 bis 11460): niedrig, mit Kuppe.
+//   Schlucht 1 (x 11520 bis 11800): tief (570), kaputte Stahlbrücke mit Lücke, unten Wasser; hinaus über Absätze.
+//   Hügel 2 (x 11860 bis 12380): hoch (140), oben die Reste eines Hauses.
+//   Schlucht 2 (x 12420 bis 12800): flach (190), eingestürzte Autobahnbrücke; hinaus über einen Absatz rechts.
+//   Hügel 3 (x 12900 bis 13380): niedrig, fällt zum Boss-Gebiet ab.
 // =====================================================================
-signs.push({ x: 11100, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
-schrotflinte(11400);                              // Alternative zum Gewehr für den Bosskampf
-granate(11100);                                   // vor dem Boss: Granaten aufsparen
-heilung(11200);
-munition(11260);
-munition(11320);
+signs.push({ x: 10990, y: BODEN - 90, text: 'Tal der Brücken:\nHügel, Schluchten\nund kaputte Brücken' });
+sanfterHuegel(11020, 440, 80, 0.3);
+fernkaempfer(11240, 11195, 11285, 3, BODEN - 80);                         // Schütze auf der Kuppe von Hügel 1
+munition(11190, BODEN - 80);
+signs.push({ x: 11470, y: BODEN - 70, text: 'Vorsicht:\nBrücke beschädigt' });
+// Schlucht 1: Stahlbrücke mit 80 Pixel Lücke, darunter Absätze und Wasser
+schwebend(11520, BODEN, 110, METALL);                                      // linkes Brückenstück (x 11520 bis 11630)
+schwebend(11710, BODEN, 90, METALL);                                       // rechtes Brückenstück (x 11710 bis 11800)
+bruecken.push({ art: 'stahl', stuecke: [[11520, 11630, BODEN], [11710, 11800, BODEN]] });
+leiter(11520, 11800);
+hoehlen.push({ links: 11520, rechts: 11800, oben: BODEN, unten: MINE_BODEN, art: 'schacht', wasser: true });
+nahkaempfer(11660, 11570, 11750, 4, MINE_BODEN);                           // unten im Wasser
+heilung(11580, MINE_BODEN);
+// Hügel 2 mit Hausresten
+sanfterHuegel(11860, 520, 140, 0.25);
+schwebend(12040, BODEN - 140 - 95, 160, BETON);                            // Reste der Decke eines Hauses (Oberkante 525)
+fernkaempfer(12120, 12075, 12165, 4, BODEN - 140);                         // Schütze auf der Kuppe
+heilung(12090, BODEN - 140);
+munition(12120, BODEN - 235);                                              // Beute auf der Deckenplatte
+granate(12170, BODEN - 235);
+signs.push({ x: 12390, y: BODEN - 70, text: 'Autobahnbrücke:\neingestürzt' });
+// Schlucht 2: eingestürzte Autobahnbrücke aus Betonplatten, flache Schlucht mit Absatz rechts
+schwebend(12420, BODEN, 130, BETON);                                       // Platte 1, bündig mit dem Boden (x 12420 bis 12550)
+schwebend(12590, BODEN + 30, 90, BETON);                                   // Platte 2, abgesackt (x 12590 bis 12680)
+schwebend(12690, BODEN + 95, 110, BETON);                                  // Absatz rechts zum Hinaufklettern
+bruecken.push({ art: 'autobahn', stuecke: [[12420, 12550, BODEN], [12590, 12680, BODEN + 30]] });
+hoehlen.push({ links: 12420, rechts: 12800, oben: BODEN, unten: 950, art: 'schacht', wasser: true });
+nahkaempfer(12540, 12450, 12640, 4, 950);                                  // unten in der Schlucht
+fernkaempfer(12745, 12712, 12778, 3, BODEN + 95);                          // auf dem Absatz
+granate(12480, 950);
+nahkaempfer(12850, 12820, 12880, 3);                                       // zwischen Schlucht und Hügel 3
+// Hügel 3
+sanfterHuegel(12900, 480, 60, 0.4);
+nahkaempfer(13140, 13065, 13215, 4, BODEN - 60);
+fernkaempfer(13190, 13090, 13200, 4, BODEN - 60);
+munition(13120, BODEN - 60);
 
 // =====================================================================
-// ZONE I: Arena der starken Kreatur (x 11500 bis 12300).
+// ZONE H: Vor der Arena (x 13400 bis 13850). Hier rüstet man sich aus.
+// =====================================================================
+signs.push({ x: 13500, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
+schrotflinte(13800);                              // Alternative zum Gewehr für den Bosskampf
+granate(13500);                                   // vor dem Boss: Granaten aufsparen
+heilung(13600);
+munition(13660);
+munition(13720);
+
+// =====================================================================
+// ZONE I: Arena der starken Kreatur (x 13900 bis 14700).
 // Drei Plattformen zum Ausweichen. Ihre Unterkante liegt über dem Kopf der Kreatur (Höhe 100),
 // sie kann darunter durchlaufen.
 // =====================================================================
-schwebend(11640, BODEN - 120, 140);
-schwebend(11830, BODEN - 170, 140);
-schwebend(12020, BODEN - 120, 140);
+schwebend(14040, BODEN - 120, 140);
+schwebend(14230, BODEN - 170, 140);
+schwebend(14420, BODEN - 120, 140);
 
 // =====================================================================
 // Explosive Fässer: stehen bei Gegnergruppen. Ein Schuss oder eine Granate lässt sie explodieren,
@@ -469,7 +549,8 @@ fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
 fass(7330); fass(7900, BODEN - 140);         // Zone J, vor dem Schacht und auf der Klippe
 fass(8900, MINE_BODEN);                      // in der Kaverne
 fass(10200);                                 // am Funkturm
-fass(11700); fass(12150);                    // in der Boss-Arena: den Boss damit locken
+fass(14100); fass(14550);                    // in der Boss-Arena: den Boss damit locken
+fass(11240, BODEN - 80); fass(12140, BODEN - 140); fass(13160, BODEN - 60);   // im Tal der Brücken
 
 export default {
     width: BREITE,   // Breite der Welt in Pixeln
@@ -484,6 +565,8 @@ export default {
     boss: { x: 8250 + V, y: BODEN - 60, left: 7980 + V, right: 8650 + V, hp: 50 },
     pickups,
     faesser,
+    bruecken,
+    huegelformen,
     hoehlen,
     lampen,
 };

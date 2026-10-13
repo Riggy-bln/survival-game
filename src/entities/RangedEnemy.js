@@ -1,4 +1,5 @@
 import Enemy from './Enemy.js';
+import { stufenHilfe } from '../Stufen.js';
 
 // Ein Fernkämpfer: bleibt auf Abstand und schießt auf den Spieler.
 // "extends Enemy" heißt: Er erbt Lebenspunkte, Treffer-Aufblitzen, Tod und Physik vom
@@ -62,6 +63,7 @@ export default class RangedEnemy extends Enemy {
             const darf = (weg === -1 && this.x > this.patrolLeft) ||
                          (weg === 1 && this.x < this.patrolRight);
             this.body.setVelocityX(darf ? this.speed * weg : 0);
+            if (darf) stufenHilfe(this, weg);
         } else {
             this.body.setVelocityX(0);
         }

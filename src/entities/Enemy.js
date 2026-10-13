@@ -1,4 +1,5 @@
 import { sfx } from '../Sound.js';
+import { stufenHilfe } from '../Stufen.js';
 // Ein einfacher Gegner: läuft zwischen zwei Punkten hin und her und hat Lebenspunkte.
 export default class Enemy extends Phaser.GameObjects.Rectangle {
     // patrolLeft und patrolRight sind die x-Grenzen, zwischen denen er patrouilliert.
@@ -46,5 +47,6 @@ export default class Enemy extends Phaser.GameObjects.Rectangle {
         if (this.x >= this.patrolRight) this.direction = -1;
 
         this.body.setVelocityX(this.speed * this.direction);
+        stufenHilfe(this, this.direction);   // kleine Stufen (sanfte Hänge) nehmen
     }
 }

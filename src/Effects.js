@@ -211,9 +211,9 @@ export const GRUEN = [0x2f4a1c, 0x3f5f26, 0x4f7a2e, 0x5f8f38, 0x78a844];
 
 // Lässt eine Plattform zuwachsen: Moos oben, Ranken mit Blättern, die nach unten hängen.
 // "ranken" = wie viele Ranken pro 100 Pixel Breite hängen. Alles in 2- bis 4-Pixel-Blöcken.
-function bewuchs(g, rnd, l, t, w, h, ranken = 1.2, moos = true) {
+function bewuchs(g, rnd, l, t, w, h, ranken = 0.5, moos = true) {
     if (moos) {
-        for (let x = l; x < l + w; x += rnd.between(8, 22)) {
+        for (let x = l; x < l + w; x += rnd.between(22, 60)) {
             const bw = rnd.between(8, 22);
             g.fillStyle(rnd.pick(GRUEN.slice(0, 3))).fillRect(x, t - 2, Math.min(bw, l + w - x), 5);
             g.fillStyle(rnd.pick(GRUEN.slice(2, 5))).fillRect(x + 2, t - 4, Math.min(bw - 4, l + w - x - 2), 3);
@@ -274,7 +274,8 @@ export function decoratePlatforms(scene, platforms, boden) {
                 const x = l + rnd.between(4, Math.max(5, p.width - 4));
                 g.fillStyle(0x6b3a22, 0.7).fillRect(x, b, 2, rnd.between(5, 15));
             }
-            bewuchs(g, rnd, l, t, p.width, p.height, 1.1);                        // Moos und Ranken: alles wächst zu
+            bewuchs(g, rnd, l, t, p.width, p.height, 0.4);                        // etwas Moos und Ranken
+            if (grundfarbe !== 0x6b4a2a) bruchkante(g, rnd, l, t, p.width, p.height, grundfarbe);   // abgebrochene Betonkanten
         } else {
             // --- Dicke Blöcke (Beton, Kisten): Ziegelmuster mit Fugen ---
             const fuge = variiere(grundfarbe, -45);
@@ -287,7 +288,7 @@ export function decoratePlatforms(scene, platforms, boden) {
                 }
             }
             g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.width, 3);
-            bewuchs(g, rnd, l, t, p.width, 0, 0.6);                               // Moos oben, Ranken am Rand
+            bewuchs(g, rnd, l, t, p.width, 0, 0.3);                               // Moos oben, wenige Ranken
             // Efeu wächst an einer Seite die Wand hoch
             const seite = rnd.frac() < 0.5 ? l : l + p.width - 6;
             for (let y = p.height; y > Math.max(8, p.height - rnd.between(30, 120)); y -= 6) {
@@ -297,11 +298,134 @@ export function decoratePlatforms(scene, platforms, boden) {
     }
 }
 
+
+// Eine Pixellinie (aus Quadraten) für Streben und Eisen.
+function pl(r, c, x1, y1, x2, y2, p = 2, a = 1) {
+    const n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / p));
+    for (let i = 0; i <= n; i++) {
+        r.rect(c, Math.round((x1 + (x2 - x1) * i / n) / p) * p, Math.round((y1 + (y2 - y1) * i / n) / p) * p, p, p, a);
+    }
+}
+
+// Die Rückwand eines verfallenen Gebäudes (Hintergrund hinter Plattformen, die Etagen sind).
+// h.etagen = Höhen der Geschossdecken über dem Boden (nach oben). Oben ist die Kante ausgefranst,
+// in der Wand sind Fensteröffnungen, Risse, Armierungseisen und eingeschlagene Stellen.
+function zeichneGebaeude(r, rnd, h) {
+    const l = h.links, t = h.oben, w = h.rechts - h.links, hh = h.unten - h.oben;
+    const basis = rnd.pick([0x3a3f43, 0x403c38, 0x363b38]), S = 8;
+    // Ausgefranste Oberkante
+    const tops = [];
+    let top = rnd.between(0, Math.floor(hh * 0.12));
+    for (let x = 0; x < w; x += S) {
+        top = Math.max(0, Math.min(Math.floor(hh * 0.3), top + rnd.pick([-24, -16, -8, 0, 0, 8, 16, 24])));
+        tops.push(top);
+        r.rect(variiere(basis, rnd.between(-5, 5)), l + x, t + top, Math.min(S, w - x), hh - top);
+    }
+    const hoeheAn = (x) => tops[Math.max(0, Math.min(tops.length - 1, Math.floor((x - l) / S)))];
+    // Geschossdecken als dunkle Bänder und Fensteröffnungen in jeder Etage
+    const decken = (h.etagen ?? [Math.round(hh * 0.45)]).map(e => h.unten - e);
+    const unterkanten = [h.unten, ...decken];
+    decken.forEach(y => r.rect(variiere(basis, -22), l, y, w, 8));
+    for (let k = 0; k < unterkanten.length; k++) {
+        const boden = unterkanten[k] - 8, decke = (decken[k] ?? t) + 8;
+        if (boden - decke < 40) continue;
+        for (let x = l + 22; x < l + w - 40; x += rnd.between(54, 70)) {
+            if (decke + 12 < t + hoeheAn(x) || rnd.frac() < 0.12) continue;
+            const ow = rnd.between(34, 48), oh = Math.min(boden - decke - 26, rnd.between(40, 62));
+            const oy = boden - oh - 6;
+            r.rect(0x14181b, x, oy, ow, oh);
+            r.rect(variiere(basis, 16), x - 2, oy - 3, ow + 4, 4);                          // Sturz
+            r.rect(variiere(basis, 10), x - 2, oy + oh, ow + 4, 3);                         // Brüstung
+            if (rnd.frac() < 0.4) r.rect(0x1c2226, x + 6, oy + oh - 14, rnd.between(12, 20), 14);   // Möbel/Schutt im Raum
+            if (rnd.frac() < 0.3) { r.rect(0x20262a, x + 4, oy, 4, oh); r.rect(0x20262a, x + ow - 12, oy + 8, 4, oh - 8); }   // Glasreste
+            if (rnd.frac() < 0.18) {                                                           // ausgebrochene Wand: Schutt davor
+                r.rect(variiere(basis, -10), x + ow, oy + oh - 8, 14, 8); r.rect(variiere(basis, -4), x + ow + 6, oy + oh - 14, 8, 6);
+            }
+        }
+    }
+    // Eckpfeiler (heller) und Risse
+    for (const px of [l, l + w - 16]) r.rect(variiere(basis, 12), px, t + hoeheAn(px + 8), 16, hh - hoeheAn(px + 8));
+    for (let i = 0; i < w / 50; i++) {
+        let cx = l + rnd.between(6, w - 6), cy = t + hoeheAn(cx) + rnd.between(10, Math.max(11, hh / 2));
+        for (let k = 0; k < rnd.between(3, 7); k++) { r.rect(0x0c0e10, cx, cy, 2, 6, 0.8); cx += rnd.pick([-3, 3]); cy += 5; }
+    }
+    // Armierungseisen an der Bruchkante
+    for (let i = 0; i < 6; i++) {
+        const cx = l + rnd.between(4, w - 6);
+        pl(r, 0x2a2420, cx, t + hoeheAn(cx), cx + rnd.between(-6, 6), t + hoeheAn(cx) - rnd.between(10, 26), 2);
+    }
+    // Bewuchs: wenige Ranken, Moos auf den Geschossdecken, ein Baum aus dem Dach
+    for (let i = 0; i < w / 60; i++) {
+        const x = l + rnd.between(2, w - 6), len = rnd.between(30, Math.floor(hh * 0.45));
+        r.rect(0x2a4018, x, t + hoeheAn(x), 3, len);
+        for (let k = 6; k < len; k += rnd.between(8, 12)) r.rect(rnd.pick(GRUEN.slice(0, 4)), x + (k % 2 ? 3 : -4), t + hoeheAn(x) + k, 5, 4);
+    }
+    for (const y of decken) {
+        for (let x = l; x < l + w; x += rnd.between(30, 70)) r.rect(rnd.pick(GRUEN.slice(0, 3)), x, y - 3, rnd.between(8, 20), 4);
+    }
+    if (rnd.frac() < 0.7) {
+        const cx = l + rnd.between(30, w - 30), tp = t + hoeheAn(cx);
+        r.rect(0x3a2a1c, cx - 3, tp - 30, 7, 32);
+        for (const [dx, dy, rx, ry] of [[0, -42, 20, 14], [-14, -32, 11, 8], [14, -34, 12, 8]]) {
+            for (let yy = -ry; yy <= ry; yy += 4) for (let xx = -rx; xx <= rx; xx += 4) {
+                if ((xx / rx) ** 2 + (yy / ry) ** 2 <= 1 && rnd.frac() > 0.2) r.rect(GRUEN[rnd.between(0, 3)], cx + dx + xx, tp + dy + yy, 4, 4);
+            }
+        }
+    }
+    // dunkle Kante unten
+    r.rect(0x000000, l, h.unten - 10, w, 10, 0.18);
+}
+
+// Ein rostiger Gitterturm (Funkturm): zwei Beine, waagerechte Ringe, Kreuzstreben, Rost und Ranken.
+function zeichneTurm(r, rnd, h) {
+    const l = h.links, t = h.oben, w = h.rechts - h.links, hh = h.unten - h.oben;
+    const eisen = 0x4a4036, hell = 0x62564a, dunkel = 0x2c2620;
+    const beinL = l + 14, beinR = l + w - 22;
+    const ringe = (h.etagen ?? [Math.round(hh / 2)]).map(e => h.unten - e);
+    const alle = [h.unten, ...ringe];
+    for (const bx of [beinL, beinR]) {                              // zwei senkrechte Beine
+        r.rect(eisen, bx, t, 8, hh); r.rect(hell, bx, t, 2, hh); r.rect(dunkel, bx + 6, t, 2, hh);
+    }
+    ringe.forEach(y => { r.rect(eisen, beinL, y, beinR - beinL + 8, 6); r.rect(hell, beinL, y, beinR - beinL + 8, 2); });
+    for (let k = 0; k < alle.length - 1; k++) {                     // Kreuzstreben zwischen den Ringen
+        const unten = alle[k], oben = alle[k + 1];
+        if (oben < t) continue;
+        pl(r, eisen, beinL + 8, unten, beinR, oben + 6, 3);
+        if (rnd.frac() < 0.75) pl(r, eisen, beinR, unten, beinL + 8, oben + 6, 3);        // manche Streben sind abgebrochen
+    }
+    for (let i = 0; i < 30; i++) r.rect(rnd.pick(ROST_FARBEN), l + rnd.between(10, w - 10), t + rnd.between(0, hh - 10), 2, rnd.between(6, 16), 0.6);   // Rostspuren
+    for (const bx of [beinL + 4, beinR + 4]) {                      // Ranken ranken sich die Beine hoch
+        for (let y = h.unten; y > h.unten - rnd.between(hh * 0.3, hh * 0.7); y -= 6) {
+            r.rect(rnd.pick(GRUEN.slice(1, 5)), bx + rnd.between(-6, 2), y - 6, rnd.between(4, 10), 6);
+        }
+    }
+    r.rect(dunkel, beinL - 6, h.unten - 10, 20, 10); r.rect(dunkel, beinR - 4, h.unten - 10, 20, 10);   // Fundamente
+}
+
+const ROST_FARBEN = [0x8a4a22, 0x6b3a22, 0x5a2e1a];
+
+// Bruchkanten unter einer Betonplatte: abgebrochene Stücke hängen herab, Eisen ragen an den Enden heraus.
+function bruchkante(g, rnd, l, t, w, h, farbe) {
+    const b = t + h;
+    for (let x = l; x < l + w; x += rnd.between(10, 26)) {
+        g.fillStyle(variiere(farbe, rnd.between(-45, -25))).fillRect(x, b, Math.min(rnd.between(6, 14), l + w - x), rnd.between(3, 9));
+    }
+    for (const [x0, richtung] of [[l, -1], [l + w, 1]]) {
+        if (rnd.frac() < 0.3) continue;
+        for (let k = 0; k < rnd.between(1, 3); k++) {
+            const len = rnd.between(8, 18), y = t + rnd.between(4, Math.max(5, h - 4));
+            g.fillStyle(0x2a2420).fillRect(richtung > 0 ? x0 : x0 - len, y, len, 2);
+        }
+    }
+}
+
 // ---- Hintergrund der Höhlen: Die Wand hinter dem Spieler, statt einer schwarzen Fläche ----
 
 // Malt eine Höhlenwand. h = { links, rechts, oben, unten, art, licht } ; lampen = x-Positionen der Deckenlampen.
 // art 'tunnel' = dunkler Fels, 'offen' = Graben/Schacht mit Erdwand und Himmelslicht, 'lager' = Betonraum.
 function zeichneHoehle(r, rnd, h, lampen) {
+    if (h.art === 'gebaeude') return zeichneGebaeude(r, rnd, h);   // eigene Zeichnung für Gebäuderückwände
+    if (h.art === 'turm') return zeichneTurm(r, rnd, h);
     const l = h.links, t = h.oben, w = h.rechts - h.links, hh = h.unten - h.oben;
     const farben = {
         tunnel: { basis: 0x251f1a, hell: 0x332b24, dunkel: 0x15110e },

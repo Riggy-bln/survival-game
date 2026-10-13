@@ -52,6 +52,7 @@ const MINE_BODEN = 1330;        // y des Minenbodens (570 unter der Oberfläche)
 const MINE_DECKE = 1160;        // Unterkante der Decke im Gang (170 Platz bis zum Boden)
 const KAV_DECKE = 960;          // Unterkante der Decke in der hohen Kaverne
 const HOLZ = 0x6b4a2a;          // Holz (Brücken, Absätze)
+const METALL = 0x3a4046;        // Stahl (Gitterturm)
 
 // erde: ein Erdblock von "links" bis "rechts" und von "oben" bis "unten" (alles Kanten, keine Mitte).
 const erde = (links, rechts, oben, unten, farbe = 0x4b3b2a) =>
@@ -167,6 +168,7 @@ nahkaempfer(1150, 1050, 1350, 3);                // der erste Gegner
 // Oben (Deck) kämpft ein Schütze, darunter patrouilliert ein Nahkämpfer.
 // =====================================================================
 huegel(1450, 60, 160, BETON);                    // Stufe zum Deck
+hoehlen.push({ links: 1585, rechts: 2135, oben: BODEN - 330, unten: BODEN, art: 'gebaeude', etagen: [140, 240] });   // Rückwand der Ruine
 schwebend(1600, BODEN - 140, 360);                       // Deck (Oberkante 360), x 1600 bis 1960
 schwebend(2010, BODEN - 240, 110);                       // kleines Versteck darüber (Oberkante 260)
 fernkaempfer(1780, 1660, 1900, 3, BODEN - 140);          // Schütze auf dem Deck
@@ -317,13 +319,12 @@ munition(5890);
 // Von der 4. Etage führt eine Skybridge nach rechts, ein Abkürzungsweg über den Bodenkämpfen.
 // =====================================================================
 signs.push({ x: 6200, y: BODEN - 110, text: 'Hochhaus-Ruine:\nGegner auf jeder Etage' });
-dunkel(6400, 6900, BODEN - 620, BODEN, 0x22282c);                        // Fassade (Hintergrund)
-dunkel(6400, 6420, BODEN - 620, BODEN, 0x3a4046);                        // linker Pfeiler
-dunkel(6880, 6900, BODEN - 620, BODEN, 0x3a4046);                        // rechter Pfeiler
+hoehlen.push({ links: 6380, rechts: 6920, oben: BODEN - 660, unten: BODEN, art: 'gebaeude', etagen: [100, 200, 300, 400, 500, 600] });   // Rückwand des Hochhauses
 for (let etage = 1; etage <= 6; etage++) {
     const links = etage % 2 === 1 ? 6400 : 6520;                         // ungerade links, gerade rechts
     schwebend(links, BODEN - 100 * etage, 380);                          // 380 breit, Oberkante = Etagenhöhe
 }
+hoehlen.push({ links: 7060, rechts: 7260, oben: BODEN - 440, unten: BODEN, art: 'gebaeude', etagen: [400] });   // Gebäuderest am Ende der Skybridge
 schwebend(6900, BODEN - 400, 250);                                       // Skybridge (Oberkante wie Etage 4)
 
 nahkaempfer(6250, 6170, 6330, 4);                                        // am Eingang, links
@@ -420,7 +421,8 @@ versorgungspunkt(10030);
 heilung(9990);
 munition(10070);
 signs.push({ x: 10250, y: BODEN - 130, text: 'Funkturm:\nein Aufstieg lohnt sich' });
-for (let k = 1; k <= 5; k++) schwebend(k % 2 === 1 ? 10250 : 10420, BODEN - 105 * k, 100, HOLZ);
+hoehlen.push({ links: 10225, rechts: 10545, oben: BODEN - 650, unten: BODEN, art: 'turm', etagen: [105, 210, 315, 420, 525, 630] });   // Gitterturm
+for (let k = 1; k <= 5; k++) schwebend(k % 2 === 1 ? 10250 : 10420, BODEN - 105 * k, 100, METALL);
 schwebend(10330, BODEN - 630, 260, BETON);                                 // Aussichtsdeck (Oberkante 130)
 decor.push({ x: 10335, y: BODEN - 700, w: 6, h: 70, color: 0x3a4046 });    // Antennenmast
 decor.push({ x: 10335, y: BODEN - 745, w: 24, h: 6, color: 0x3a4046 });

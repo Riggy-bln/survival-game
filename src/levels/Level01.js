@@ -402,6 +402,58 @@ hoehlendecke(KAV_R, SCHACHT2_L, MINE_DECKE, 2, 15);                             
 haufen(3156, [32, 64, 32]);                                                                 // Geröll am Fuß des Eingangs
 haufen(7632, [32, 64, 32], MINE_BODEN);                                                     // Geröll, wo der Förderschacht in den Gang mündet
 
+// erdberg: ein natürlicher Berg aus Erde (mit Gras). tunnel > 0 macht ihn hohl: Darunter läuft ein Tunnel auf Bodenhöhe
+// (tunnel = Höhe des Gangs). Hohle Berge sind mindestens tunnel + 32 hoch. Hänge steigen höchstens im 45°-Winkel und sind
+// durch Zufallsabweichungen holprig (keine glatten Rampen, keine großen rechten Winkel); ebene Abschnitte sind Plateaus für Gegner.
+const erdberg = (links, punkte, tunnel = 0, rau = 1.3) => gelaende(links, punkte, 'erde', rau, BODEN, tunnel ? BODEN - tunnel : BODEN);
+
+// schwebeinsel: ein Stück Erde in der Luft. Eine flache Ellipse: in der Mitte dick, an den Rändern dünn; die Oberkante ist leicht
+// wellig (mit Gras), die Unterseite hängt in Zapfen mit Wurzeln und Ranken. Benachbarte Spalten unterscheiden sich höchstens um einen
+// Block (oben) bzw. zwei Blöcke (unten). Gibt { tops, topBei(x), links, rechts } zurück, damit man Leitern und Gegenstände genau darauf setzen kann.
+const schwebeinsel = (links, breite, oben, dicke, seed) => {
+    const n = Math.round(breite / BLOCK), zu = zufall(seed);
+    const klemme = (v, a, b) => Math.max(a, Math.min(b, v));
+    const tops = [], bots = [];
+    let t = 0;
+    for (let i = 0; i < n; i++) {
+        const u = (i + 0.5) / n, prof = Math.sqrt(Math.max(0, 1 - Math.pow(2 * u - 1, 2)));
+        const r = zu();
+        if (Math.abs(i + 0.5 - n / 2) > 2.5) {                               // nur außerhalb der Mitte wellig: In der Mitte bleibt eine ebene Fläche (für Beute und Gegner)
+            if (r < 0.25) t += 1; else if (r < 0.5) t -= 1;
+            t = klemme(t, -1, 1);
+        }
+        const d = Math.max(2, Math.round(dicke / BLOCK * (0.4 + 0.6 * prof) + (zu() - 0.5) * 1.6));
+        const top = oben + (t + Math.round((1 - prof) * 2)) * BLOCK;       // zu den Rändern hin sinkt die Oberkante
+        tops.push(top); bots.push(top + d * BLOCK);
+    }
+    for (let i = 1; i < n; i++) { tops[i] = klemme(tops[i], tops[i - 1] - BLOCK, tops[i - 1] + BLOCK); bots[i] = klemme(bots[i], bots[i - 1] - 2 * BLOCK, bots[i - 1] + 2 * BLOCK); }
+    for (let i = n - 2; i >= 0; i--) { tops[i] = klemme(tops[i], tops[i + 1] - BLOCK, tops[i + 1] + BLOCK); bots[i] = klemme(bots[i], bots[i + 1] - 2 * BLOCK, bots[i + 1] + 2 * BLOCK); }
+    for (let i = 0; i < n; i++) bots[i] = Math.max(bots[i], tops[i] + 2 * BLOCK);     // mindestens zwei Blöcke dick
+    let start = 0;
+    for (let i = 1; i <= n; i++) {
+        if (i === n || tops[i] !== tops[start] || bots[i] !== bots[start]) {
+            erde(links + start * BLOCK, links + i * BLOCK, tops[start], bots[start]);
+            start = i;
+        }
+    }
+    for (let i = 0; i < n; i++) {                                          // Wurzeln und Ranken unter der Insel
+        if (zu() < 0.5) decor.push({ x: links + i * BLOCK + 8 + Math.floor(zu() * 16), y: bots[i] + 8 + Math.floor(zu() * 6), w: 4, h: 14 + Math.floor(zu() * 20), color: 0x4a331d });
+        if (zu() < 0.3) decor.push({ x: links + i * BLOCK + 6 + Math.floor(zu() * 20), y: bots[i] + 12 + Math.floor(zu() * 10), w: 3, h: 24 + Math.floor(zu() * 26), color: 0x3b5a22 });
+    }
+    // flach(spalten): die erste ebene Strecke (mindestens so viele gleich hohe Spalten), vom mittleren Bereich aus gesucht: { x0, x1, top }
+    const flach = (spalten = 3) => {
+        const reihenfolge = [...Array(n).keys()].sort((a, b) => Math.abs(a - n / 2) - Math.abs(b - n / 2));
+        for (const i of reihenfolge) {
+            let a = i, b = i;
+            while (a > 0 && tops[a - 1] === tops[i]) a--;
+            while (b < n - 1 && tops[b + 1] === tops[i]) b++;
+            if (b - a + 1 >= spalten) return { x0: links + a * BLOCK, x1: links + (b + 1) * BLOCK, top: tops[i] };
+        }
+        return null;
+    };
+    return { tops, links, rechts: links + n * BLOCK, flach, topBei: (x) => tops[klemme(Math.floor((x - links) / BLOCK), 0, n - 1)] };
+};
+
 // =====================================================================
 // Taktische Bauteile (Broforce-Stil): Leitern, zerstörbare Deckung, Türme, die einstürzen
 // =====================================================================
@@ -670,8 +722,14 @@ skelett(4818, 4786, 4850, 4, BODEN - 336);              // Scharfschütze auf de
 munition(4800, BODEN - 336);                                 // Belohnung auf dem Bunkerdach
 granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)
 // Das Feld: zwei Hügel mit einer Senke dazwischen
-gelaende(4900, [[0, 0], [128, 64], [256, 64], [352, 0], [704, 0]]);   // ein Hügel, danach eben bis zum Einsturzloch (ZONE Q)
-nahkaempfer(5090, 5044, 5136, 3, BODEN - 64);                // auf dem ersten Hügel
+// Das Feld bekommt einen Berg aus Erde mit einem Tunnel auf Bodenhöhe: Wer durch den Tunnel läuft, trifft einen Wächter; auf dem
+// Kamm sitzt ein Schütze. (Danach ebenes Feld bis zum Einsturzloch, ZONE Q.)
+erdberg(4940, [[0, 224], [64, 224], [192, 352], [256, 352], [320, 224]], 160);
+hoehlen.push({ links: 4940, rechts: 5260, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+[5000, 5100, 5200].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
+nahkaempfer(5090, 5020, 5170, 3);                            // im Tunnel
+skelett(5164, 5148, 5180, 3, BODEN - 352);                   // Schütze auf dem Kamm
+munition(5040, BODEN);
 nahkaempfer(5285, 5262, 5300, 3);                            // in der Senke, vor dem Einsturzloch
 stacheldraht(5262);                                          // nur Dekoration in der Senke
 
@@ -695,15 +753,15 @@ signs.push({ x: 6015, y: BODEN - 110, text: 'Hochhaus-Ruine:\nin den Berg gebaut
 // Das Hochhaus ist in einen Berg hineingebaut: Im Westen und Osten steigen Felsberge auf, die sein Erdgeschoss und die unteren
 // Etagen verschlucken. Durch beide Berge führt ein Tunnel auf Bodenhöhe (160 hoch) ins Gebäude; über die Berge führen Absätze
 // (und Leitern), die auf die Etagen münden. Der westliche Tunnel enthält den Ausgangsschacht der Katakomben.
-// Westberg: Absätze auf 224, 320 und 416 (je 96 Unterschied: man springt hinauf), hohl mit Bodentunnel
-gelaende(6090, [[0, 224], [128, 224], [132, 320], [250, 320], [254, 416], [350, 416]], 'fels', 0.8, BODEN, BODEN - 160);
+// Westberg (Erde): ein holpriger Hang steigt von 224 auf 416, hohl mit Bodentunnel
+erdberg(6090, [[0, 224], [64, 224], [100, 256], [130, 256], [290, 416], [350, 416]], 160);
 sprossenleiter(6068, BODEN - 224, BODEN, 1, 'holz', 28);                       // Leiter an der Westwand zum ersten Absatz
 hoehlen.push({ links: 6090, rechts: 6442, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
 [6180, 6300, 6410].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
-skelett(6392, 6362, 6424, 4, BODEN - 416);                                     // Schütze oben auf dem Westberg
-// Ostberg: Absätze auf 288, 352 und 416, dann wieder 288; hohl mit Bodentunnel (der Weg ins Innere des Berges)
-gelaende(6900, [[0, 288], [100, 288], [104, 352], [200, 352], [204, 416], [296, 416], [300, 288], [420, 288]], 'fels', 0.8, BODEN, BODEN - 160);
-sprossenleiter(7338, BODEN - 288, BODEN, -1, 'holz', 28);                      // Leiter an der Ostwand
+skelett(6410, 6396, 6424, 4, BODEN - 416);                                     // Schütze oben auf dem Westberg
+// Ostberg (Erde): Plateau (256), Kamm (352), wieder 256; hohl mit Bodentunnel (der Weg ins Innere des Berges)
+erdberg(6900, [[0, 256], [64, 256], [160, 352], [224, 352], [320, 256], [416, 256]], 160);
+sprossenleiter(7338, BODEN - 256, BODEN, -1, 'holz', 28);                      // Leiter an der Ostwand
 hoehlen.push({ links: 6900, rechts: 7316, oben: BODEN - 160, unten: BODEN, art: 'tunnel', eigeneLampen: true });
 [6990, 7120, 7250].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
 hoehlen.push({ links: 6380, rechts: 6920, oben: BODEN - 660, unten: BODEN, art: 'gebaeude', etagen: [100, 200, 300, 400, 500, 600] });   // Rückwand des Hochhauses
@@ -724,10 +782,9 @@ fernkaempfer(6780, 6700, 6860, 5, BODEN - 600);                          // Scha
 nahkaempfer(7100, 7020, 7180, 4);
 fass(7255, BODEN);
 munition(7040, BODEN);
-skelett(7040, 7012, 7068, 3, BODEN - 352);                               // Schütze auf dem zweiten Absatz
-fernkaempfer(7150, 7118, 7164, 4, BODEN - 416);                          // Scharfschütze auf dem höchsten Absatz
-heilung(6950, BODEN - 288);                                              // Belohnung auf dem ersten Absatz
-granate(7112, BODEN - 416);                                              // und oben auf dem Grat
+skelett(7092, 7076, 7108, 3, BODEN - 352);                               // Schütze auf dem Kamm
+heilung(6935, BODEN - 256);                                              // Belohnung auf dem Plateau
+granate(7102, BODEN - 352);                                              // und oben auf dem Kamm
 
 heilung(6475, BODEN - 300);                                              // Belohnung auf Etage 3 (linkes Ende)
 munition(6430, BODEN - 500);                                             // Belohnung auf Etage 5 (linkes Ende)
@@ -880,9 +937,11 @@ granate(10450, BODEN - 630);
 munition(10540, BODEN - 630);
 fernkaempfer(10520, 10430, 10570, 5, BODEN - 630);                         // Scharfschütze auf dem Deck
 nahkaempfer(10200, 10120, 10300, 4);                                       // am Fuß des Turms
-gelaende(10608, [[0, 0], [96, 64], [256, 64], [352, 0]]);   // Hügel hinter dem Turm
-nahkaempfer(10750, 10720, 10790, 4, BODEN - 64);
-fernkaempfer(10830, 10805, 10848, 3, BODEN - 64);
+erdberg(10608, [[0, 224], [64, 224], [192, 352], [256, 352], [352, 224]], 160);   // Berg hinter dem Turm, mit Tunnel
+hoehlen.push({ links: 10608, rechts: 10960, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+[10680, 10780, 10880].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
+nahkaempfer(10770, 10700, 10850, 4);                                       // im Tunnel
+skelett(10832, 10816, 10848, 3, BODEN - 352);                              // Schütze auf dem Kamm
 
 // =====================================================================
 // ZONE N: Das Tal der Brücken (x 10950 bis 13400). Sanfte Hügel, zwei Schluchten und zwei kaputte Brücken.
@@ -996,7 +1055,7 @@ nahkaempfer(15100, 15060, 15140, 6, TUNNEL_BODEN);                       // der 
 
 // Die Gipfelroute über der Erde
 gelaende(13640, [[0, 0], [160, 96], [256, 96], [384, 224], [480, 224], [484, 320], [608, 320], [736, 448], [832, 448],
-    [836, 544], [1000, 544], [1004, 352], [1100, 352], [1228, 160], [1324, 160], [1484, 0], [1560, 0]], 'fels');
+    [836, 544], [1000, 544], [1004, 352], [1100, 352], [1228, 160], [1324, 160], [1484, 0], [1560, 0]], 'erde');   // Erde mit Gras (nicht Stein)
 nahkaempfer(13850, 13824, 13872, 3, BODEN - 96);
 fernkaempfer(14072, 14040, 14104, 3, BODEN - 224);
 nahkaempfer(14186, 14146, 14226, 4, BODEN - 320);
@@ -1023,6 +1082,34 @@ heilung(16170); granate(16190); munition(16250); munition(16275);
 // Das Tal hinter dem Gebirge
 nahkaempfer(15540, 15500, 15600, 4);
 stacheldraht(15500);
+
+
+// =====================================================================
+// SCHWEBENDE INSELN: Stücke Erde in der Luft mit Beute (und manchmal einem Schützen). Man erreicht sie über Leitern,
+// die an ihrem Westrand beginnen. Von unten sieht man ihre Wurzeln hängen.
+// =====================================================================
+{   // Insel 1: über dem Versorgungshügel (nur Beute, keine Gegner)
+    const insel = schwebeinsel(2392, 256, BODEN - 400, 128, 7);
+    sprossenleiter(2392 - 22, insel.tops[0], bodenBei(2370), 1, 'holz', 28);
+    const f = insel.flach(3);
+    const xs = (k) => f.x0 + (f.x1 - f.x0) * (k + 0.5) / 3;                    // drei Gegenstände gleichmäßig auf der ebenen Strecke
+    heilung(xs(0), f.top); munition(xs(1), f.top); granate(xs(2), f.top);
+    signs.push({ x: 2350, y: BODEN - 250, text: 'Eine Leiter führt\nzu einer Insel in der Luft' });
+}
+{   // Insel 2: über dem ersten Hügel im Tal der Brücken (Scharfschütze und Beute)
+    const insel = schwebeinsel(11160, 256, BODEN - 470, 128, 19);
+    sprossenleiter(11160 - 22, insel.tops[0], bodenBei(11138), 1, 'holz', 28);
+    const f = insel.flach(3);
+    skelett((f.x0 + f.x1) / 2, f.x0 + 16, f.x1 - 16, 4, f.top);
+    granate(f.x0 + 14, f.top);
+}
+{   // Insel 3: hoch über dem Gebirge, östlich vom Gipfel (große Belohnung)
+    const insel = schwebeinsel(14790, 256, BODEN - 620, 128, 31);
+    sprossenleiter(14790 - 22, insel.tops[0], bodenBei(14768), 1, 'holz', 28);
+    const f = insel.flach(4);
+    const xs = (k) => f.x0 + (f.x1 - f.x0) * (k + 0.5) / 4;
+    heilung(xs(0), f.top); munition(xs(1), f.top); munition(xs(2), f.top); granate(xs(3), f.top);
+}
 
 // =====================================================================
 // ZONE H: Vor der Arena (x 13400 bis 13850). Hier rüstet man sich aus.
@@ -1059,7 +1146,7 @@ fass(1240, BODEN - 96);                      // Zone A, beim ersten Gegner
 fass(1850, BODEN - 140);                     // Zone B, auf dem Deck beim Schützen
 fass(2150);
 fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
-fass(5100, BODEN - 64); fass(5262);          // Zone E, auf dem offenen Feld
+fass(5120); fass(5262);          // Zone E, auf dem offenen Feld
 fass(6385);                                  // Zone G, vor dem Hochhaus
 fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
 fass(7376); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf der Klippe

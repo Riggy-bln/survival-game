@@ -19,7 +19,7 @@ export default class LobbyScene extends Phaser.Scene {
         zentriere(this);                                  // Kamera nach der Höhe, auch nach Vollbild mittig
         this.hintergrund = baueHintergrund(this);
         const host = this.rolle === 'host';
-        this.titelAnim = baueTitel(this, host ? 'RAUM ERSTELLEN' : 'RAUM BEITRETEN', 52, 40);
+        this.titelAnim = baueTitel(this, host ? 'RAUM ERSTELLEN' : 'RAUM BEITRETEN', 50, 5);
         this.knoepfe = [];
         const schrift = (groesse, farbe, extra = {}) => ({ fontSize: `${groesse}px`, fontFamily: 'monospace', color: farbe, stroke: '#14101f', strokeThickness: 3, ...extra });
         // Tafeln hinter den Texten (dunkel, mit farbigem Rand)
@@ -185,7 +185,7 @@ export default class LobbyScene extends Phaser.Scene {
 
     // Knopf zum Antippen (Handy und Maus). Die Tastatur-Kürzel funktionieren weiter.
     knopf(x, y, text, aktion, breite = 150, farbe = 0x4aa3ff) {
-        const k = pixelKnopf(this, x, y, breite, 36, text, farbe, aktion, { schrift: 14 });
+        const k = pixelKnopf(this, x, y, breite, 38, text, farbe, aktion, { px: 2 });
         this.knoepfe.push(k);
         return k;
     }

@@ -17,7 +17,7 @@ export default class PauseScene extends Phaser.Scene {
         tafel.fillStyle(0xffdd55).fillRect(MITTE_X - 190, 150, 380, 250);
         tafel.fillStyle(0x14101f, 0.95).fillRect(MITTE_X - 187, 153, 374, 244);
         tafel.fillStyle(0xffffff, 0.06).fillRect(MITTE_X - 187, 153, 374, 5);
-        this.titel = baueTitel(this, 'PAUSE', 205, 54);
+        this.titel = baueTitel(this, 'PAUSE', 206, 8);
 
         const weiter = () => {
             this.input.setDefaultCursor('none');
@@ -32,8 +32,8 @@ export default class PauseScene extends Phaser.Scene {
         this.input.keyboard.once('keydown-M', menue);
         // Knöpfe zum Antippen (Handy) oder Anklicken
         this.knoepfe = [
-            pixelKnopf(this, MITTE_X, 290, 320, 46, 'WEITER  (ESC)', 0x58c06a, weiter, { schrift: 18 }),
-            pixelKnopf(this, MITTE_X, 350, 320, 46, 'HAUPTMENÜ  (M)', 0x8a96a0, menue, { schrift: 18 }),
+            pixelKnopf(this, MITTE_X, 290, 320, 46, 'WEITER (ESC)', 0x58c06a, weiter, { px: 3 }),
+            pixelKnopf(this, MITTE_X, 350, 320, 46, 'HAUPTMENÜ (M)', 0x8a96a0, menue, { px: 3 }),
         ];
     }
 

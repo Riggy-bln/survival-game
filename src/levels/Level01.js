@@ -286,35 +286,53 @@ const felsnase = (wandX, y, breite, richtung = 1) =>
 // "frei" = Bereiche, in denen die Decke glatt bleiben muss (zum Beispiel direkt am Eingang, wo der Kopf des
 // Spielers Platz braucht). "endeTief" = die letzten Spalten hängen ganz tief (die Höhle läuft aus).
 const decken = [];
-const hoehlendecke = (links, rechts, basis, maxStufen, seed, frei = [], endeTief = false) => {
-    const n = Math.ceil((rechts - links) / BLOCK);
-    const zu = zufall(seed);
-    const ex = [];
-    let e = 0;
+// Natürliche Formen entstehen in einem FEINEN Raster aus 16-Pixel-Spalten (statt 32): Die Höhen folgen einer glatten Wellenfunktion mit
+// etwas Zufall, und benachbarte Spalten unterscheiden sich höchstens um 16 Pixel. So entstehen sanfte, 45° steile Hänge, Beulen und
+// Mulden aus Erdblöcken statt grober Treppen oder spitzer Zapfen.
+const FEIN = 16;
+// glatterVerlauf: n Werte (Tiefe in Einheiten zu 16 Pixeln, 0 bis maxU). fix(i) = Wert, der in Spalte i fest vorgegeben ist (oder null).
+// anteilNull = ungefährer Anteil ebener Stellen (Wert 0).
+const glatterVerlauf = (n, maxU, seed, fix = () => null, anteilNull = 0.3) => {
+    const zu = zufall(seed), p1 = zu() * 6.28, p2 = zu() * 6.28, p3 = zu() * 6.28;
+    const w = [];
     for (let i = 0; i < n; i++) {
-        const x = links + i * BLOCK;
-        const r = zu();
-        if (r < 0.3 && e < maxStufen) e++;
-        else if (r < 0.6 && e > 0) e--;
-        let wert = e;
-        if (endeTief && i >= n - 2) wert = maxStufen;
-        if (frei.some(([a, b]) => x + BLOCK > a && x < b)) wert = 0;
-        ex.push(wert);
+        const f = 0.55 * Math.sin(i * 0.19 + p1) + 0.3 * Math.sin(i * 0.47 + p2) + 0.2 * Math.sin(i * 1.1 + p3) + (zu() - 0.5) * 0.3;
+        const v = Math.max(0, ((f + 1) / 2 - anteilNull) / (1 - anteilNull));
+        const festWert = fix(i);
+        w.push(festWert !== null ? festWert : Math.min(maxU, Math.round(v * maxU)));
     }
-    erde(links, rechts, BODEN, basis);
+    for (let i = 1; i < n; i++) if (fix(i) === null) w[i] = Math.max(w[i - 1] - 1, Math.min(w[i - 1] + 1, w[i]));
+    for (let i = n - 2; i >= 0; i--) if (fix(i) === null) w[i] = Math.max(w[i + 1] - 1, Math.min(w[i + 1] + 1, w[i]));
+    return w;
+};
+// zuBloecken: fasst gleiche Nachbarn zusammen und ruft fuer jeden Abschnitt (von, bis, wert) auf
+const zuBloecken = (liste, links, rechts, fn) => {
     let start = 0;
-    for (let i = 1; i <= n; i++) {
-        if (i === n || ex[i] !== ex[start]) {
-            if (ex[start] > 0) erde(links + start * BLOCK, Math.min(rechts, links + i * BLOCK), BODEN, basis + ex[start] * BLOCK);
+    for (let i = 1; i <= liste.length; i++) {
+        if (i === liste.length || liste[i] !== liste[start]) {
+            if (liste[start] > 0) fn(links + start * FEIN, Math.min(rechts, links + i * FEIN), liste[start]);
             start = i;
         }
     }
-    decken.push({ links, rechts, basis, ex });
+};
+// hoehlendecke: Eine Basisplatte bis "basis" und darunter herabhängende Erdblöcke (bis maxStufen * 32 Pixel tief) mit sanft
+// wechselnder Tiefe: Vorsprünge, Nischen und Beulen, aber keine Zacken. "frei" = Bereiche, in denen die Decke glatt bleiben muss
+// (zum Beispiel direkt am Eingang, wo der Kopf des Spielers Platz braucht). "endeTief" = die letzten Spalten hängen ganz tief.
+const hoehlendecke = (links, rechts, basis, maxStufen, seed, frei = [], endeTief = false) => {
+    const n = Math.ceil((rechts - links) / FEIN), maxU = maxStufen * 2;
+    const fix = (i) => {
+        if (endeTief && i >= n - 3) return maxU;
+        return frei.some(([a, b]) => links + (i + 1) * FEIN > a && links + i * FEIN < b) ? 0 : null;
+    };
+    const u = glatterVerlauf(n, maxU, seed, fix, 0.3);
+    erde(links, rechts, BODEN, basis);
+    zuBloecken(u, links, rechts, (x0, x1, k) => erde(x0, x1, BODEN, basis + k * FEIN));
+    decken.push({ links, rechts, basis, schritt: FEIN, ex: u });
 };
 // deckeBei: Die Unterkante der Höhlendecke (y) an der Stelle x. Lampen und Stützen richten sich danach.
 const deckeBei = (x, vorgabe = BODEN + DECKE) => {
     for (const d of decken) {
-        if (x >= d.links && x < d.rechts) return d.basis + d.ex[Math.min(d.ex.length - 1, Math.floor((x - d.links) / BLOCK))] * BLOCK;
+        if (x >= d.links && x < d.rechts) return d.basis + d.ex[Math.min(d.ex.length - 1, Math.floor((x - d.links) / d.schritt))] * d.schritt;
     }
     return vorgabe;
 };
@@ -354,36 +372,22 @@ const aushoehlen = (links, rechts, oben, unten) => {
 // beides, damit man immer durchkommt. "frei" = Bereiche ohne Zacken (unter Schächten, in Räumen, auf Podesten).
 const hoehlenform = (links, rechts, oben, unten, seed, frei = [], maxDecke = 2, maxBoden = 1, freiBoden = []) => {
     aushoehlen(links, rechts, oben, unten);
-    const n = Math.ceil((rechts - links) / BLOCK), zu = zufall(seed);
-    const dec = [], bod = [];
-    let e = 0, f = 0;
-    for (let i = 0; i < n; i++) {
-        const x = links + i * BLOCK;
-        const r = zu(), r2 = zu();
-        if (r < 0.28 && e < maxDecke) e++; else if (r < 0.58 && e > 0) e--;
-        if (r2 < 0.2 && f < maxBoden) f++; else if (r2 < 0.55 && f > 0) f--;
-        let a = e, b = f;
-        if (frei.some(([p, q]) => x + BLOCK > p && x < q)) { a = 0; b = 0; }
-        if (freiBoden.some(([p, q]) => x + BLOCK > p && x < q)) b = 0;   // dort stehen Gegner oder liegt Beute
-        if (a > 0 && b > 0) b = 0;
-        dec.push(a); bod.push(b);
-    }
-    for (const [liste, deckeSeite] of [[dec, true], [bod, false]]) {
-        let start = 0;
-        for (let i = 1; i <= n; i++) {
-            if (i === n || liste[i] !== liste[start]) {
-                const k = liste[start];
-                if (k > 0) {
-                    const x0 = links + start * BLOCK, x1 = Math.min(rechts, links + i * BLOCK);
-                    if (deckeSeite) erde(x0, x1, oben - BLOCK, oben + k * BLOCK);     // reicht in die Decke hinein (damit es als Erde gemalt wird)
-                    else erde(x0, x1, unten - k * BLOCK, unten + 32, FELS);
-                }
-                start = i;
-            }
-        }
-    }
-    const deckeAn = (x) => oben + dec[Math.max(0, Math.min(n - 1, Math.floor((x - links) / BLOCK)))] * BLOCK;
+    const n = Math.ceil((rechts - links) / FEIN);
+    const inBereich = (i, liste) => liste.some(([p, q]) => links + (i + 1) * FEIN > p && links + i * FEIN < q);
+    const dec = glatterVerlauf(n, maxDecke * 2, seed, (i) => inBereich(i, frei) ? 0 : null, 0.3);
+    // Boden: Geröll nur dort, wo keine Decke herabhängt und keine Gegner stehen
+    const bod = glatterVerlauf(n, maxBoden * 2, seed + 1000, (i) => (inBereich(i, frei) || inBereich(i, freiBoden) || dec[i] > 0) ? 0 : null, 0.55);
+    zuBloecken(dec, links, rechts, (x0, x1, k) => erde(x0, x1, oben - BLOCK, oben + k * FEIN));        // reicht in die Decke hinein (damit es als Erde gemalt wird)
+    zuBloecken(bod, links, rechts, (x0, x1, k) => erde(x0, x1, unten - k * FEIN, unten + 32, FELS));
+    const deckeAn = (x) => oben + dec[Math.max(0, Math.min(n - 1, Math.floor((x - links) / FEIN)))] * FEIN;
     return { deckeAn };
+};
+// raueDecke: hängende Erdblöcke unter der Kruste eines hohlen Berges (unten = y der Unterkante der Kruste): Das macht die Tunneldecke
+// unregelmäßig. "frei" = Bereiche ohne Blöcke (unter Lampen, am Tunnelmund).
+const raueDecke = (links, rechts, unten, maxStufen, seed, frei = []) => {
+    const n = Math.ceil((rechts - links) / FEIN);
+    const u = glatterVerlauf(n, maxStufen * 2, seed, (i) => frei.some(([p, q]) => links + (i + 1) * FEIN > p && links + i * FEIN < q) ? 0 : null, 0.3);
+    zuBloecken(u, links, rechts, (x0, x1, k) => erde(x0, x1, unten - BLOCK, unten + k * FEIN));
 };
 // hoehlenlampe: eine Lampe an der Decke einer solchen Höhle (leuchtet nur in dieser Höhle).
 const hoehlenlampe = (form, x) => {
@@ -406,51 +410,52 @@ haufen(7632, [32, 64, 32], MINE_BODEN);                                         
 // durch Zufallsabweichungen holprig (keine glatten Rampen, keine großen rechten Winkel); ebene Abschnitte sind Plateaus für Gegner.
 const erdberg = (links, punkte, tunnel = 0, rau = 1.3) => gelaende(links, punkte, 'erde', rau, BODEN, tunnel ? BODEN - tunnel : BODEN);
 
-// schwebeinsel: ein Stück Erde in der Luft. Eine flache Ellipse: in der Mitte dick, an den Rändern dünn; die Oberkante ist leicht
-// wellig (mit Gras), die Unterseite hängt in Zapfen mit Wurzeln und Ranken. Benachbarte Spalten unterscheiden sich höchstens um einen
-// Block (oben) bzw. zwei Blöcke (unten). Gibt { tops, topBei(x), links, rechts } zurück, damit man Leitern und Gegenstände genau darauf setzen kann.
-const schwebeinsel = (links, breite, oben, dicke, seed) => {
-    const n = Math.round(breite / BLOCK), zu = zufall(seed);
+// schwebeinsel: ein Stück Erde in der Luft, gebaut aus 16-Pixel-Erdspalten. Die Form ist eine flache Linse: In der Mitte dick, zu den
+// Rändern hin rund auslaufend (die Unterseite wächst in 45°-Schritten); die Oberkante ist leicht wellig mit Gras und in der Mitte eben.
+// Unter der Insel schweben ein oder zwei kleine Erdbrocken. Gibt { tops, topBei(x), flach(spalten), links, rechts } zurück.
+const schwebeinsel = (links, breite, oben, dicke, seed, brocken = true) => {
+    const n = Math.round(breite / FEIN), zu = zufall(seed);
     const klemme = (v, a, b) => Math.max(a, Math.min(b, v));
+    const dU = dicke / FEIN;
     const tops = [], bots = [];
     let t = 0;
     for (let i = 0; i < n; i++) {
         const u = (i + 0.5) / n, prof = Math.sqrt(Math.max(0, 1 - Math.pow(2 * u - 1, 2)));
-        const r = zu();
-        if (Math.abs(i + 0.5 - n / 2) > 2.5) {                               // nur außerhalb der Mitte wellig: In der Mitte bleibt eine ebene Fläche (für Beute und Gegner)
-            if (r < 0.25) t += 1; else if (r < 0.5) t -= 1;
+        if (Math.abs(i + 0.5 - n / 2) > n * 0.2) {                          // nur außerhalb der Mitte wellig: In der Mitte bleibt eine ebene Fläche
+            const r = zu();
+            if (r < 0.3) t += 1; else if (r < 0.55) t -= 1;
             t = klemme(t, -1, 1);
         }
-        const d = Math.max(2, Math.round(dicke / BLOCK * (0.4 + 0.6 * prof) + (zu() - 0.5) * 1.6));
-        const top = oben + (t + Math.round((1 - prof) * 2)) * BLOCK;       // zu den Rändern hin sinkt die Oberkante
-        tops.push(top); bots.push(top + d * BLOCK);
+        const top = oben + (t + Math.round((1 - prof) * 3)) * FEIN;        // zu den Rändern hin sinkt die Oberkante (runde Kante)
+        const dick = Math.max(4, Math.round(dU * Math.pow(prof, 0.85) + (zu() - 0.5) * 1.6));
+        tops.push(top); bots.push(top + dick * FEIN);
     }
-    for (let i = 1; i < n; i++) { tops[i] = klemme(tops[i], tops[i - 1] - BLOCK, tops[i - 1] + BLOCK); bots[i] = klemme(bots[i], bots[i - 1] - 2 * BLOCK, bots[i - 1] + 2 * BLOCK); }
-    for (let i = n - 2; i >= 0; i--) { tops[i] = klemme(tops[i], tops[i + 1] - BLOCK, tops[i + 1] + BLOCK); bots[i] = klemme(bots[i], bots[i + 1] - 2 * BLOCK, bots[i + 1] + 2 * BLOCK); }
-    for (let i = 0; i < n; i++) bots[i] = Math.max(bots[i], tops[i] + 2 * BLOCK);     // mindestens zwei Blöcke dick
+    for (let i = 1; i < n; i++) { tops[i] = klemme(tops[i], tops[i - 1] - FEIN, tops[i - 1] + FEIN); bots[i] = klemme(bots[i], bots[i - 1] - FEIN, bots[i - 1] + FEIN); }
+    for (let i = n - 2; i >= 0; i--) { tops[i] = klemme(tops[i], tops[i + 1] - FEIN, tops[i + 1] + FEIN); bots[i] = klemme(bots[i], bots[i + 1] - FEIN, bots[i + 1] + FEIN); }
+    for (let i = 0; i < n; i++) bots[i] = Math.max(bots[i], tops[i] + 4 * FEIN);     // mindestens 64 Pixel dick
     let start = 0;
     for (let i = 1; i <= n; i++) {
         if (i === n || tops[i] !== tops[start] || bots[i] !== bots[start]) {
-            erde(links + start * BLOCK, links + i * BLOCK, tops[start], bots[start]);
+            erde(links + start * FEIN, links + i * FEIN, tops[start], bots[start]);
             start = i;
         }
     }
-    for (let i = 0; i < n; i++) {                                          // Wurzeln und Ranken unter der Insel
-        if (zu() < 0.5) decor.push({ x: links + i * BLOCK + 8 + Math.floor(zu() * 16), y: bots[i] + 8 + Math.floor(zu() * 6), w: 4, h: 14 + Math.floor(zu() * 20), color: 0x4a331d });
-        if (zu() < 0.3) decor.push({ x: links + i * BLOCK + 6 + Math.floor(zu() * 20), y: bots[i] + 12 + Math.floor(zu() * 10), w: 3, h: 24 + Math.floor(zu() * 26), color: 0x3b5a22 });
+    for (const anteil of (brocken ? [0.38, 0.7] : [])) {                     // kleine Erdbrocken, die unter der Insel schweben (nicht bei niedrigen Inseln)
+        const c = Math.floor(n * anteil);
+        erde(links + c * FEIN - 8, links + c * FEIN + 32, bots[c] + 32, bots[c] + 80);
     }
     // flach(spalten): die erste ebene Strecke (mindestens so viele gleich hohe Spalten), vom mittleren Bereich aus gesucht: { x0, x1, top }
-    const flach = (spalten = 3) => {
+    const flach = (spalten = 6) => {
         const reihenfolge = [...Array(n).keys()].sort((a, b) => Math.abs(a - n / 2) - Math.abs(b - n / 2));
         for (const i of reihenfolge) {
             let a = i, b = i;
             while (a > 0 && tops[a - 1] === tops[i]) a--;
             while (b < n - 1 && tops[b + 1] === tops[i]) b++;
-            if (b - a + 1 >= spalten) return { x0: links + a * BLOCK, x1: links + (b + 1) * BLOCK, top: tops[i] };
+            if (b - a + 1 >= spalten) return { x0: links + a * FEIN, x1: links + (b + 1) * FEIN, top: tops[i] };
         }
         return null;
     };
-    return { tops, links, rechts: links + n * BLOCK, flach, topBei: (x) => tops[klemme(Math.floor((x - links) / BLOCK), 0, n - 1)] };
+    return { tops, links, rechts: links + n * FEIN, flach, topBei: (x) => tops[klemme(Math.floor((x - links) / FEIN), 0, n - 1)] };
 };
 
 // =====================================================================
@@ -724,6 +729,7 @@ granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)
 erdberg(4940, [[0, 224], [64, 224], [192, 352], [256, 352], [320, 224]], 160);
 hoehlen.push({ links: 4940, rechts: 5260, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
 [5000, 5100, 5200].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
+raueDecke(4940, 5260, BODEN - 160, 1, 51, [[4940, 4990], ...[5000, 5100, 5200].map(x => [x - 24, x + 24])]);   // unregelmäßige Tunneldecke aus Erdblöcken
 nahkaempfer(5090, 5020, 5170, 3);                            // im Tunnel
 skelett(5164, 5148, 5180, 3, BODEN - 352);                   // Schütze auf dem Kamm
 munition(5040, BODEN);
@@ -755,12 +761,14 @@ erdberg(6090, [[0, 224], [64, 224], [100, 256], [130, 256], [290, 416], [350, 41
 sprossenleiter(6068, BODEN - 224, BODEN, 1, 'holz', 28);                       // Leiter an der Westwand zum ersten Absatz
 hoehlen.push({ links: 6090, rechts: 6442, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
 [6180, 6300, 6410].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
+raueDecke(6090, 6442, BODEN - 160, 1, 52, [[6090, 6140], ...[6180, 6300, 6410].map(x => [x - 24, x + 24])]);
 skelett(6410, 6396, 6424, 4, BODEN - 416);                                     // Schütze oben auf dem Westberg
 // Ostberg (Erde): Plateau (256), Kamm (352), wieder 256; hohl mit Bodentunnel (der Weg ins Innere des Berges)
 erdberg(6900, [[0, 256], [64, 256], [160, 352], [224, 352], [320, 256], [416, 256]], 160);
 sprossenleiter(7338, BODEN - 256, BODEN, -1, 'holz', 28);                      // Leiter an der Ostwand
 hoehlen.push({ links: 6900, rechts: 7316, oben: BODEN - 160, unten: BODEN, art: 'tunnel', eigeneLampen: true });
 [6990, 7120, 7250].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
+raueDecke(6900, 7316, BODEN - 160, 1, 53, [[6900, 6940], ...[6990, 7120, 7250].map(x => [x - 24, x + 24])]);
 hoehlen.push({ links: 6380, rechts: 6920, oben: BODEN - 660, unten: BODEN, art: 'gebaeude', etagen: [100, 200, 300, 400, 500, 600] });   // Rückwand des Hochhauses
 for (let etage = 1; etage <= 6; etage++) {
     const links = etage % 2 === 1 ? (etage === 3 ? 6442 : 6400) : 6520;   // ungerade links, gerade rechts (Etage 3 beginnt hinter dem Westberg)
@@ -926,6 +934,7 @@ nahkaempfer(10200, 10120, 10300, 4);                                       // am
 erdberg(10608, [[0, 224], [64, 224], [192, 352], [256, 352], [352, 224]], 160);   // Berg hinter dem Turm, mit Tunnel
 hoehlen.push({ links: 10608, rechts: 10960, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
 [10680, 10780, 10880].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
+raueDecke(10608, 10960, BODEN - 160, 1, 54, [[10608, 10650], ...[10680, 10780, 10880].map(x => [x - 24, x + 24])]);
 nahkaempfer(10770, 10700, 10850, 4);                                       // im Tunnel
 skelett(10832, 10816, 10848, 3, BODEN - 352);                              // Schütze auf dem Kamm
 
@@ -1068,24 +1077,24 @@ stacheldraht(15500);
 // die an ihrem Westrand beginnen. Von unten sieht man ihre Wurzeln hängen.
 // =====================================================================
 {   // Insel 1: über dem Versorgungshügel (nur Beute, keine Gegner)
-    const insel = schwebeinsel(2392, 256, BODEN - 400, 128, 7);
+    const insel = schwebeinsel(2392, 256, BODEN - 400, 208, 7, false);
     sprossenleiter(2392 - 22, insel.tops[0], bodenBei(2370), 1, 'holz', 28);
-    const f = insel.flach(3);
+    const f = insel.flach(6);
     const xs = (k) => f.x0 + (f.x1 - f.x0) * (k + 0.5) / 3;                    // drei Gegenstände gleichmäßig auf der ebenen Strecke
     heilung(xs(0), f.top); munition(xs(1), f.top); granate(xs(2), f.top);
     signs.push({ x: 2350, y: BODEN - 250, text: 'Eine Leiter führt\nzu einer Insel in der Luft' });
 }
 {   // Insel 2: über dem ersten Hügel im Tal der Brücken (Scharfschütze und Beute)
-    const insel = schwebeinsel(11160, 256, BODEN - 470, 128, 19);
+    const insel = schwebeinsel(11160, 256, BODEN - 470, 208, 19, false);
     sprossenleiter(11160 - 22, insel.tops[0], bodenBei(11138), 1, 'holz', 28);
-    const f = insel.flach(3);
+    const f = insel.flach(6);
     skelett((f.x0 + f.x1) / 2, f.x0 + 20, f.x1 - 36, 4, f.top);
     granate(f.x0 + 14, f.top);
 }
 {   // Insel 3: hoch über dem Gebirge, östlich vom Gipfel (große Belohnung)
-    const insel = schwebeinsel(14790, 256, BODEN - 620, 128, 31);
+    const insel = schwebeinsel(14790, 256, BODEN - 620, 208, 31);
     sprossenleiter(14790 - 22, insel.tops[0], bodenBei(14768), 1, 'holz', 28);
-    const f = insel.flach(4);
+    const f = insel.flach(8);
     const xs = (k) => f.x0 + (f.x1 - f.x0) * (k + 0.5) / 4;
     heilung(xs(0), f.top); munition(xs(1), f.top); munition(xs(2), f.top); granate(xs(3), f.top);
 }

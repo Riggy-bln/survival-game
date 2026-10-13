@@ -142,7 +142,6 @@ export default class GameScene extends Phaser.Scene {
         buildHuegel(this, level.huegelformen, BODEN);   // Erdoberfläche der sanften Hügel
         buildCaves(this, level.hoehlen, level.lampen);  // Höhlenwände (statt schwarzer Flächen)
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
-        this.baueUnterkanten();                          // Zapfen an Höhlendecken und unter schwebenden Inseln
         this.fx = new Effects(this);                       // Partikel
         buildEmbers(this);                                 // Glut und Asche in der Luft
         buildVignette(this);                               // dunkle Bildränder
@@ -1081,49 +1080,6 @@ export default class GameScene extends Phaser.Scene {
             const nah = Math.abs(p.x - sg.x) < 240 && Math.abs(p.y - sg.y) < 240;
             sg.a += ((nah ? 0.95 : 0.4) - sg.a) * 0.3;
             sg.text.setAlpha(Math.min(1, sg.a + 0.05)); sg.gfx.setAlpha(sg.a);
-        }
-    }
-
-    // ---------- Natürliche Unterseiten ----------
-
-    // An jeder freien Unterkante von Erd- und Felsblöcken (Höhlendecken, Tunneldecken in Bergen, schwebende Inseln, Überhänge)
-    // hängen Zapfen aus Pixelstufen: Das nimmt den Blöcken die harte, rechteckige Kante. Unter Inseln sind sie größer und
-    // unregelmäßiger, in Höhlen kürzer. Gezeichnet wird einmal (fest); die Zapfen haben keine Kollision.
-    baueUnterkanten() {
-        const g = this.add.graphics().setDepth(1.15);
-        const erdfarben = [0x4b3b2a, 0x5b4a35, 0x5e5a55];
-        const spitze = (x, y, w, h, c, hell, dunkel) => {
-            const schritte = Math.max(2, Math.round(h / 4)), sh = h / schritte;
-            for (let k = 0; k < schritte; k++) {
-                const bw = Math.max(2, Math.round(w * (1 - k / schritte) / 2) * 2);
-                const yy = y + k * sh;
-                g.fillStyle(c).fillRect(x - bw / 2, yy, bw, sh + 0.6);
-                g.fillStyle(hell).fillRect(x - bw / 2, yy, Math.min(2, bw), sh + 0.6);                      // linke Kante heller
-                g.fillStyle(dunkel).fillRect(x + bw / 2 - Math.min(2, bw), yy, Math.min(2, bw), sh + 0.6);   // rechte Kante dunkler
-            }
-        };
-        for (const p of this.platforms) {
-            if (p.brechbar || !erdfarben.includes(p.fillColor) || p.height < 24) continue;
-            const l = p.x - p.width / 2, r = p.x + p.width / 2, unten = p.y + p.height / 2;
-            if (unten > WORLD_HEIGHT - 40) continue;
-            const nachbarn = this.platforms.filter(q => q !== p && q.x - q.width / 2 < r && q.x + q.width / 2 > l &&
-                q.y - q.height / 2 <= unten + 4 && q.y + q.height / 2 >= unten + 4);
-            const frei = (x) => !nachbarn.some(q => x >= q.x - q.width / 2 && x <= q.x + q.width / 2);
-            const insel = unten < BODEN - 200;                                                               // in der Luft: größere Zapfen
-            const zu = new Phaser.Math.RandomDataGenerator(['zapfen' + Math.round(p.x) + '_' + Math.round(p.y)]);
-            const farbe = insel ? 0x5a4630 : 0x3f3126, hell = insel ? 0x76603f : 0x56442f, dunkel = insel ? 0x3d2f20 : 0x2a2018;
-            let x = l + zu.between(4, 12);
-            while (x < r - 4) {
-                if (frei(x)) {
-                    const w = zu.between(8, insel ? 26 : 20);
-                    const h = zu.between(6, insel ? 40 : 26) + (zu.frac() < 0.15 ? zu.between(8, 18) : 0);   // ab und zu ein langer Zapfen
-                    spitze(x, unten - 1, Math.min(w, (r - x) * 2), h, farbe, hell, dunkel);
-                    if (zu.frac() < 0.12) g.fillStyle(0x8fc6d8, 0.7).fillRect(x - 1, unten + h + 1, 2, 3);   // ein Wassertropfen
-                    x += zu.between(w - 2, w + 18);
-                } else {
-                    x += 8;
-                }
-            }
         }
     }
 

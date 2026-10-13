@@ -14,3 +14,13 @@ Das Spiel soll zusammen mit Freunden spielbar sein (Koop gegen die Gegner und de
    und bekommen etwa 20 mal pro Sekunde den Zustand (Positionen, Kugeln, Gegner, Gegenstände).
 6. **Spielregeln für mehrere:** gemeinsame Lebensanzeigen, Wiederbeleben, Ziel (alle am Hubschrauber), Schwierigkeit je nach Spielerzahl.
 7. **Feinschliff:** Namen, Farben, Verbindungsabbruch, Latenz glätten (Interpolation).
+
+## Stand
+- Schritt 1 (Menü): erledigt.
+- Schritt 4 (Verbindung / Lobby): erledigt (Raumcode, Spielerliste, Ping).
+- Schritt "Mitspieler sehen": erledigt. Alle Spieler laufen im selben Level (noch ohne Gegner im Online-Modus) und sehen einander.
+- Nächste Schritte: Gegner und Boss vom Gastgeber rechnen lassen und synchronisieren; Schüsse, Schaden, Gegenstände, Granaten, Fässer, Wände synchronisieren; Regeln (Wiederbeleben, Ziel).
+
+## Aufteilung der Verantwortung (Entwurf)
+- Jedes Gerät: eigene Figur (Bewegung, Munition, Inventar, Leben) – damit die Steuerung ohne Verzögerung bleibt.
+- Gastgeber: Gegner, Boss, Kugeln, Granaten, Fässer, zerstörbare Wände, Schadensberechnung gegen alle Spieler, Sieg und Niederlage.

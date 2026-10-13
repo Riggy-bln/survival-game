@@ -32,6 +32,7 @@ export default class Netz {
         this.gastListe = [];        // nur Gast: die zuletzt empfangene Spielerliste
         this.hostConn = null;       // nur Gast: die Verbindung zum Gastgeber
         this.verbunden = false;
+        this.gesperrt = false;      // nur Gastgeber: Das Spiel läuft schon, es kommen keine neuen Spieler mehr hinein
         this.geschlossen = false;
         this.pingTimer = null;
         this.zeitTimer = null;
@@ -62,9 +63,9 @@ export default class Netz {
 
     neueVerbindung(conn) {
         conn.on('open', () => {
-            const nr = this.freieNummer();
-            if (!nr) {                                               // Raum voll
-                conn.send({ t: 'voll' });
+            const nr = this.gesperrt ? 0 : this.freieNummer();
+            if (!nr) {                                               // Raum voll oder Spiel läuft schon
+                conn.send({ t: this.gesperrt ? 'laeuft' : 'voll' });
                 setTimeout(() => conn.close(), 300);
                 return;
             }
@@ -131,6 +132,11 @@ export default class Netz {
         }
     }
 
+    // Sendet an alle Gäste außer an einen (nur Gastgeber): für das Weiterleiten von Zuständen.
+    sendeAnAlleAusser(nrAusnahme, daten) {
+        for (const [nr, s] of this.spieler) if (nr !== nrAusnahme && s.conn && s.conn.open) s.conn.send(daten);
+    }
+
     // Sendet nur an einen bestimmten Spieler (nur Gastgeber).
     sendeAn(nr, daten) {
         const s = this.spieler.get(nr);
@@ -143,6 +149,7 @@ export default class Netz {
             case 'willkommen': this.meineNr = daten.nr; this.ruf('willkommen', daten.nr); break;
             case 'spieler': this.gastListe = daten.liste; this.ruf('spielerGeaendert', daten.liste); break;
             case 'voll': this.ruf('fehler', 'Der Raum ist voll.'); break;
+            case 'laeuft': this.ruf('fehler', 'Das Spiel läuft bereits.'); break;
             case 'ping': this.antworte(vonNr, { t: 'pong', zeit: daten.zeit }); break;
             case 'pong': {
                 const ms = Math.round(performance.now() - daten.zeit);

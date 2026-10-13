@@ -9,6 +9,7 @@ import Grenade from '../entities/Grenade.js';
 import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
 import { buildLandscape } from '../Landscape.js';
+import Mehrspieler, { SPIELERFARBEN } from '../Mehrspieler.js';
 import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves, buildHuegel, buildBerge } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
@@ -33,6 +34,9 @@ export default class GameScene extends Phaser.Scene {
     create() {
         // Spielmodus aus dem Menü: 'einzel' (später auch 'online' und 'lokal'). Bleibt auch nach einem Neustart erhalten.
         this.modus = this.registry.get('modus') ?? 'einzel';
+        const netz = this.registry.get('netz');
+        this.online = (this.modus === 'host' || this.modus === 'gast') && !!netz;   // Online-Mehrspieler?
+        this.meineNr = this.online ? netz.meineNr : 1;
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
         // --- Himmel und Hintergrund-Schichten (Parallax: weiter weg = langsamer) ---
@@ -100,7 +104,7 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Spieler ---
         // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
-        this.player = new Player(this, 200, BODEN - 200);  // startet in der Luft und landet
+        this.player = new Player(this, 200 + (this.meineNr - 1) * 48, BODEN - 200);  // startet in der Luft und landet (Mitspieler daneben)
         this.physics.add.collider(this.player, this.platforms);
 
         // --- Gegner ---
@@ -120,9 +124,10 @@ export default class GameScene extends Phaser.Scene {
             }
             return gegner;
         };
-        const b = level.boss;
+        // Online gibt es in diesem Schritt noch keine Gegner (sie kommen im nächsten Schritt, vom Gastgeber gerechnet).
+        const b = this.online ? null : level.boss;
         this.boss = b ? baue(Boss, b) : null;
-        this.enemies = [
+        this.enemies = this.online ? [] : [
             ...level.enemies.map(e => baue(Enemy, e)),
             ...level.rangedEnemies.map(e => baue(RangedEnemy, e)),
             ...(this.boss ? [this.boss] : []),
@@ -226,6 +231,7 @@ export default class GameScene extends Phaser.Scene {
         this.gameOver = false;
         // Neustart auf Enter, denn R bedeutet jetzt Nachladen.
         this.restartKey = this.input.keyboard.addKey('ENTER');
+        this.mp = this.online ? new Mehrspieler(this, netz) : null;   // Netzwerk-Anteil des Mehrspielermodus
         this.pauseKey = this.input.keyboard.addKey('ESC');
         this.muteKey = this.input.keyboard.addKey('N');
         // Nach dem Fortsetzen kann derselbe Esc-Druck noch in der Warteschlange stecken.
@@ -414,6 +420,16 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    // Zeichnet die Figur eines Mitspielers (Zustand r kommt aus Mehrspieler.js).
+    zeichneFremdenSpieler(g, r) {
+        const rueck = Math.max(0, 1 - (r.s ?? 9999) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[r.w] ?? 4);
+        this.drawHumanoid(g, r.x, r.y, {
+            facing: Math.cos(r.a) >= 0 ? 1 : -1, alpha: 1, body: SPIELERFARBEN[(r.nr - 1) % 4], skin: 0xe0b890, rueck,
+            head: 'bandana', strap: true, aim: r.a, gun: WAFFENLAENGE[r.w] ?? 18,
+            moving: Math.abs(r.vx) > 20 && !!r.g, air: !r.g,
+        });
+    }
+
     // Zeichnet alle Figuren. Die Rechtecke sind unsichtbar, bleiben aber Körper und Hitbox;
     // ihre Farbe (fillColor) benutzen wir weiter für den Rumpf, damit Aufblitzen und
     // Warnfarben (Gelb, Orange, Lila) automatisch sichtbar bleiben.
@@ -430,10 +446,12 @@ export default class GameScene extends Phaser.Scene {
         // Rückstoß: Nach einem Schuss ruckt die Waffe zurück und hebt sich, dann kehrt sie in 130 ms zurück.
         const rueck = Math.max(0, 1 - (this.time.now - (p.lastShotTime ?? -999)) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[p.weapon] ?? 4);
         this.drawHumanoid(g, p.x, p.y, {
-            facing: Math.cos(winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: 0x4f7a3a, skin: 0xe0b890, rueck,
+            facing: Math.cos(winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: SPIELERFARBEN[(this.meineNr - 1) % 4], skin: 0xe0b890, rueck,
             head: 'bandana', strap: true, aim: winkel, gun: WAFFENLAENGE[p.weapon] ?? 18,
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
+
+        if (this.mp) this.mp.zeichne(g, mitte);   // Figuren der Mitspieler
 
         // --- Gegenstände: schweben, glänzen und funkeln ---
         for (const it of this.pickups) {
@@ -737,11 +755,14 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
-        // Pause: Esc friert diese Szene ein und legt die PauseScene darüber.
+        // Esc: Im Einzelspielermodus Pause. Online gibt es keine Pause (die anderen spielen weiter): Zweimal Esc verlässt das Spiel.
         if (Phaser.Input.Keyboard.JustDown(this.pauseKey) && Date.now() > this.pauseBlockedUntil) {
-            this.scene.launch('PauseScene');
-            this.scene.pause();
-            return;
+            if (this.mp) { this.mp.escDruecken(); }
+            else {
+                this.scene.launch('PauseScene');
+                this.scene.pause();
+                return;
+            }
         }
 
         // N schaltet den Ton an/aus.
@@ -758,6 +779,7 @@ export default class GameScene extends Phaser.Scene {
         this.letzteFallgeschw = this.player.body.velocity.y;
 
         this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
+        if (this.mp) this.mp.aktualisiere();   // eigenen Zustand senden, fremde Figuren nachführen
 
         // Schaden kommt irgendwo später im Frame an; wir vergleichen deshalb mit dem Wert des letzten Frames.
         if (this.player.health < (this.letzteHP ?? this.player.health)) { this.fx.blood(this.player.x, this.player.y, 10); this.cameras.main.shake(150, 0.007); this.cameras.main.flash(90, 140, 0, 0); }

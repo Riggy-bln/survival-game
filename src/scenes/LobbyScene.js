@@ -29,7 +29,7 @@ export default class LobbyScene extends Phaser.Scene {
         this.status = this.add.text(480, 290, '', { fontSize: '20px', color: '#cfd8dc', align: 'center' }).setOrigin(0.5);
         this.listeText = this.add.text(480, 370, '', { fontSize: '22px', color: '#e6edf2', align: 'center', lineSpacing: 8, fontFamily: 'monospace' }).setOrigin(0.5);
         this.unten = this.add.text(480, 505, host
-            ? 'C: Code kopieren      Esc: Zurück      Spiel starten: folgt im nächsten Schritt'
+            ? 'Enter: Spiel starten      C: Code kopieren      Esc: Zurück'
             : 'Esc: Zurück', { fontSize: '16px', color: '#7f8f9a' }).setOrigin(0.5);
 
         this.pingZumHost = null;
@@ -38,7 +38,8 @@ export default class LobbyScene extends Phaser.Scene {
         this.netz = null;
 
         this.input.keyboard.on('keydown', (e) => this.taste(e));
-        this.events.once('shutdown', () => { if (this.netz) this.netz.schliesse(); });
+        this.spielGestartet = false;
+        this.events.once('shutdown', () => { if (this.netz && !this.spielGestartet) this.netz.schliesse(); });
 
         if (host) this.starteHost(); else this.zeigeEingabe();
     }
@@ -57,6 +58,7 @@ export default class LobbyScene extends Phaser.Scene {
                 sfx.play('pickup');
                 this.zeigeListe();
             })
+            .on('nachricht', (von, daten) => { if (daten.t === 'start') this.starteSpiel(); })   // Gäste: der Gastgeber hat gestartet
             .on('spielerGeaendert', () => { this.zeigeListe(); })
             .on('ping', (vonNr, ms) => { if (this.rolle === 'gast') this.pingZumHost = ms; this.zeigeListe(); })
             .on('getrennt', (nr) => {
@@ -111,6 +113,13 @@ export default class LobbyScene extends Phaser.Scene {
     taste(e) {
         if (e.key === 'Escape') { this.zurueck(); return; }
         if (this.rolle === 'host') {
+            if (e.key === 'Enter' && this.netz && this.netz.verbunden !== undefined && this.netz.liste().length >= 2) {
+                this.netz.sende({ t: 'start' });                       // alle Gäste starten gleichzeitig
+                this.netz.gesperrt = true;                              // ab jetzt kommen keine neuen Spieler mehr hinein
+                this.starteSpiel();
+                return;
+            }
+            if (e.key === 'Enter') this.setzeStatus('Warte auf mindestens einen Mitspieler.', '#ff9966');
             if (e.key.toLowerCase() === 'c' && this.netz && this.netz.code) {
                 try { navigator.clipboard.writeText(this.netz.code); this.setzeStatus('Code kopiert.', '#9fd89f'); } catch (err) { /* egal */ }
             }
@@ -123,6 +132,15 @@ export default class LobbyScene extends Phaser.Scene {
             this.eingabe += e.key.toUpperCase();
             this.zeigeEingabe();
         }
+    }
+
+    // Startet das Spiel für diesen Spieler: Netzwerk und Rolle bleiben für die Spielszene in der Registry erhalten.
+    starteSpiel() {
+        if (this.spielGestartet) return;
+        this.spielGestartet = true;
+        this.registry.set('netz', this.netz);
+        this.registry.set('modus', this.rolle);
+        this.scene.start('GameScene');
     }
 
     zurueck() {

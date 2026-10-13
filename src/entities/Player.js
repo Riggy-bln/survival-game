@@ -43,6 +43,11 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         this.ammo = 0;
         this.magAmmo = 0;
         this.equip('pistol');    // Startwaffe
+
+        // Inventarleiste: 1 = Schusswaffe, 2 = Nahkampfwaffe (Schwert), 3 = Granaten, 4 = Verbandskasten.
+        // "auswahl" ist der gewählte Platz; mit der linken Maustaste benutzt man den gewählten Gegenstand.
+        this.auswahl = 1;
+        this.hatSchwert = false;   // das Schwert muss man erst finden
         this.magAmmo = this.magSize;  // Start: volles Magazin
         this.ammo = 30;               // Start-Reserve
 
@@ -54,7 +59,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Tasten, die der Spieler abfragt
         this.cursors = scene.input.keyboard.createCursorKeys();
-        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G,E');
+        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G,E,ONE,TWO,THREE,FOUR');
     }
 
     // Benutzt einen Verbandskasten, aber nur wenn es sinnvoll ist:
@@ -65,6 +70,31 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         sfx.play('heal');
         this.health = Math.min(this.maxHealth, this.health + this.medkitHeal);  // nie über das Maximum
         return true;
+    }
+
+    // Wählt einen Platz der Inventarleiste (1 bis 4). Das Schwert geht erst, wenn man es gefunden hat.
+    waehle(platz) {
+        if (platz === 2 && !this.hatSchwert) {
+            this.scene.showMessage('Du hast noch keine Nahkampfwaffe.\nSuche in den Höhlen!');
+            return false;
+        }
+        this.auswahl = platz;
+        return true;
+    }
+
+    // Mausrad: zum nächsten bzw. vorigen Platz (und das Schwert überspringen, solange man es nicht hat).
+    naechster(richtung) {
+        let platz = this.auswahl;
+        for (let i = 0; i < 4; i++) {
+            platz = ((platz - 1 + richtung + 4) % 4) + 1;
+            if (platz !== 2 || this.hatSchwert) break;
+        }
+        this.auswahl = platz;
+    }
+
+    // Was hält die Figur gerade in der Hand? (Für die Zeichnung und für die Mitspieler.)
+    inHand() {
+        return ['', this.weapon, 'sword', 'grenade', 'medkit'][this.auswahl];
     }
 
     // Rüstet eine Waffe aus der Tabelle aus: Werte übernehmen und das Magazin
@@ -149,6 +179,8 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         const geschuetzt = now < this.invulnerableUntil;
         this.setAlpha(geschuetzt && Math.floor(now / 100) % 2 === 0 ? 0.3 : 1);
 
+        // Zahlentasten 1 bis 4 wählen den Platz in der Inventarleiste.
+        ['ONE', 'TWO', 'THREE', 'FOUR'].forEach((name, i) => { if (Phaser.Input.Keyboard.JustDown(this.keys[name])) this.waehle(i + 1); });
         // Nachladen: Taste R startet es. JustDown ist nur im Moment des Drückens wahr.
         if (Phaser.Input.Keyboard.JustDown(this.keys.R)) this.startReload();
         // Heilen: Taste H (nur im Moment des Drückens).

@@ -7,6 +7,7 @@ const TYPES = {
     ammo:   { color: 0xddaa33, amount: 15, label: '+15 Munition' },               // gelb: gibt 15 Schuss
     rifle:  { color: 0xff7a3d, amount: 0, w: 38, h: 14, weapon: 'rifle', label: 'Sturmgewehr!', msg: 'Sturmgewehr gefunden!\nSchneller feuern, 30 Schuss pro Magazin' },  // orange und länglich wie eine Waffe
     shotgun:{ color: 0xb5452a, amount: 0, w: 42, h: 14, weapon: 'shotgun', label: 'Schrotflinte!', msg: 'Schrotflinte gefunden!\nSechs Kugeln pro Schuss: stark auf kurze Distanz\n(ersetzt deine bisherige Waffe)' },
+    sword:  { color: 0xcfd8e0, amount: 0, w: 36, h: 36, label: 'Schwert!' },        // silbern: Nahkampfwaffe, versteckt in den Höhlen
     grenade:{ color: 0x556b2f, amount: 2, w: 16, h: 16, label: '+2 Granaten' },  // olivgrün: 2 Granaten
 };
 
@@ -58,6 +59,11 @@ export default class Pickup extends Phaser.GameObjects.Rectangle {
         } else if (this.type === 'grenade') {
             if (player.grenades >= player.maxGrenades) return this.meldeVoll('Granaten voll');
             player.grenades = Math.min(player.maxGrenades, player.grenades + this.amount);
+        } else if (this.type === 'sword') {
+            if (player.hatSchwert) return false;
+            player.hatSchwert = true;
+            player.waehle(2);
+            this.scene.showMessage('Schwert gefunden!\nTaste 2 oder Mausrad: auswählen, Linksklick: zuschlagen\nKeine Munition nötig, wehrt Kugeln ab');
         } else if (TYPES[this.type].weapon) {
             const waffe = TYPES[this.type].weapon;
             if (player.weapon === waffe) return false;  // schon ausgerüstet

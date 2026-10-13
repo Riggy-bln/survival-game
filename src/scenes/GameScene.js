@@ -24,7 +24,17 @@ const BODEN = level.boden;
 const BELEBEN_DAUER = 3;   // so viele Sekunden muss man E halten, um einen Gefallenen wiederzubeleben
 
 // Länge der Waffe in Pixeln (vom Griff bis zur Mündung) für die Zeichnung und das Mündungsfeuer
-const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28 };
+const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28, sword: 30 };
+
+// Inventarleiste unten in der Mitte: vier Plätze
+const SLOT = 64, SLOT_ABSTAND = 8;
+const SLOT_X0 = (1280 - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2, SLOT_Y = 720 - SLOT - 14;
+
+// Schwerthieb
+const HIEB_DAUER = 260;        // so lange dauert der Schwung (ms)
+const HIEB_PAUSE = 400;        // Pause bis zum nächsten Hieb (ms)
+const HIEB_REICHWEITE = 74;    // Pixel vom Spieler
+const HIEB_SCHADEN = 2;        // Gegner haben normalerweise 3 Leben
 
 // Die Szene baut die Welt auf und lässt die Spielobjekte zusammenarbeiten.
 export default class GameScene extends Phaser.Scene {
@@ -225,13 +235,12 @@ export default class GameScene extends Phaser.Scene {
         this.hpBack = this.add.rectangle(20, 20, 204, 24, 0x000000).setOrigin(0, 0);
         this.hpBar = this.add.rectangle(22, 22, 200, 20, 0x44cc44).setOrigin(0, 0);
         this.hpText = this.add.text(30, 24, '', { fontSize: '16px', color: '#ffffff' });
-        // Alle drei Teile gemeinsam: am Bildschirm festhalten und über alles andere legen.
-        this.ammoText = this.add.text(22, 52, '', { fontSize: '16px', color: '#ffdd55' });
-        this.medText = this.add.text(22, 74, '', { fontSize: '16px', color: '#66ee99' });
-        this.grenText = this.add.text(22, 96, '', { fontSize: '16px', color: '#b5c96a' });
-        [this.hpBack, this.hpBar, this.hpText, this.ammoText, this.medText, this.grenText].forEach(obj => {
+        // Alle Teile gemeinsam: am Bildschirm festhalten und über alles andere legen.
+        [this.hpBack, this.hpBar, this.hpText].forEach(obj => {
             obj.setScrollFactor(0).setDepth(20);
         });
+        this.hiebe = [];              // laufende Schwerthiebe aller Spieler
+        this.erzeugeHotbar();         // Inventarleiste unten
 
         // --- Lebensanzeige der starken Kreatur (oben in der Mitte, erst sichtbar, wenn sie erwacht) ---
         const mitteX = this.scale.width / 2;   // Fenstermitte (das Fenster ist jetzt 1280 breit)
@@ -329,10 +338,37 @@ export default class GameScene extends Phaser.Scene {
             const dx = Math.cos(ang), dy = Math.sin(ang);
             const handX = schulter.x + dx * (12 - rueck), handY = schulter.y + dy * (12 - rueck);
             g.lineStyle(6, o.skin, a).beginPath().moveTo(schulter.x, schulter.y).lineTo(handX, handY).strokePath();
-            g.lineStyle(6, 0x2a2a2a, a).beginPath().moveTo(handX - dx * 6, handY - dy * 6)
-                .lineTo(handX + dx * o.gun, handY + dy * o.gun).strokePath();
-            g.lineStyle(3, 0x777777, a).beginPath().moveTo(handX + dx * (o.gun - 8), handY + dy * (o.gun - 8))
-                .lineTo(handX + dx * o.gun, handY + dy * o.gun).strokePath();               // Lauf heller
+            if (o.art === 'sword') {
+                // Schwert: in Ruhe schräg nach oben gehalten, beim Hieb schwingt es in einem Bogen von oben nach unten
+                const dir = Math.cos(o.aim) >= 0 ? 1 : -1;
+                const hieb = o.hieb;
+                const klingenWinkel = (w) => o.aim + dir * (-1.5 + 3.0 * w);
+                const bw = hieb !== undefined ? klingenWinkel(hieb) : o.aim - dir * 0.6;
+                if (hieb !== undefined) {
+                    for (let k = 1; k <= 6; k++) {                                          // Schweif hinter der Klinge
+                        const wk = klingenWinkel(Math.max(0, hieb - k * 0.045));
+                        g.lineStyle(5, 0xffffff, a * (0.32 - k * 0.045)).beginPath().moveTo(handX, handY)
+                            .lineTo(handX + Math.cos(wk) * (o.gun + 6), handY + Math.sin(wk) * (o.gun + 6)).strokePath();
+                    }
+                }
+                const bx = Math.cos(bw), by = Math.sin(bw);
+                g.lineStyle(5, 0x6a4a2a, a).beginPath().moveTo(handX - bx * 7, handY - by * 7).lineTo(handX + bx * 2, handY + by * 2).strokePath();   // Griff
+                g.lineStyle(4, 0xc9a227, a).beginPath().moveTo(handX + bx * 3 - by * 6, handY + by * 3 + bx * 6)
+                    .lineTo(handX + bx * 3 + by * 6, handY + by * 3 - bx * 6).strokePath();                                            // Parierstange
+                g.lineStyle(5, 0xcfd8e0, a).beginPath().moveTo(handX + bx * 4, handY + by * 4).lineTo(handX + bx * o.gun, handY + by * o.gun).strokePath();   // Klinge
+                g.lineStyle(1, 0xffffff, a).beginPath().moveTo(handX + bx * 5, handY + by * 5).lineTo(handX + bx * (o.gun - 1), handY + by * (o.gun - 1)).strokePath();
+            } else if (o.art === 'grenade') {
+                g.fillStyle(0x556b2f, a).fillRect(handX - 1, handY - 6, 9, 11);
+                g.fillStyle(0x2a2a2a, a).fillRect(handX + 2, handY - 9, 4, 4);
+            } else if (o.art === 'medkit') {
+                g.fillStyle(0xf4f4f4, a).fillRect(handX - 2, handY - 7, 14, 12);
+                g.fillStyle(0xd62f2f, a).fillRect(handX + 3, handY - 5, 3, 8).fillRect(handX, handY - 2, 9, 3);
+            } else {
+                g.lineStyle(6, 0x2a2a2a, a).beginPath().moveTo(handX - dx * 6, handY - dy * 6)
+                    .lineTo(handX + dx * o.gun, handY + dy * o.gun).strokePath();
+                g.lineStyle(3, 0x777777, a).beginPath().moveTo(handX + dx * (o.gun - 8), handY + dy * (o.gun - 8))
+                    .lineTo(handX + dx * o.gun, handY + dy * o.gun).strokePath();               // Lauf heller
+            }
             g.fillStyle(o.skin, a).fillRect(handX - 3, handY - 3, 6, 6);                     // Hand
         } else if (o.reach) {
             for (const hy2 of [-4, 3]) {
@@ -424,6 +460,13 @@ export default class GameScene extends Phaser.Scene {
             g.fillStyle(0x2a2a2a).fillRect(x - 3 + wackel, y - 12, 6, 5);               // Zünder
             g.fillStyle(0x888888).fillRect(x + 3 + wackel, y - 13, 8, 3);               // Bügel
             g.fillStyle(0xe8c030).fillRect(x + 8 + wackel, y - 11, 5, 5).fillStyle(0x556b2f).fillRect(x + 9 + wackel, y - 10, 3, 3);   // Ring
+        } else if (it.type === 'sword') {                                               // Schwert: steckt schräg, Klinge glänzt
+            w = 34; h = 34;
+            g.lineStyle(5, 0x6a4a2a).beginPath().moveTo(x - 10, y + 12).lineTo(x - 15, y + 17).strokePath();      // Griff
+            g.lineStyle(5, 0xc9a227).beginPath().moveTo(x - 14, y + 4).lineTo(x - 4, y + 14).strokePath();        // Parierstange
+            g.lineStyle(6, 0xaab4be).beginPath().moveTo(x - 8, y + 10).lineTo(x + 14, y - 12).strokePath();       // Klinge
+            g.lineStyle(2, 0xffffff).beginPath().moveTo(x - 6, y + 8).lineTo(x + 13, y - 11).strokePath();        // Kante
+            g.fillStyle(0xeaf4ff).fillRect(x + 12, y - 15, 5, 5);
         } else {                                                                        // Gewehr oder Schrotflinte
             const flinte = it.type === 'shotgun';
             w = flinte ? 42 : 38; h = 12;
@@ -456,10 +499,12 @@ export default class GameScene extends Phaser.Scene {
         if (r.warTot && !r.tot) this.belebtEffekt(r.x, r.y);      // ein Dritter steht wieder auf
         r.warTot = !!r.tot;
         if (r.tot) { this.zeichneLiegend(g, r.x, r.y, SPIELERFARBEN[(r.nr - 1) % 4]); return; }
+        const hb = this.hiebVon(r.nr);
         const rueck = Math.max(0, 1 - (r.s ?? 9999) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[r.w] ?? 4);
         this.drawHumanoid(g, r.x, r.y, {
             facing: Math.cos(r.a) >= 0 ? 1 : -1, alpha: 1, body: SPIELERFARBEN[(r.nr - 1) % 4], skin: 0xe0b890, rueck,
-            head: 'bandana', strap: true, aim: r.a, gun: WAFFENLAENGE[r.w] ?? 18,
+            head: 'bandana', strap: true, aim: hb ? hb.a : r.a, gun: WAFFENLAENGE[r.w] ?? 18,
+            art: ['sword', 'grenade', 'medkit'].includes(r.w) ? r.w : undefined, hieb: hb ? hb.f : undefined,
             moving: Math.abs(r.vx) > 20 && !!r.g, air: !r.g,
         });
     }
@@ -479,10 +524,12 @@ export default class GameScene extends Phaser.Scene {
         const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
         // Rückstoß: Nach einem Schuss ruckt die Waffe zurück und hebt sich, dann kehrt sie in 130 ms zurück.
         const rueck = Math.max(0, 1 - (this.time.now - (p.lastShotTime ?? -999)) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[p.weapon] ?? 4);
+        const meinHieb = this.hiebVon(this.meineNr);
         if (p.tot) this.zeichneLiegend(g, p.x, p.y, SPIELERFARBEN[(this.meineNr - 1) % 4]);
         else this.drawHumanoid(g, p.x, p.y, {
-            facing: Math.cos(winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: SPIELERFARBEN[(this.meineNr - 1) % 4], skin: 0xe0b890, rueck,
-            head: 'bandana', strap: true, aim: winkel, gun: WAFFENLAENGE[p.weapon] ?? 18,
+            facing: Math.cos(meinHieb ? meinHieb.a : winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: SPIELERFARBEN[(this.meineNr - 1) % 4], skin: 0xe0b890, rueck,
+            head: 'bandana', strap: true, aim: meinHieb ? meinHieb.a : winkel, gun: WAFFENLAENGE[p.auswahl === 2 ? 'sword' : p.weapon] ?? 18,
+            art: ['', undefined, 'sword', 'grenade', 'medkit'][p.auswahl], hieb: meinHieb ? meinHieb.f : undefined,
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
         this.zeichneBelebenBalken(g, this.meineNr, p.x, p.y);
@@ -534,23 +581,7 @@ export default class GameScene extends Phaser.Scene {
         this.hpBar.setFillStyle(anteil <= 0.3 ? 0xcc3333 : 0x44cc44);
         this.hpText.setText(`HP ${this.player.health} / ${this.player.maxHealth}`);
 
-        // Munitionsanzeige; bei 0 rot, damit man es sofort merkt.
-        const p = this.player;
-        if (p.isReloading()) {
-            this.ammoText.setText(`${p.weaponName}: Nachladen...   Reserve: ${p.ammo}`);
-        } else {
-            this.ammoText.setText(`${p.weaponName}: ${p.magAmmo} / ${p.magSize}   Reserve: ${p.ammo}`);
-        }
-        // Inventar: Verbandskästen als kleine Kästchen-Anzeige, z. B. "Verbandskasten [H]: ■ □"
-        const gefuellt = '■ '.repeat(p.medkits);
-        const leerPlaetze = '□ '.repeat(p.maxMedkits - p.medkits);
-        this.medText.setText(`Verbandskasten [H]: ${gefuellt}${leerPlaetze}`);
-
-        this.grenText.setText(`Granaten [G]: ${'● '.repeat(p.grenades)}${'○ '.repeat(p.maxGrenades - p.grenades)}`);
-
-        // Rot, wenn gar keine Munition mehr da ist; orange bei leerem Magazin / beim Nachladen.
-        const leer = p.magAmmo === 0 && p.ammo === 0;
-        this.ammoText.setColor(leer ? '#ff4444' : (p.isReloading() || p.magAmmo === 0 ? '#ff9944' : '#ffdd55'));
+        this.zeichneHotbar();
     }
 
     // Blendet eine Meldung oben im Bild ein, die nach etwa zwei Sekunden verblasst.
@@ -691,6 +722,150 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    // ---------- Inventarleiste ----------
+
+    // Ein kleines Symbol für einen Platz (cx, cy = Mitte). dunkel = nicht verfügbar.
+    zeichneSymbol(g, art, cx, cy, a = 1) {
+        if (art === 'pistol') {
+            g.fillStyle(0x2a2a2a, a).fillRect(cx - 14, cy - 8, 26, 9).fillRect(cx - 4, cy - 1, 9, 16);
+            g.fillStyle(0x777777, a).fillRect(cx + 8, cy - 8, 6, 4);
+        } else if (art === 'rifle') {
+            g.fillStyle(0x6a4a2a, a).fillRect(cx - 22, cy - 5, 12, 11);
+            g.fillStyle(0x2a2a2a, a).fillRect(cx - 12, cy - 6, 30, 7).fillRect(cx - 4, cy + 1, 7, 11);
+            g.fillStyle(0x777777, a).fillRect(cx + 14, cy - 5, 9, 3);
+        } else if (art === 'shotgun') {
+            g.fillStyle(0x6a4a2a, a).fillRect(cx - 24, cy - 4, 14, 11);
+            g.fillStyle(0x2a2a2a, a).fillRect(cx - 12, cy - 6, 34, 6);
+            g.fillStyle(0x8a3a22, a).fillRect(cx - 2, cy, 14, 6);
+        } else if (art === 'sword') {
+            g.lineStyle(5, 0xdfe6ee, a).beginPath().moveTo(cx - 6, cy + 6).lineTo(cx + 18, cy - 18).strokePath();
+            g.lineStyle(2, 0xffffff, a).beginPath().moveTo(cx - 4, cy + 4).lineTo(cx + 17, cy - 17).strokePath();
+            g.lineStyle(5, 0xc9a227, a).beginPath().moveTo(cx - 12, cy - 2).lineTo(cx + 2, cy + 12).strokePath();
+            g.lineStyle(5, 0x6a4a2a, a).beginPath().moveTo(cx - 8, cy + 8).lineTo(cx - 17, cy + 17).strokePath();
+        } else if (art === 'grenade') {
+            g.fillStyle(0x3d4f22, a).fillRect(cx - 9, cy - 7, 18, 21);
+            g.fillStyle(0x556b2f, a).fillRect(cx - 8, cy - 6, 16, 19);
+            g.fillStyle(0x3d4f22, a).fillRect(cx - 8, cy, 16, 2).fillRect(cx - 8, cy + 6, 16, 2);
+            g.fillStyle(0x2a2a2a, a).fillRect(cx - 4, cy - 12, 8, 6);
+            g.fillStyle(0xe8c030, a).fillRect(cx + 4, cy - 14, 8, 4);
+        } else if (art === 'medkit') {
+            g.fillStyle(0xbfbfbf, a).fillRect(cx - 15, cy - 11, 30, 24);
+            g.fillStyle(0xf4f4f4, a).fillRect(cx - 14, cy - 10, 28, 22);
+            g.fillStyle(0xd62f2f, a).fillRect(cx - 3, cy - 8, 6, 18).fillRect(cx - 9, cy - 2, 18, 6);
+            g.fillStyle(0x9a9a9a, a).fillRect(cx - 6, cy - 15, 12, 4);
+        }
+    }
+
+    erzeugeHotbar() {
+        this.hotbar = this.add.graphics().setScrollFactor(0).setDepth(20);
+        const stil = { fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3, fontFamily: 'monospace' };
+        this.slotZahl = [];
+        this.slotTexte = [];
+        for (let i = 0; i < 4; i++) {
+            const x = SLOT_X0 + i * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
+            this.slotZahl.push(this.add.text(x + 5, y + 3, String(i + 1), { ...stil, color: '#cfd8dc' }).setScrollFactor(0).setDepth(21));
+            this.slotTexte.push(this.add.text(x + SLOT - 4, y + SLOT - 17, '', stil).setOrigin(1, 0).setScrollFactor(0).setDepth(21));
+        }
+        this.slotName = this.add.text(SLOT_X0 + (4 * SLOT + 3 * SLOT_ABSTAND) / 2, SLOT_Y - 14, '', { ...stil, fontSize: '15px', color: '#ffdd55' })
+            .setOrigin(0.5).setScrollFactor(0).setDepth(21);
+        // Mausrad wechselt den Platz (höchstens alle 120 ms, denn ein Trackpad schickt sehr viele Meldungen)
+        this.letztesRad = 0;
+        this.input.on('wheel', (pointer, objs, dx, dy) => {
+            if (this.player.tot || this.gameOver || this.time.now - this.letztesRad < 120) return;
+            this.letztesRad = this.time.now;
+            this.player.naechster(dy > 0 ? 1 : -1);
+        });
+    }
+
+    zeichneHotbar() {
+        const p = this.player, g = this.hotbar;
+        g.clear();
+        const namen = ['', p.weaponName, 'Schwert', 'Granate  (Klick: werfen, G)', 'Verbandskasten  (Klick: heilen, H)'];
+        const arten = ['', p.weapon, 'sword', 'grenade', 'medkit'];
+        const leer = p.magAmmo === 0 && p.ammo === 0;
+        for (let i = 1; i <= 4; i++) {
+            const x = SLOT_X0 + (i - 1) * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
+            const gewaehlt = p.auswahl === i;
+            const gesperrt = i === 2 && !p.hatSchwert;
+            const keins = (i === 3 && p.grenades === 0) || (i === 4 && p.medkits === 0);
+            g.fillStyle(gewaehlt ? 0x3a4450 : 0x161b20, 0.85).fillRect(x, y, SLOT, SLOT);
+            g.lineStyle(gewaehlt ? 4 : 2, gewaehlt ? 0xffdd55 : 0x55616b, 1).strokeRect(x, y, SLOT, SLOT);
+            if (gesperrt) {
+                this.zeichneSymbol(g, 'sword', x + SLOT / 2, y + SLOT / 2 - 3, 0.18);
+                this.slotTexte[i - 1].setText('?').setColor('#667788');
+            } else {
+                this.zeichneSymbol(g, arten[i], x + SLOT / 2, y + SLOT / 2 - 3, keins ? 0.3 : 1);
+            }
+            const t = this.slotTexte[i - 1];
+            if (i === 1) t.setText(p.isReloading() ? '...' : `${p.magAmmo}/${p.ammo}`).setColor(leer ? '#ff4444' : (p.isReloading() || p.magAmmo === 0 ? '#ff9944' : '#ffdd55'));
+            else if (i === 3) t.setText(`x${p.grenades}`).setColor(keins ? '#ff6666' : '#b5c96a');
+            else if (i === 4) t.setText(`x${p.medkits}`).setColor(keins ? '#ff6666' : '#66ee99');
+            else if (i === 2 && !gesperrt) t.setText('');
+            if (i === 1 && p.isReloading()) {                         // Nachladebalken auf dem Platz der Schusswaffe
+                const anteil = 1 - Math.max(0, p.reloadingUntil - this.time.now) / p.reloadTime;
+                g.fillStyle(0x000000, 0.7).fillRect(x + 4, y + SLOT - 8, SLOT - 8, 5);
+                g.fillStyle(0xff9944).fillRect(x + 5, y + SLOT - 7, (SLOT - 10) * anteil, 3);
+            }
+            if (i === 4 && p.medkits > 0 && p.health >= p.maxHealth) g.fillStyle(0x000000, 0.35).fillRect(x + 1, y + 1, SLOT - 2, SLOT - 2);   // Leben voll: heilen sinnlos
+        }
+        this.slotName.setText(namen[p.auswahl]);
+    }
+
+    // ---------- Nahkampf ----------
+
+    // Ein Schwerthieb (dieses Gerät): Schwung zeigen, Treffer berechnen (Gastgeber) bzw. melden (Gast).
+    nahkampf() {
+        const p = this.player;
+        const pointer = this.input.activePointer;
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y - 6, pointer.worldX, pointer.worldY);
+        this.hiebStart(this.meineNr, winkel);
+        if (this.istGast) this.mp.meldeHieb(Math.round(p.x), Math.round(p.y), winkel);
+        else this.hiebTreffer(this.meineNr, p.x, p.y, winkel);
+        if (this.istHost) this.mp.sendeAnAlleAusser(this.meineNr, { t: 'fx', k: 'hieb', n: this.meineNr, a: winkel });
+    }
+
+    // Nur die Optik und der Ton eines Hiebs (für jeden Spieler, auch bei den anderen).
+    hiebStart(nr, winkel) {
+        this.hiebe = this.hiebe.filter((h) => h.nr !== nr);
+        this.hiebe.push({ nr, a: winkel, t0: this.time.now });
+        sfx.play('schwert');
+    }
+
+    // Wie weit ist der Hieb dieses Spielers? (undefined = kein Hieb, sonst 0 bis 1) und sein Winkel.
+    hiebVon(nr) {
+        const h = this.hiebe.find((x) => x.nr === nr);
+        if (!h) return undefined;
+        const f = (this.time.now - h.t0) / HIEB_DAUER;
+        return f >= 1 ? undefined : { f, a: h.a };
+    }
+
+    // Wer trifft der Hieb? Nur Gastgeber/Einzelspieler. Alles im Bogen vor dem Schwert nimmt Schaden, Gegnerkugeln werden abgewehrt.
+    hiebTreffer(nr, x, y, winkel) {
+        if (!this.rechnet) return;
+        let traf = false;
+        for (const e of this.enemies) {
+            if (!e.active) continue;
+            const dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy);
+            const reichweite = HIEB_REICHWEITE + e.displayWidth / 2;
+            if (d > reichweite) continue;
+            if (d > 34 && Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - winkel)) > 1.2) continue;     // nicht im Bogen
+            traf = true;
+            if (e.takeDamage(HIEB_SCHADEN)) this.gegnerStirbt(e);
+            else this.zeigeBlut(e.x, e.y, 8);
+        }
+        this.enemies = this.enemies.filter((e) => e.active);
+        for (const k of this.enemyBullets) {                  // Kugeln mit dem Schwert abwehren
+            if (!k.active) continue;
+            const dx = k.x - x, dy = k.y - y;
+            if (Math.hypot(dx, dy) > HIEB_REICHWEITE + 10) continue;
+            if (Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - winkel)) > 1.2) continue;
+            this.fx.sparks(k.x, k.y, 6);
+            k.destroy();
+            traf = true;
+        }
+        if (traf) sfx.play('schwertHit');
+    }
+
     // ---------- Mehrspieler: Welt ----------
 
     // Wen soll dieser Gegner angreifen? Den nächsten lebenden Spieler (online auch die Mitspieler).
@@ -772,6 +947,7 @@ export default class GameScene extends Phaser.Scene {
         switch (d.k) {
             case 'muendung': case 'druckwelle': case 'blut': this.effektLokal(d.k, d.x, d.y, d.a, d.g, d.f); break;
             case 'schuss': this.zeigeSchussEffekt(d.x, d.y, d.a, d.wp); break;
+            case 'hieb': this.hiebStart(d.n, d.a); break;
             case 'explosion': this.explosionEffekt(d.x, d.y, d.r); break;
             case 'fassZ': { const f = this.faesser.find((o) => o.id === d.id); if (f) f.zuendet = true; break; }
             case 'fassWeg': {
@@ -800,6 +976,12 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Der Gastgeber erzeugt die echte Granate eines Gastes.
+    fremderHieb(nr, d) {
+        this.hiebStart(nr, d.a);
+        this.hiebTreffer(nr, d.x, d.y, d.a);
+        this.mp.netz.sendeAnAlleAusser(nr, { t: 'fx', k: 'hieb', n: nr, a: d.a });
+    }
+
     fremdeGranate(nr, d) {
         const g = new Grenade(this, d.x, d.y, d.vx, d.vy);
         g.owner = nr;
@@ -890,7 +1072,7 @@ export default class GameScene extends Phaser.Scene {
     zeichneTeamHud() {
         const g = this.teamHud;
         g.clear();
-        let y = 150;
+        let y = 60;
         for (const r of this.mp.fern.values()) {
             let t = this.teamTexte.get(r.nr);
             if (!t) {
@@ -1148,11 +1330,23 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Schießen (Maustaste gedrückt halten = Dauerfeuer) ---
         // Schießen geht nur mit Kugel im Magazin und nicht während des Nachladens.
-        if (pointer.isDown && !this.player.tot && this.player.canShoot() &&
+        // Die linke Maustaste benutzt den gewählten Platz der Inventarleiste.
+        const klick = pointer.isDown && !this.player.tot;
+        const neuerKlick = klick && !this.zeigerWarUnten;       // nur im Moment des Drückens (für Granate und Heilung)
+        this.zeigerWarUnten = pointer.isDown;
+        const wahl = this.player.auswahl;
+        if (klick && wahl === 1 && this.player.canShoot() &&
             this.time.now - this.lastShot > this.player.fireDelay) {  // Feuerrate der Waffe
             this.shoot(pointer.worldX, pointer.worldY);
             this.player.magAmmo -= 1;  // jeder Schuss kostet eine Kugel aus dem Magazin
             this.lastShot = this.time.now;
+        } else if (klick && wahl === 2 && this.time.now - this.lastShot > HIEB_PAUSE) {
+            this.nahkampf();                                    // Schwert (Dauerklick = Hieb auf Hieb)
+            this.lastShot = this.time.now;
+        } else if (neuerKlick && wahl === 3 && this.player.grenades > 0) {
+            this.throwGrenade();
+        } else if (neuerKlick && wahl === 4 && !this.player.useMedkit()) {
+            this.showMessage(this.player.medkits <= 0 ? 'Kein Verbandskasten mehr!' : 'Dein Leben ist schon voll.');
         }
 
         // --- Granaten: Lunte prüfen, bei Ablauf explodieren ---

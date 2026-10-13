@@ -138,7 +138,7 @@ export default class Mehrspieler {
             x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10,
             vx: Math.round(p.body.velocity.x), vy: Math.round(p.body.velocity.y),
             a: Math.round(winkel * 100) / 100,
-            w: p.weapon, h: p.health, g: p.body.blocked.down ? 1 : 0, d: p.tot ? 1 : 0,
+            w: p.inHand(), h: p.health, g: p.body.blocked.down ? 1 : 0, d: p.tot ? 1 : 0,
             s: p.lastShotTime ? Math.round(jetzt - p.lastShotTime) : 9999,    // Millisekunden seit dem letzten Schuss (für den Rückstoß)
         });
     }
@@ -236,6 +236,10 @@ export default class Mehrspieler {
         }
     }
 
+    // Ein Gast hat zugeschlagen: Der Gastgeber berechnet die Treffer.
+    meldeHieb(x, y, a) { this.sendeAnHost({ t: 'hb', x, y, a: Math.round(a * 100) / 100 }); }
+    sendeAnAlleAusser(nr, daten) { if (this.istHost) this.netz.sendeAnAlleAusser(nr, daten); }
+
     meldeGranate(x, y, vx, vy) { this.sendeAnHost({ t: 'gr', x, y, vx, vy }); }
 
     // Gegenstand eingesammelt: Die anderen entfernen ihn auch.
@@ -298,6 +302,7 @@ export default class Mehrspieler {
             case 'w': if (!this.istHost) this.wendeWeltAn(daten); return;
             case 'sg': if (this.istHost) sz.fremderSchuss(von, daten); return;
             case 'gr': if (this.istHost) sz.fremdeGranate(von, daten); return;
+            case 'hb': if (this.istHost) sz.fremderHieb(von, daten); return;
             case 'fx': if (!this.istHost) sz.effektEmpfangen(daten); return;
             case 'tot': if (!this.istHost) sz.gegnerTotEmpfangen(daten); return;
             case 'schaden': if (!sz.player.tot) sz.player.takeDamage(daten.m, daten.x); return;

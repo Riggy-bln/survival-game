@@ -1,3 +1,5 @@
+import { zentriere, baueTitel, pixelKnopf, MITTE_X } from '../MenuStil.js';
+
 // Die Pause: liegt als Schleier über dem eingefrorenen Spiel.
 // GameScene wird mit scene.pause() angehalten (auch ihre Uhr!), diese Szene läuft daneben.
 export default class PauseScene extends Phaser.Scene {
@@ -6,13 +8,16 @@ export default class PauseScene extends Phaser.Scene {
     }
 
     create() {
-        this.cameras.main.setZoom(this.scale.height / 540).centerOn(480, 270);   // nach der Höhe, die Breite passt sich an
+        zentriere(this);
         this.input.setDefaultCursor('default');  // Mauszeiger zurückholen
-        this.add.rectangle(-600, -200, 2200, 940, 0x000000, 0.6).setOrigin(0, 0);
-        this.add.text(480, 220, 'PAUSE', { fontSize: '72px', color: '#ffffff' }).setOrigin(0.5);
-        this.add.text(480, 300, 'Esc: weiter        M: Hauptmenü', {
-            fontSize: '24px', color: '#cfd8dc',
-        }).setOrigin(0.5);
+        // Schleier über allem und eine Tafel in der Mitte
+        this.add.rectangle(-600, -200, 2200, 940, 0x0a0714, 0.7).setOrigin(0, 0);
+        const tafel = this.add.graphics();
+        tafel.fillStyle(0x000000, 0.4).fillRect(MITTE_X - 190 + 5, 150 + 6, 380, 250);
+        tafel.fillStyle(0xffdd55).fillRect(MITTE_X - 190, 150, 380, 250);
+        tafel.fillStyle(0x14101f, 0.95).fillRect(MITTE_X - 187, 153, 374, 244);
+        tafel.fillStyle(0xffffff, 0.06).fillRect(MITTE_X - 187, 153, 374, 5);
+        this.titel = baueTitel(this, 'PAUSE', 205, 54);
 
         const weiter = () => {
             this.input.setDefaultCursor('none');
@@ -26,10 +31,14 @@ export default class PauseScene extends Phaser.Scene {
         this.input.keyboard.once('keydown-ESC', weiter);
         this.input.keyboard.once('keydown-M', menue);
         // Knöpfe zum Antippen (Handy) oder Anklicken
-        [['Weiter', 380, weiter], ['Hauptmenü', 436, menue]].forEach(([text, y, aktion]) => {
-            const r = this.add.rectangle(480, y, 300, 46, 0x1b2630, 0.95).setStrokeStyle(2, 0x6f8190).setInteractive({ useHandCursor: true });
-            this.add.text(480, y, text, { fontSize: '24px', color: '#e6edf2' }).setOrigin(0.5);
-            r.on('pointerdown', aktion);
-        });
+        this.knoepfe = [
+            pixelKnopf(this, MITTE_X, 290, 320, 46, 'WEITER  (ESC)', 0x58c06a, weiter, { schrift: 18 }),
+            pixelKnopf(this, MITTE_X, 350, 320, 46, 'HAUPTMENÜ  (M)', 0x8a96a0, menue, { schrift: 18 }),
+        ];
+    }
+
+    update(zeit) {
+        this.titel.update(zeit);
+        this.knoepfe.forEach(k => { k.an += ((k.hover ? 1 : 0) - k.an) * 0.25; k.zeichne(zeit); });
     }
 }

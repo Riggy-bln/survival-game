@@ -15,11 +15,11 @@ const TIPP_ZEIT = 260;           // so kurz muss ein Tippen sein (ms)
 const ZIELHILFE = 0.2;           // so nah (im Bogenmaß) muss ein Gegner an der Zielrichtung liegen, damit sie einrastet
 
 // Knöpfe: Position und Größe im Spielfenster (720 hoch, rechts verankert: B = Fensterbreite)
-const knoepfeFuer = (B) => ({
-    nachladen:  { x: B - 195, y: 390, r: 36 },
-    granate:    { x: B - 85,  y: 330, r: 40 },
-    heilen:     { x: B - 85,  y: 450, r: 40 },
-    interaktion:{ x: B - 350, y: 470, r: 46 },
+const knoepfeFuer = (B, H) => ({
+    nachladen:  { x: B - 195, y: H - 330, r: 36 },
+    granate:    { x: B - 85,  y: H - 390, r: 40 },
+    heilen:     { x: B - 85,  y: H - 270, r: 40 },
+    interaktion:{ x: B - 350, y: H - 250, r: 46 },
     pause:      { x: B - 42,  y: 40,  r: 26 },
     vollbild:   { x: B - 108, y: 40,  r: 26 },
 });
@@ -27,7 +27,7 @@ const knoepfeFuer = (B) => ({
 export default class Touch {
     constructor(scene) {
         this.scene = scene;
-        this.K = knoepfeFuer(scene.scale.width);
+        this.K = knoepfeFuer(scene.scale.width, scene.scale.height);
         const dev = scene.sys.game.device;
         const param = new URLSearchParams(window.location.search).get('touch');
         this.erzwungen = param === '1';                         // Testmodus mit der Maus
@@ -70,7 +70,7 @@ export default class Touch {
 
     // Das Fenster hat seine Form geändert: Knöpfe rechts neu verankern.
     layout() {
-        this.K = knoepfeFuer(this.scene.scale.width);
+        this.K = knoepfeFuer(this.scene.scale.width, this.scene.scale.height);
         const k = this.K;
         this.eText.setPosition(k.interaktion.x, k.interaktion.y);
         this.eLabel.setPosition(k.interaktion.x, k.interaktion.y - 62);
@@ -313,8 +313,8 @@ export default class Touch {
             const kx = bx + st.x * R, ky = by + st.y * R;
             glas('stick', kx, ky, 40, farbe, an, !an);                                                  // Griff aus Glas
         };
-        stick(this.links, 170, 585, 0x66c2ff);
-        stick(this.rechts, s.scale.width - 170, 585, 0xff8a5c);
+        stick(this.links, 170, s.scale.height - 135, 0x66c2ff);
+        stick(this.rechts, s.scale.width - 170, s.scale.height - 135, 0xff8a5c);
         if (this.rechts.id !== null && this.feuer) {                    // Zielrichtung als Linie
             g.lineStyle(3, 0xff8a5c, 0.5).beginPath().moveTo(this.rechts.bx, this.rechts.by).lineTo(this.rechts.bx + this.rechts.x * R * 1.6, this.rechts.by + this.rechts.y * R * 1.6).strokePath();
         }

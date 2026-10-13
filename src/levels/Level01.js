@@ -126,7 +126,6 @@ const versorgungspunkt = (x, oben = BODEN) => {  // oben = y der Standfläche
     decor.push({ x: x, y: oben - 20, w: 6, h: 24, color: 0xdd3333 });
     decor.push({ x: x, y: oben - 60, w: 6, h: 40, color: 0x555555 });         // Fahnenmast
     decor.push({ x: x + 16, y: oben - 72, w: 26, h: 14, color: 0xdd3333 });   // Fahne
-    signs.push({ x: x, y: oben - 105, text: 'Versorgungspunkt' });
 };
 
 // Tunnelblock: ein fester Block, der auf dem TUNNELBODEN steht (Kisten, Stufen).
@@ -687,7 +686,6 @@ schwert(4330, GAL_B - 44);                                        // das Schwert
 // liegt an seinem Fuß (x 2940), der Hang steigt über Absätze zum Gipfel (192) und fällt auf der anderen Seite ab.
 // Auf den Absätzen sitzen Schützen, auf dem Gipfel wartet ein Nahkämpfer mit Munition.
 // =====================================================================
-signs.push({ x: 3000, y: BODEN - 170, text: 'Gefahr voraus:\nSchützen am Hang' });
 // Der Bergrücken: vier Absätze (96, 224, 352 und eine Klippe zurück auf 192), dann fällt er steil zum Krater ab.
 // Zwischen den Absätzen liegen Hänge (Steigung etwa 1:1) und eine echte Felswand (die Klippe auf der Ostseite).
 gelaende(EINGANG, [[0, 0], [128, 96], [224, 96], [352, 224], [448, 224], [576, 352], [672, 352], [676, 192], [768, 192]]);
@@ -708,7 +706,6 @@ sprossenleiter(3634, BODEN - 352, BODEN - 192, -1, 'holz', 28);   // Leiter: vom
 // Ein begrünter Erdwall mit einem Bunker obenauf: Rampe, Absatz (64), Rampe, Absatz (128), Rampe, Dach (192).
 // Hinter dem Dach geht es über einen Absatz (96) hinab, damit man auch zurück hinaufkommt (mehr als 150 springt niemand).
 // =====================================================================
-signs.push({ x: 4300, y: BODEN - 130, text: 'Bunker voraus:\nGegner auf mehreren Absätzen' });
 // Der Erdwall ist jetzt ein richtiger Berg: Absätze auf 96, 192 und 288, oben der Bunker (Dach 336 hoch), dahinter eine Felswand
 // hinunter auf einen Absatz (128). Eine Leiter führt von dort zurück aufs Dach.
 gelaende(4290, [[0, 0], [96, 96], [192, 96], [288, 192], [384, 192], [480, 288], [576, 288], [580, 128], [640, 128]]);
@@ -749,7 +746,7 @@ munition(5890, BODEN - 64);
 //   gerade Etagen   (2, 4, 6): x 6520 bis 6900, Lücke links
 // Von der 4. Etage führt eine Skybridge nach rechts, ein Abkürzungsweg über den Bodenkämpfen.
 // =====================================================================
-signs.push({ x: 6015, y: BODEN - 110, text: 'Hochhaus-Ruine:\nin den Berg gebaut' });
+signs.push({ x: 6015, y: BODEN - 110, text: 'Wandsprung:\ngegen eine hohe Wand\nlaufen und springen' });
 // Das Hochhaus ist in einen Berg hineingebaut: Im Westen und Osten steigen Felsberge auf, die sein Erdgeschoss und die unteren
 // Etagen verschlucken. Durch beide Berge führt ein Tunnel auf Bodenhöhe (160 hoch) ins Gebäude; über die Berge führen Absätze
 // (und Leitern), die auf die Etagen münden. Der westliche Tunnel enthält den Ausgangsschacht der Katakomben.
@@ -846,9 +843,7 @@ heilung(6400, KAT_B);
 // (280 Pixel hoch), eine morsche Holzbrücke führt über eine Schlucht, dahinter geht es hinab.
 // Unter der Schlucht liegt die tiefe Mine (ZONE K). Alles hier ist die Hauptroute über Tage.
 // =====================================================================
-signs.push({ x: 7250, y: BODEN - 110, text: 'Steinbruch:\nKlippen, eine Schlucht\nund ein Förderschacht' });
 nahkaempfer(7330, 7270, 7380, 3);                                         // vor dem Schacht
-signs.push({ x: 7530, y: BODEN - 70, text: 'Förderschacht\nzur Mine' });
 schacht(MINE_L, MINE_L + 260);                                             // Förderschacht (x 7400 bis 7660)
 schachtkoepfe.push({ links: MINE_L, rechts: MINE_L + 260 });                // mit Fördergerüst
 gelaende(7696, [[0, 0], [160, 96], [256, 96], [512, 288], [704, 288]]);   // Klippe: Rampe, Absatz (96), Rampe, Plateau (288) bis x 8400
@@ -859,16 +854,8 @@ felsnase(CHASM_R, 800, 96, -1); felsnase(CHASM_R, 868, 32, -1);       // und rec
 bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 288], [CHASM_R - 100, CHASM_R, BODEN - 288]] });   // Seile und Pfosten
 gelaende(CHASM_R, [[0, 288], [192, 288], [416, 160], [512, 160], [768, 0]]);   // Plateau, Rampe, Absatz (160), Rampe hinab bis x 9408
 nahkaempfer(7905, 7874, 7934, 3, BODEN - 96);                              // auf dem Absatz der Klippe
-{
-    const oben = wachturm(8320, 220, -1);                                      // Wachturm 1 auf dem Plateau (Leiter links)
-    skelett(8325, 8290, 8350, 4, oben);                                        // Scharfschütze oben
-    fass(8200, bodenBei(8200));                                                // ein Fass neben der Stütze: damit stürzt der Turm ein
-}
-{
-    const oben = wachturm(8745, 200, -1);                                      // Wachturm 2 auf dem Plateau hinter der Schlucht
-    fernkaempfer(8735, 8705, 8760, 4, oben);
-    fass(8830, bodenBei(8830));
-}
+skelett(8310, 8245, 8380, 4, BODEN - 288);                                  // Scharfschütze auf dem Plateau
+fernkaempfer(8750, 8665, 8815, 4, BODEN - 288);                            // Schütze auf dem Plateau hinter der Schlucht
 nahkaempfer(9105, 9074, 9134, 3, BODEN - 160);                             // auf dem Absatz des Abstiegs
 nahkaempfer(9530, 9450, 9600, 4);                                          // am Boden vor dem Ausgangsschacht
 heilung(8225, BODEN - 288);                                                // Belohnung auf dem Plateau
@@ -924,7 +911,6 @@ munition(9360, MINE_BODEN);
 versorgungspunkt(10030);
 heilung(9990);
 munition(10070);
-signs.push({ x: 10250, y: BODEN - 130, text: 'Funkturm:\nein Aufstieg lohnt sich' });
 hoehlen.push({ links: 10225, rechts: 10545, oben: BODEN - 650, unten: BODEN, art: 'turm', etagen: [105, 210, 315, 420, 525, 630] });   // Gitterturm
 for (let k = 1; k <= 5; k++) schwebend(k % 2 === 1 ? 10250 : 10420, BODEN - 105 * k, 100, METALL);
 schwebend(10330, BODEN - 630, 260, BETON);                                 // Aussichtsdeck (Oberkante 130)
@@ -951,11 +937,9 @@ skelett(10832, 10816, 10848, 3, BODEN - 352);                              // Sc
 //   Schlucht 2 (x 12420 bis 12800): flach (190), eingestürzte Autobahnbrücke; hinaus über einen Absatz rechts.
 //   Hügel 3 (x 12900 bis 13380): niedrig, fällt zum Boss-Gebiet ab.
 // =====================================================================
-signs.push({ x: 10990, y: BODEN - 90, text: 'Tal der Brücken:\nHügel, Schluchten\nund kaputte Brücken' });
 sanfterHuegel(11020, 448, 160, 0.2);
 skelett(11245, 11205, 11285, 3, BODEN - 160);                         // Schütze auf der Kuppe von Hügel 1
 munition(11200, BODEN - 160);
-signs.push({ x: 11470, y: BODEN - 70, text: 'Vorsicht:\nBrücke beschädigt' });
 // Schlucht 1: Stahlbrücke mit 80 Pixel Lücke, darunter Absätze und Wasser
 schwebend(11520, BODEN, 110, METALL);                                      // linkes Brückenstück (x 11520 bis 11630)
 schwebend(11710, BODEN, 90, METALL);                                       // rechtes Brückenstück (x 11710 bis 11800)
@@ -976,7 +960,6 @@ skelett(12120, 12075, 12165, 4, BODEN - 192);                         // Schütz
 heilung(12090, BODEN - 192);
 munition(12120, BODEN - 287);                                              // Beute auf der Deckenplatte
 granate(12170, BODEN - 287);
-signs.push({ x: 12480, y: BODEN - 70, text: 'Autobahnbrücke:\neingestürzt' });
 // Schlucht 2: eingestürzte Autobahnbrücke aus Betonplatten, flache Schlucht mit Absatz rechts
 schwebend(12420, BODEN, 130, BETON);                                       // Platte 1, bündig mit dem Boden (x 12420 bis 12550)
 schwebend(12590, BODEN + 30, 90, BETON);                                   // Platte 2, abgesackt (x 12590 bis 12680)
@@ -1001,7 +984,6 @@ fernkaempfer(13290, 13262, 13312, 4, BODEN - 160);
 // hinab. Wer lieber unten bleibt, nimmt den Stollen: Eine Felstreppe führt in einen Tunnel unter dem Berg
 // (Pit-Halle mit Brücke, Lager mit Vorräten), und ein Schacht bringt einen ins Tal vor der Arena zurück.
 // =====================================================================
-signs.push({ x: 13400, y: BODEN - 130, text: 'Das Gebirge:\nüber den Gipfel oder\ndurch den Stollen' });
 const ST_L = 13440, ST_EIN = 13640, ST_SCH = 15200, ST_R = 15460;      // Graben, Tunnelbeginn, Ausgangsschacht (links/rechts)
 const stollen = hoehlenform(ST_EIN, ST_R, BODEN + DECKE, TUNNEL_BODEN, 41,
     [[ST_EIN, 13950], [ST_SCH - 40, ST_R], [14150, 14420]], 2, 1,
@@ -1032,7 +1014,6 @@ for (const sx of [ST_EIN + 8, 13900, 14500, 14950]) {                    // Holz
     decor.push({ x: sx, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 10, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x6b4a2a });
     decor.push({ x: sx + 4, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 3, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x4a331d });
 }
-signs.push({ x: 13500, y: 806, text: 'STOLLEN 2\nBetreten auf eigene Gefahr' });
 // Inhalt des Stollens
 tunnelblock(14040, 40, 80);                                              // Deckung im ersten Gang
 munition(14080, TUNNEL_BODEN - 40);
@@ -1067,7 +1048,6 @@ granate(14560, BODEN - 544);
 fass(14610, BODEN - 544);
 nahkaempfer(14692, 14660, 14724, 4, BODEN - 352);
 fernkaempfer(14916, 14884, 14948, 3, BODEN - 160);
-signs.push({ x: 14430, y: BODEN - 640, text: 'Gipfel' });
 // Leitern an den Klippen: Statt zu springen kann man klettern (und von oben wieder hinunter)
 sprossenleiter(14098, BODEN - 320, BODEN - 224, 1, 'holz', 28);
 sprossenleiter(14454, BODEN - 544, BODEN - 448, 1, 'holz', 28);
@@ -1077,7 +1057,6 @@ signs.push({ x: 14575, y: BODEN - 544 - 70, text: 'Seilbahn zum Boss\nE: einhän
 decor.push({ x: 16160, y: BODEN - 14, w: 64, h: 28, color: 0x5b4a2e });                   // Kiste
 decor.push({ x: 16160, y: BODEN - 14, w: 20, h: 6, color: 0xdd3333 });                    // rotes Kreuz
 decor.push({ x: 16160, y: BODEN - 14, w: 6, h: 20, color: 0xdd3333 });
-signs.push({ x: 16160, y: BODEN - 70, text: 'Vorräte\nfür den Kampf' });
 heilung(16170); granate(16190); munition(16250); munition(16275);
 // Das Tal hinter dem Gebirge
 nahkaempfer(15540, 15500, 15600, 4);
@@ -1114,7 +1093,6 @@ stacheldraht(15500);
 // =====================================================================
 // ZONE H: Vor der Arena (x 13400 bis 13850). Hier rüstet man sich aus.
 // =====================================================================
-signs.push({ x: 13500 + ARENA, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
 gelaende(13440 + ARENA, [[0, 0], [96, 64], [288, 64], [384, 0]]);       // Anhöhe vor der Arena
 schrotflinte(13845 + ARENA);                              // Alternative zum Gewehr für den Bosskampf (unten am Hang)
 granate(13560 + ARENA, BODEN - 64);                       // vor dem Boss: Granaten aufsparen

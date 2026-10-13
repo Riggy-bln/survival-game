@@ -31,7 +31,7 @@ const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28, sword: 30, fist: 14 }
 
 // Inventarleiste unten in der Mitte: vier Plätze
 const SLOT = 64, SLOT_ABSTAND = 8;
-const SLOT_Y = 720 - SLOT - 14;       // die x-Mitte der Leiste richtet sich nach der Fensterbreite (this.slotX0)
+// Die Leiste sitzt unten in der Mitte: x nach der Fensterbreite (this.slotX0), y nach der Fensterhöhe (this.slotY)
 
 // Seilbahn
 const SEIL_TEMPO = 640;      // Fahrgeschwindigkeit auf dem Seil (Pixel pro Sekunde)
@@ -84,24 +84,34 @@ export default class GameScene extends Phaser.Scene {
         }
         // Schilder: Text auf einer Holztafel, die auf einem Pfosten steht. Der Pfosten reicht bis zum Boden unter dem Schild
         // (höchstens 260 Pixel tief; sonst hängt die Tafel einfach an der Wand). So schweben keine Texte in der Luft.
-        const schilderGrafik = this.add.graphics().setDepth(2.5);
-        for (const s of level.signs) {
-            const text = this.add.text(s.x, s.y, s.text, {
-                fontSize: '16px', color: '#e6ded0', align: 'center', lineSpacing: 2,
-            }).setOrigin(0.5).setDepth(3);
-            const bw = text.width + 16, bh = text.height + 10;
-            schilderGrafik.fillStyle(0x2a1f14).fillRect(s.x - bw / 2 - 2, s.y - bh / 2 - 2, bw + 4, bh + 4);     // dunkler Rand
-            schilderGrafik.fillStyle(0x4a3826).fillRect(s.x - bw / 2, s.y - bh / 2, bw, bh);                      // Holztafel
-            schilderGrafik.fillStyle(0x5a4630).fillRect(s.x - bw / 2, s.y - bh / 2, bw, 3);                       // Lichtkante oben
+        // Schilder: kleine, verwitterte Metalltafeln, die leise im Hintergrund stehen. Je näher man kommt, desto deutlicher werden sie.
+        this.schilder = [];
+        for (const sg of level.signs) {
+            const text = this.add.text(sg.x, sg.y, sg.text, {
+                fontSize: '12px', color: '#b4c2c8', align: 'center', lineSpacing: 3, fontFamily: 'monospace',
+            }).setOrigin(0.5).setDepth(2.6);
+            const bw = Math.round(text.width + 16), bh = Math.round(text.height + 12);
+            const gfx = this.add.graphics().setDepth(2.5);
+            const zu = new Phaser.Math.RandomDataGenerator(['schild' + sg.x + '_' + sg.y]);
             let boden = Infinity;                                                                               // Boden unter dem Schild suchen
-            for (const p of level.platforms) {
-                const top = p.y - p.h / 2;
-                if (top >= s.y + bh / 2 - 2 && Math.abs(s.x - p.x) <= p.w / 2 && top < boden) boden = top;
+            for (const pl of level.platforms) {
+                const top = pl.y - pl.h / 2;
+                if (top >= sg.y + bh / 2 - 2 && Math.abs(sg.x - pl.x) <= pl.w / 2 && top < boden) boden = top;
             }
-            if (boden - (s.y + bh / 2) <= 260) {
-                schilderGrafik.fillStyle(0x3d2a18).fillRect(s.x - 3, s.y + bh / 2, 6, boden - (s.y + bh / 2) + 2);   // Pfosten
-                schilderGrafik.fillStyle(0x5a4630).fillRect(s.x - 3, s.y + bh / 2, 2, boden - (s.y + bh / 2) + 2);
+            if (boden - (sg.y + bh / 2) <= 260) {                                                               // dünner Metallpfosten mit Rostflecken
+                gfx.fillStyle(0x222a30).fillRect(sg.x - 2, sg.y + bh / 2, 4, boden - (sg.y + bh / 2) + 2);
+                gfx.fillStyle(0x3a4650).fillRect(sg.x - 2, sg.y + bh / 2, 1, boden - (sg.y + bh / 2) + 2);
+                for (let ry = sg.y + bh / 2 + 14; ry < boden - 6; ry += zu.between(24, 50)) gfx.fillStyle(0x7a4a2e, 0.8).fillRect(sg.x - 2, ry, 4, zu.between(3, 7));
             }
+            gfx.fillStyle(0x161c20).fillRect(sg.x - bw / 2 - 2, sg.y - bh / 2 - 2, bw + 4, bh + 4);            // dunkler Rand
+            gfx.fillStyle(0x2f3c44).fillRect(sg.x - bw / 2, sg.y - bh / 2, bw, bh);                             // Blechplatte
+            gfx.fillStyle(0x41535d).fillRect(sg.x - bw / 2, sg.y - bh / 2, bw, 2);                              // Lichtkante oben
+            gfx.fillStyle(0x222c32).fillRect(sg.x - bw / 2, sg.y + bh / 2 - 2, bw, 2);                          // Schatten unten
+            gfx.fillStyle(0xc9a227, 0.55).fillRect(sg.x - bw / 2, sg.y - bh / 2 + 2, 3, bh - 4);                // schmaler Warnstreifen links
+            for (const [nx, ny] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) gfx.fillStyle(0x6f828b).fillRect(sg.x + nx * (bw / 2 - 5) - 1, sg.y + ny * (bh / 2 - 5) - 1, 3, 3);   // Nieten
+            for (let i = 0; i < 3; i++) gfx.fillStyle(0x7a4a2e, 0.6).fillRect(sg.x - bw / 2 + zu.between(6, Math.max(7, bw - 12)), sg.y - bh / 2 + zu.between(3, Math.max(4, bh - 8)), zu.between(3, 8), zu.between(2, 5));   // Rost
+            text.setAlpha(0.45); gfx.setAlpha(0.4);
+            this.schilder.push({ x: sg.x, y: sg.y, text, gfx, a: 0.4 });
         }
 
         // --- Boden und Plattformen ---
@@ -132,6 +142,7 @@ export default class GameScene extends Phaser.Scene {
         buildHuegel(this, level.huegelformen, BODEN);   // Erdoberfläche der sanften Hügel
         buildCaves(this, level.hoehlen, level.lampen);  // Höhlenwände (statt schwarzer Flächen)
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
+        this.baueUnterkanten();                          // Zapfen an Höhlendecken und unter schwebenden Inseln
         this.fx = new Effects(this);                       // Partikel
         buildEmbers(this);                                 // Glut und Asche in der Luft
         buildVignette(this);                               // dunkle Bildränder
@@ -844,8 +855,8 @@ export default class GameScene extends Phaser.Scene {
         for (let i = 0; i < 4; i++) {
             const x = this.slotX0 + i * (SLOT + SLOT_ABSTAND);
             this.slotRects[i].x = x;
-            this.slotZahl[i].setPosition(x + 5, SLOT_Y + 3);
-            this.slotTexte[i].setPosition(x + SLOT - 4, SLOT_Y + SLOT - 17);
+            this.slotZahl[i].setPosition(x + 5, this.slotY + 3);
+            this.slotTexte[i].setPosition(x + SLOT - 4, this.slotY + SLOT - 17);
         }
         this.slotName.setX(this.slotX0 + (4 * SLOT + 3 * SLOT_ABSTAND) / 2);
         this.touch.layout();
@@ -897,16 +908,17 @@ export default class GameScene extends Phaser.Scene {
         this.hotbar = this.add.graphics().setScrollFactor(0).setDepth(20);
         const stil = { fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3, fontFamily: 'monospace' };
         this.slotX0 = (this.scale.width - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2;
+        this.slotY = this.scale.height - SLOT - 14;
         this.slotRects = [];
         this.slotZahl = [];
         this.slotTexte = [];
         for (let i = 0; i < 4; i++) {
-            const x = this.slotX0 + i * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
+            const x = this.slotX0 + i * (SLOT + SLOT_ABSTAND), y = this.slotY;
             this.slotRects.push({ x, y, w: SLOT, h: SLOT });
             this.slotZahl.push(this.add.text(x + 5, y + 3, String(i + 1), { ...stil, color: '#cfd8dc' }).setScrollFactor(0).setDepth(21));
             this.slotTexte.push(this.add.text(x + SLOT - 4, y + SLOT - 17, '', stil).setOrigin(1, 0).setScrollFactor(0).setDepth(21));
         }
-        this.slotName = this.add.text(this.slotX0 + (4 * SLOT + 3 * SLOT_ABSTAND) / 2, SLOT_Y - 14, '', { ...stil, fontSize: '15px', color: '#ffdd55' })
+        this.slotName = this.add.text(this.slotX0 + (4 * SLOT + 3 * SLOT_ABSTAND) / 2, this.slotY - 14, '', { ...stil, fontSize: '15px', color: '#ffdd55' })
             .setOrigin(0.5).setScrollFactor(0).setDepth(21);
         // Mausrad wechselt den Platz (höchstens alle 120 ms, denn ein Trackpad schickt sehr viele Meldungen)
         this.letztesRad = 0;
@@ -925,7 +937,7 @@ export default class GameScene extends Phaser.Scene {
         const arten = ['', p.weapon, p.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'];
         const leer = p.magAmmo === 0 && p.ammo === 0;
         for (let i = 1; i <= 4; i++) {
-            const x = this.slotX0 + (i - 1) * (SLOT + SLOT_ABSTAND), y = SLOT_Y;
+            const x = this.slotX0 + (i - 1) * (SLOT + SLOT_ABSTAND), y = this.slotY;
             const gewaehlt = p.auswahl === i;
             const gesperrt = false;
             const keins = (i === 3 && p.grenades === 0) || (i === 4 && p.medkits === 0);
@@ -1058,6 +1070,61 @@ export default class GameScene extends Phaser.Scene {
             }
         }
         return null;
+    }
+
+    // Schilder werden deutlicher, wenn man nah genug zum Lesen ist, sonst stehen sie blass im Hintergrund.
+    aktualisiereSchilder() {
+        if (this.time.now < (this.naechsteSchilder ?? 0)) return;
+        this.naechsteSchilder = this.time.now + 100;
+        const p = this.player;
+        for (const sg of this.schilder) {
+            const nah = Math.abs(p.x - sg.x) < 240 && Math.abs(p.y - sg.y) < 240;
+            sg.a += ((nah ? 0.95 : 0.4) - sg.a) * 0.3;
+            sg.text.setAlpha(Math.min(1, sg.a + 0.05)); sg.gfx.setAlpha(sg.a);
+        }
+    }
+
+    // ---------- Natürliche Unterseiten ----------
+
+    // An jeder freien Unterkante von Erd- und Felsblöcken (Höhlendecken, Tunneldecken in Bergen, schwebende Inseln, Überhänge)
+    // hängen Zapfen aus Pixelstufen: Das nimmt den Blöcken die harte, rechteckige Kante. Unter Inseln sind sie größer und
+    // unregelmäßiger, in Höhlen kürzer. Gezeichnet wird einmal (fest); die Zapfen haben keine Kollision.
+    baueUnterkanten() {
+        const g = this.add.graphics().setDepth(1.15);
+        const erdfarben = [0x4b3b2a, 0x5b4a35, 0x5e5a55];
+        const spitze = (x, y, w, h, c, hell, dunkel) => {
+            const schritte = Math.max(2, Math.round(h / 4)), sh = h / schritte;
+            for (let k = 0; k < schritte; k++) {
+                const bw = Math.max(2, Math.round(w * (1 - k / schritte) / 2) * 2);
+                const yy = y + k * sh;
+                g.fillStyle(c).fillRect(x - bw / 2, yy, bw, sh + 0.6);
+                g.fillStyle(hell).fillRect(x - bw / 2, yy, Math.min(2, bw), sh + 0.6);                      // linke Kante heller
+                g.fillStyle(dunkel).fillRect(x + bw / 2 - Math.min(2, bw), yy, Math.min(2, bw), sh + 0.6);   // rechte Kante dunkler
+            }
+        };
+        for (const p of this.platforms) {
+            if (p.brechbar || !erdfarben.includes(p.fillColor) || p.height < 24) continue;
+            const l = p.x - p.width / 2, r = p.x + p.width / 2, unten = p.y + p.height / 2;
+            if (unten > WORLD_HEIGHT - 40) continue;
+            const nachbarn = this.platforms.filter(q => q !== p && q.x - q.width / 2 < r && q.x + q.width / 2 > l &&
+                q.y - q.height / 2 <= unten + 4 && q.y + q.height / 2 >= unten + 4);
+            const frei = (x) => !nachbarn.some(q => x >= q.x - q.width / 2 && x <= q.x + q.width / 2);
+            const insel = unten < BODEN - 200;                                                               // in der Luft: größere Zapfen
+            const zu = new Phaser.Math.RandomDataGenerator(['zapfen' + Math.round(p.x) + '_' + Math.round(p.y)]);
+            const farbe = insel ? 0x5a4630 : 0x3f3126, hell = insel ? 0x76603f : 0x56442f, dunkel = insel ? 0x3d2f20 : 0x2a2018;
+            let x = l + zu.between(4, 12);
+            while (x < r - 4) {
+                if (frei(x)) {
+                    const w = zu.between(8, insel ? 26 : 20);
+                    const h = zu.between(6, insel ? 40 : 26) + (zu.frac() < 0.15 ? zu.between(8, 18) : 0);   // ab und zu ein langer Zapfen
+                    spitze(x, unten - 1, Math.min(w, (r - x) * 2), h, farbe, hell, dunkel);
+                    if (zu.frac() < 0.12) g.fillStyle(0x8fc6d8, 0.7).fillRect(x - 1, unten + h + 1, 2, 3);   // ein Wassertropfen
+                    x += zu.between(w - 2, w + 18);
+                } else {
+                    x += 8;
+                }
+            }
+        }
     }
 
     // ---------- Abgründe ----------
@@ -1991,6 +2058,7 @@ export default class GameScene extends Phaser.Scene {
         });
 
         this.pruefeAbsturz();
+        this.aktualisiereSchilder();
         this.updateHealthBar();
         if (this.player.isDead()) {
             if (this.mp) { if (!this.player.tot) this.geheNieder(); }      // online: man liegt am Boden und kann wiederbelebt werden

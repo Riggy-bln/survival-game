@@ -1,32 +1,40 @@
 import { sfx } from '../Sound.js';
+import { zentriere, baueHintergrund, baueTitel, pixelKnopf, chipZeile, oberKnopf, MITTE_X } from '../MenuStil.js';
 
-// Der Startbildschirm mit Menü. Man wählt mit den Pfeiltasten (oder W/S) und Enter, oder mit der Maus.
+// Der Startbildschirm im Pixel-Retro-Stil: animierte Landschaft im Hintergrund (Sonnenuntergang, Bergketten, Lagerfeuer, Hubschrauber),
+// ein wippender Titel und Knöpfe mit Farbakzent. Man wählt mit den Pfeiltasten (oder W/S) und Enter, mit der Maus oder dem Finger.
 //   Hauptmenü:  Ein Spieler  |  Mehrspieler
 //   Mehrspieler: Online (Freunde einladen)  |  Lokal (2 Spieler an einem Computer)  |  Zurück
 //   Online:      Raum erstellen  |  Raum beitreten  |  Zurück
-// "Lokal" ist noch "demnächst": Das Menü steht, die Funktionen kommen Schritt für Schritt (siehe PLAN-Mehrspieler.md).
-// Der gewählte Modus steht danach in this.registry ('modus'), damit GameScene ihn lesen kann.
+// "Lokal" ist noch "demnächst". Der gewählte Modus steht danach in this.registry ('modus'), damit GameScene ihn lesen kann.
 export default class MenuScene extends Phaser.Scene {
     constructor() {
         super('MenuScene');
     }
 
     create() {
-        // Das Menü ist für 960 x 540 gebaut: Die Kamera vergrößert es passend auf das größere Fenster.
-        this.cameras.main.setZoom(this.scale.height / 540).centerOn(480, 270);   // nach der Höhe, die Breite passt sich an
+        // Das Menü ist für 960 x 540 gebaut; die Kamera zoomt nach der Höhe und bleibt auch nach Größenänderungen (Vollbild) mittig.
+        zentriere(this);
+        this.hintergrund = baueHintergrund(this);
+        this.titel = baueTitel(this, 'SURVIVAL GAME', 92, 62);
 
-        this.add.text(480, 80, 'SURVIVAL GAME', { fontSize: '64px', color: '#e0e6ea', fontStyle: 'bold' }).setOrigin(0.5);
-        this.add.text(480, 138, 'Level 01: Verlassene Militärzone', { fontSize: '22px', color: '#9fb0bd' }).setOrigin(0.5);
+        // Band mit dem Levelnamen unter dem Titel
+        const band = this.add.graphics().setDepth(9);
+        band.fillStyle(0x000000, 0.45).fillRect(MITTE_X - 215, 139, 430, 30);
+        band.fillStyle(0xd9501c).fillRect(MITTE_X - 215, 136, 430, 28).fillStyle(0xff9a3c).fillRect(MITTE_X - 215, 136, 430, 5);
+        band.fillStyle(0xd9501c).fillTriangle(MITTE_X - 215, 136, MITTE_X - 235, 150, MITTE_X - 215, 164).fillTriangle(MITTE_X + 215, 136, MITTE_X + 235, 150, MITTE_X + 215, 164);
+        this.add.text(MITTE_X, 150, 'LEVEL 01  -  VERLASSENE MILITÄRZONE', { fontSize: '15px', fontFamily: 'monospace', fontStyle: 'bold', color: '#fff3d0', stroke: '#5a1e08', strokeThickness: 3 })
+            .setOrigin(0.5).setDepth(10);
 
-        this.untertitel = this.add.text(480, 190, '', { fontSize: '24px', color: '#ffdd55', fontStyle: 'bold' }).setOrigin(0.5);
-        this.beschreibung = this.add.text(480, 428, '', { fontSize: '18px', color: '#cfd8dc', align: 'center' }).setOrigin(0.5);
-        this.add.text(480, 490,
-            'A/D oder Pfeile: Laufen   Leertaste: Springen   Maus: Zielen und Schießen   R: Nachladen   H: Heilen   G: Granate   Esc: Pause',
-            { fontSize: '13px', color: '#7f8f9a', align: 'center' }).setOrigin(0.5);
-        this.add.text(480, 524, 'Wandsprung: In der Luft gegen eine hohe Wand laufen, dann Sprung (zur Wand gehalten = hochspringen, vom Wand weg = abstoßen). Leitern: W / S',
-            { fontSize: '12px', color: '#6f7f8a', align: 'center' }).setOrigin(0.5);
-        this.add.text(480, 510, 'Handy: Linker Daumen = Laufen (nach oben schieben = Springen), rechter Daumen = Zielen und Schießen (Tippen = Schnellschuss)',
-            { fontSize: '12px', color: '#6f7f8a', align: 'center' }).setOrigin(0.5);
+        this.untertitel = this.add.text(MITTE_X, 192, '', { fontSize: '18px', fontFamily: 'monospace', fontStyle: 'bold', color: '#ffdd55', stroke: '#14101f', strokeThickness: 4 }).setOrigin(0.5).setDepth(10);
+        this.beschreibung = this.add.text(MITTE_X, 424, '', { fontSize: '15px', fontFamily: 'monospace', color: '#e8dcc8', align: 'center', stroke: '#14101f', strokeThickness: 3 }).setOrigin(0.5).setDepth(10);
+
+        // Tastenhinweise unten (zwei Zeilen), am Handy die Touch-Hinweise
+        chipZeile(this, 468, [['A D', 'Laufen', 0x58c06a], ['LEERTASTE', 'Springen', 0x58c06a], ['MAUS', 'Zielen und Schießen', 0xff8a5c], ['R', 'Nachladen', 0xffc933], ['H', 'Heilen', 0xff5a5a], ['G', 'Granate', 0x7ccf5a], ['1-4', 'Inventar', 0x4aa3ff]]);
+        chipZeile(this, 492, [['WAND+SPRUNG', 'Wandsprung', 0x58c06a], ['W S', 'Leitern', 0x4aa3ff], ['E', 'Benutzen', 0xffc933], ['ESC', 'Pause', 0xcfd8dc], ['N', 'Ton', 0xcfd8dc]]);
+        this.add.text(MITTE_X, 516, 'Handy:  links Daumen = Laufen (hoch = Springen)   rechts Daumen = Zielen und Schießen   Tippen = Schnellschuss',
+            { fontSize: '11px', fontFamily: 'monospace', color: '#b8a898', stroke: '#14101f', strokeThickness: 3 }).setOrigin(0.5).setDepth(10);
+
         // Erster Fingertipp: Die Touch-Steuerung merkt sich das für das Spiel. Am Handy geht beim ersten Tippen gleich der Vollbildmodus an
         // (Browser erlauben ihn nur nach einer Berührung).
         this.input.on('pointerdown', (p) => {
@@ -37,18 +45,23 @@ export default class MenuScene extends Phaser.Scene {
                 this.vollbildUmschalten();
             }
         });
-        // Knopf oben rechts: Vollbild
-        this.vollbildKnopf = this.add.text(932, 22, '[ ] Vollbild', { fontSize: '16px', color: '#9fb0bd', backgroundColor: '#1b2630', padding: { x: 8, y: 4 } })
-            .setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
-        this.vollbildKnopf.on('pointerdown', () => this.vollbildUmschalten());
+        // Oben links und rechts, gleich weit vom Rand: Ton und Vollbild
+        this.tonKnopf = oberKnopf(this, 24, 24, sfx.muted ? 'TON: AUS  [N]' : 'TON: AN  [N]', () => this.tonUmschalten(), true);
+        this.vollbildKnopf = oberKnopf(this, 936, 24, '[ ]  VOLLBILD', () => this.vollbildUmschalten(), false);
 
-        this.menuObjekte = [];       // alle Texte und Rahmen des aktuellen Menüs (werden beim Wechsel gelöscht)
+        this.knoepfe = [];
+        this.eintraege = [];
         this.auswahl = 0;
         this.zeigeMenue('haupt');
 
-        // Tastatur: hoch/runter wählt, Enter oder Leertaste bestätigt, Esc geht zurück
-        const tasten = this.input.keyboard.addKeys('UP,DOWN,W,S,ENTER,SPACE,ESC');
-        this.tasten = tasten;
+        // Tastatur: hoch/runter wählt, Enter oder Leertaste bestätigt, Esc geht zurück, N schaltet den Ton
+        this.tasten = this.input.keyboard.addKeys('UP,DOWN,W,S,ENTER,SPACE,ESC,N');
+    }
+
+    tonUmschalten() {
+        const aus = sfx.toggle();
+        this.tonKnopf.setText(aus ? 'TON: AUS  [N]' : 'TON: AN  [N]');
+        if (!aus) sfx.play('pickup');
     }
 
     vollbildUmschalten() {
@@ -62,49 +75,43 @@ export default class MenuScene extends Phaser.Scene {
         } catch (e) { /* egal */ }
     }
 
-    // Baut ein Menü auf. name = 'haupt' oder 'mehrspieler'.
+    // Baut ein Menü auf. name = 'haupt', 'mehrspieler' oder 'online'.
     zeigeMenue(name) {
-        this.menuObjekte.forEach(o => o.destroy());
-        this.menuObjekte = [];
+        this.knoepfe.forEach(k => k.zerstoere());
+        this.knoepfe = [];
         this.menue = name;
         this.auswahl = 0;
 
         const meldung = (text) => () => this.beschreibung.setText(text).setColor('#ff9966');
-        const eintraege = name === 'haupt'
-            ? [
-                { text: 'Ein Spieler', info: 'Allein durch die Militärzone.', aktion: () => this.starte('einzel') },
-                { text: 'Mehrspieler', info: 'Gemeinsam mit anderen spielen.', aktion: () => this.zeigeMenue('mehrspieler') },
-            ]
-            : [
-                { text: 'Online (Freunde einladen)', info: 'Über das Internet mit Freunden: Raum erstellen, Code weitergeben.',
-                  aktion: () => this.zeigeMenue('online') },
-                { text: 'Lokal (2 Spieler an einem Computer)', info: 'Zu zweit an einer Tastatur.',
-                  demnaechst: true, aktion: meldung('Lokaler Mehrspieler ist noch in Planung.') },
-                { text: 'Zurück', info: '', aktion: () => this.zeigeMenue('haupt') },
+        const GRUEN = 0x58c06a, BLAU = 0x4aa3ff, ORANGE = 0xff9a3c, GRAU = 0x8a96a0;
+        let eintraege;
+        if (name === 'haupt') {
+            eintraege = [
+                { text: 'EIN SPIELER', info: 'Allein durch die Militärzone.', farbe: GRUEN, aktion: () => this.starte('einzel') },
+                { text: 'MEHRSPIELER', info: 'Gemeinsam mit anderen spielen.', farbe: BLAU, aktion: () => this.zeigeMenue('mehrspieler') },
             ];
-        if (name === 'online') {
-            eintraege.length = 0;
-            eintraege.push(
-                { text: 'Raum erstellen', info: 'Du bist der Gastgeber und bekommst einen Code für deine Freunde.', aktion: () => this.scene.start('LobbyScene', { rolle: 'host' }) },
-                { text: 'Raum beitreten', info: 'Gib den Code deines Freundes ein.', aktion: () => this.scene.start('LobbyScene', { rolle: 'gast' }) },
-                { text: 'Zurück', info: '', aktion: () => this.zeigeMenue('mehrspieler') },
-            );
+        } else if (name === 'mehrspieler') {
+            eintraege = [
+                { text: 'ONLINE (FREUNDE EINLADEN)', info: 'Über das Internet mit Freunden: Raum erstellen, Code weitergeben.', farbe: ORANGE, aktion: () => this.zeigeMenue('online') },
+                { text: 'LOKAL (2 AN EINEM RECHNER)', info: 'Zu zweit an einer Tastatur.', farbe: BLAU, demnaechst: true, aktion: meldung('Lokaler Mehrspieler ist noch in Planung.') },
+                { text: 'ZURÜCK', info: '', farbe: GRAU, aktion: () => this.zeigeMenue('haupt') },
+            ];
+        } else {
+            eintraege = [
+                { text: 'RAUM ERSTELLEN', info: 'Du bist der Gastgeber und bekommst einen Code für deine Freunde.', farbe: GRUEN, aktion: () => this.scene.start('LobbyScene', { rolle: 'host' }) },
+                { text: 'RAUM BEITRETEN', info: 'Gib den Code deines Freundes ein.', farbe: BLAU, aktion: () => this.scene.start('LobbyScene', { rolle: 'gast' }) },
+                { text: 'ZURÜCK', info: '', farbe: GRAU, aktion: () => this.zeigeMenue('mehrspieler') },
+            ];
         }
         this.eintraege = eintraege;
-        this.untertitel.setText(name === 'haupt' ? '' : (name === 'online' ? 'ONLINE' : 'MEHRSPIELER'));
+        this.untertitel.setText(name === 'haupt' ? '' : (name === 'online' ? '- ONLINE -' : '- MEHRSPIELER -'));
 
-        const y0 = name === 'haupt' ? 255 : 245, abstand = 64;
+        const abstand = 64, y0 = name === 'haupt' ? 268 : 262 - (eintraege.length - 2) * 12;
         eintraege.forEach((e, i) => {
-            const y = y0 + i * abstand;
-            e.rahmen = this.add.rectangle(480, y, 460, 48, 0x1b2630, 0.9).setStrokeStyle(2, 0x44525e);
-            e.label = this.add.text(480, y, e.text + (e.demnaechst ? '   (demnächst)' : ''), {
-                fontSize: '24px', color: e.demnaechst ? '#6f7d88' : '#e6edf2',
-            }).setOrigin(0.5);
-            // Maus: Darüberfahren wählt aus, Klick bestätigt
-            e.rahmen.setInteractive({ useHandCursor: true });
-            e.rahmen.on('pointerover', () => this.waehle(i));
-            e.rahmen.on('pointerdown', () => this.bestaetige());
-            this.menuObjekte.push(e.rahmen, e.label);
+            const k = pixelKnopf(this, MITTE_X, y0 + i * abstand, 440, 50, e.text + (e.demnaechst ? '  (bald)' : ''), e.farbe, () => { this.waehle(i); this.bestaetige(); },
+                { schrift: 20, deaktiviert: !!e.demnaechst });
+            k.beiHover = () => this.waehle(i);
+            this.knoepfe.push(k);
         });
         this.waehle(0);
     }
@@ -113,13 +120,7 @@ export default class MenuScene extends Phaser.Scene {
     waehle(i) {
         if (this.auswahl !== i) sfx.play('hit');
         this.auswahl = i;
-        this.eintraege.forEach((e, k) => {
-            const aktiv = k === i;
-            e.rahmen.setStrokeStyle(aktiv ? 3 : 2, aktiv ? 0xffdd55 : 0x44525e);
-            e.rahmen.setFillStyle(aktiv ? 0x2a3846 : 0x1b2630, 0.95);
-            if (!e.demnaechst) e.label.setColor(aktiv ? '#ffdd55' : '#e6edf2');
-        });
-        this.beschreibung.setText(this.eintraege[i].info).setColor('#cfd8dc');
+        this.beschreibung.setText(this.eintraege[i].info).setColor('#e8dcc8');
     }
 
     bestaetige() {
@@ -134,11 +135,15 @@ export default class MenuScene extends Phaser.Scene {
         this.scene.start('GameScene');
     }
 
-    update() {
-        const k = this.tasten, n = this.eintraege.length, J = Phaser.Input.Keyboard.JustDown;
-        if (J(k.DOWN) || J(k.S)) this.waehle((this.auswahl + 1) % n);
-        if (J(k.UP) || J(k.W)) this.waehle((this.auswahl + n - 1) % n);
-        if (J(k.ENTER) || J(k.SPACE)) this.bestaetige();
-        if (J(k.ESC) && this.menue !== 'haupt') this.zeigeMenue(this.menue === 'online' ? 'mehrspieler' : 'haupt');
+    update(zeit, delta) {
+        this.hintergrund.update(zeit);
+        this.titel.update(zeit);
+        this.knoepfe.forEach((k, i) => { k.an += ((i === this.auswahl ? 1 : 0) - k.an) * 0.25; k.zeichne(zeit); });
+        const t = this.tasten, n = this.eintraege.length, J = Phaser.Input.Keyboard.JustDown;
+        if (J(t.DOWN) || J(t.S)) this.waehle((this.auswahl + 1) % n);
+        if (J(t.UP) || J(t.W)) this.waehle((this.auswahl + n - 1) % n);
+        if (J(t.ENTER) || J(t.SPACE)) this.bestaetige();
+        if (J(t.N)) this.tonUmschalten();
+        if (J(t.ESC) && this.menue !== 'haupt') this.zeigeMenue(this.menue === 'online' ? 'mehrspieler' : 'haupt');
     }
 }

@@ -1,5 +1,6 @@
 import Netz, { CODE_LAENGE, MAX_SPIELER, saubererName } from '../Netz.js';
 import { sfx } from '../Sound.js';
+import { zentriere, baueHintergrund, baueTitel, pixelKnopf, MITTE_X } from '../MenuStil.js';
 
 // Die Lobby für den Online-Mehrspielermodus.
 //   rolle 'host': erstellt einen Raum und zeigt den Code, den man Freunden gibt.
@@ -15,41 +16,52 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     create() {
-        this.cameras.main.setZoom(this.scale.height / 540).centerOn(480, 270);   // nach der Höhe, die Breite passt sich an
+        zentriere(this);                                  // Kamera nach der Höhe, auch nach Vollbild mittig
+        this.hintergrund = baueHintergrund(this);
         const host = this.rolle === 'host';
-        this.add.text(480, 60, host ? 'RAUM ERSTELLEN' : 'RAUM BEITRETEN', { fontSize: '40px', color: '#e0e6ea', fontStyle: 'bold' }).setOrigin(0.5);
+        this.titelAnim = baueTitel(this, host ? 'RAUM ERSTELLEN' : 'RAUM BEITRETEN', 52, 40);
+        this.knoepfe = [];
+        const schrift = (groesse, farbe, extra = {}) => ({ fontSize: `${groesse}px`, fontFamily: 'monospace', color: farbe, stroke: '#14101f', strokeThickness: 3, ...extra });
+        // Tafeln hinter den Texten (dunkel, mit farbigem Rand)
+        const tafel = (x, y, b, h, rand) => {
+            const g = this.add.graphics().setDepth(8);
+            g.fillStyle(0x000000, 0.4).fillRect(x - b / 2 + 4, y - h / 2 + 5, b, h);
+            g.fillStyle(rand).fillRect(x - b / 2, y - h / 2, b, h);
+            g.fillStyle(0x14101f, 0.92).fillRect(x - b / 2 + 3, y - h / 2 + 3, b - 6, h - 6);
+            g.fillStyle(0xffffff, 0.06).fillRect(x - b / 2 + 3, y - h / 2 + 3, b - 6, 4);
+        };
+        tafel(MITTE_X, 202, 400, 112, 0xffdd55);
+        tafel(MITTE_X, 376, 470, 142, 0x4aa3ff);
 
-        this.hinweis = this.add.text(480, 120, host
+        this.hinweis = this.add.text(MITTE_X, 108, host
             ? 'Gib diesen Code deinen Freunden. Sie wählen "Raum beitreten".'
             : 'Tippe den Raumcode ein und drücke Enter.',
-            { fontSize: '18px', color: '#9fb0bd', align: 'center' }).setOrigin(0.5);
-        this.codeText = this.add.text(480, 205, host ? '...' : '', {
-            fontSize: '84px', color: '#ffdd55', fontStyle: 'bold', fontFamily: 'monospace',
-        }).setOrigin(0.5);
-        this.status = this.add.text(480, 290, '', { fontSize: '20px', color: '#cfd8dc', align: 'center' }).setOrigin(0.5);
-        this.listeText = this.add.text(480, 370, '', { fontSize: '22px', color: '#e6edf2', align: 'center', lineSpacing: 8, fontFamily: 'monospace' }).setOrigin(0.5);
-        this.unten = this.add.text(480, 492, host
-            ? 'Enter: Spiel starten      C: Code kopieren      Esc: Zurück'
-            : 'Esc: Zurück', { fontSize: '16px', color: '#7f8f9a' }).setOrigin(0.5);
+            schrift(15, '#e8dcc8', { align: 'center' })).setOrigin(0.5).setDepth(10);
+        this.codeText = this.add.text(MITTE_X, 202, host ? '...' : '', schrift(76, '#ffdd55', { fontStyle: 'bold', stroke: '#7a2a0a', strokeThickness: 5 })).setOrigin(0.5).setDepth(10);
+        this.status = this.add.text(MITTE_X, 283, '', schrift(16, '#cfd8dc', { align: 'center' })).setOrigin(0.5).setDepth(10);
+        this.listeText = this.add.text(MITTE_X, 376, '', schrift(19, '#e6edf2', { align: 'center', lineSpacing: 8 })).setOrigin(0.5).setDepth(10);
+        this.unten = this.add.text(MITTE_X, 484, host
+            ? 'Enter: Spiel starten      C: Code kopieren      Tab: Name      Esc: Zurück'
+            : 'Tab: Name      Esc: Zurück', schrift(12, '#b8a898')).setOrigin(0.5).setDepth(10);
 
         // Dein Name: Tab zum Ändern. Er wird im Browser gemerkt.
         let gemerkt = '';
         try { gemerkt = localStorage.getItem('spielername') || ''; } catch (err) { /* egal */ }
         this.name = saubererName(gemerkt);
         this.nameEdit = false;
-        this.nameText = this.add.text(480, 470, '', { fontSize: '18px', color: '#cfd8dc' }).setOrigin(0.5);
+        this.nameText = this.add.text(MITTE_X, 460, '', schrift(15, '#cfd8dc')).setOrigin(0.5).setDepth(10);
         this.zeigeName();
 
         // Knöpfe (für Handy und Maus)
         if (host) {
-            this.knopf(240, 528, 'Spiel starten', () => this.hostStart(), 170);
-            this.knopf(480, 528, 'Name ändern', () => this.nameAbfragen(), 170);
-            this.knopf(720, 528, 'Zurück', () => this.zurueck(), 170);
+            this.knopf(MITTE_X - 250, 516, 'SPIEL STARTEN', () => this.hostStart(), 200, 0x58c06a);
+            this.knopf(MITTE_X, 516, 'NAME ÄNDERN', () => this.nameAbfragen(), 200, 0x4aa3ff);
+            this.knopf(MITTE_X + 250, 516, 'ZURÜCK', () => this.zurueck(), 200, 0x8a96a0);
         } else {
-            this.knopf(150, 528, 'Code eingeben', () => this.codeAbfragen(), 160);
-            this.knopf(330, 528, 'Beitreten', () => this.verbinde(), 160);
-            this.knopf(560, 528, 'Name ändern', () => this.nameAbfragen(), 160);
-            this.knopf(760, 528, 'Zurück', () => this.zurueck(), 160);
+            this.knopf(MITTE_X - 285, 516, 'CODE EINGEBEN', () => this.codeAbfragen(), 180, 0xffc933);
+            this.knopf(MITTE_X - 95, 516, 'BEITRETEN', () => this.verbinde(), 180, 0x58c06a);
+            this.knopf(MITTE_X + 95, 516, 'NAME ÄNDERN', () => this.nameAbfragen(), 180, 0x4aa3ff);
+            this.knopf(MITTE_X + 285, 516, 'ZURÜCK', () => this.zurueck(), 180, 0x8a96a0);
         }
 
         this.pingZumHost = null;
@@ -115,7 +127,12 @@ export default class LobbyScene extends Phaser.Scene {
             : `Dein Name: ${this.name || '(Standard)'}   (Tab: ändern)`).setColor(this.nameEdit ? '#ffdd55' : '#cfd8dc');
     }
 
-    update() { if (this.nameEdit) this.zeigeName(); }
+    update(zeit) {
+        this.hintergrund.update(zeit);
+        this.titelAnim.update(zeit);
+        this.knoepfe.forEach(k => { k.an += ((k.hover ? 1 : 0) - k.an) * 0.25; k.zeichne(zeit); });
+        if (this.nameEdit) this.zeigeName();
+    }
 
     // Namenseingabe: gibt true zurück, wenn die Taste hier verbraucht wurde.
     nameTaste(e) {
@@ -167,11 +184,10 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     // Knopf zum Antippen (Handy und Maus). Die Tastatur-Kürzel funktionieren weiter.
-    knopf(x, y, text, aktion, breite = 150) {
-        const r = this.add.rectangle(x, y, breite, 32, 0x1b2630, 0.95).setStrokeStyle(2, 0x6f8190).setInteractive({ useHandCursor: true });
-        this.add.text(x, y, text, { fontSize: '16px', color: '#e6edf2' }).setOrigin(0.5);
-        r.on('pointerdown', aktion);
-        return r;
+    knopf(x, y, text, aktion, breite = 150, farbe = 0x4aa3ff) {
+        const k = pixelKnopf(this, x, y, breite, 36, text, farbe, aktion, { schrift: 14 });
+        this.knoepfe.push(k);
+        return k;
     }
 
     // Name per Eingabefenster ändern (am Handy gibt es keine Tastatur-Eingabe im Spiel)

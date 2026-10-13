@@ -5,6 +5,7 @@ import Enemy from '../entities/Enemy.js';
 import RangedEnemy from '../entities/RangedEnemy.js';
 import Boss from '../entities/Boss.js';
 import Brut from '../entities/Brut.js';
+import Skelett from '../entities/Skelett.js';
 import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
 import Fass from '../entities/Fass.js';
@@ -30,9 +31,6 @@ const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28, sword: 30, fist: 14 }
 // Inventarleiste unten in der Mitte: vier Plätze
 const SLOT = 64, SLOT_ABSTAND = 8;
 const SLOT_X0 = (1280 - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2, SLOT_Y = 720 - SLOT - 14;
-
-// Kampfzonen
-const TOR_BREITE = 24;
 
 // Seilbahn
 const SEIL_TEMPO = 640;      // Fahrgeschwindigkeit auf dem Seil (Pixel pro Sekunde)
@@ -171,6 +169,7 @@ export default class GameScene extends Phaser.Scene {
         const haupt = [
             ...level.enemies.map(e => baue(Enemy, e)),
             ...level.rangedEnemies.map(e => baue(RangedEnemy, e)),
+            ...(level.skelette ?? []).map(e => baue(Skelett, e)),
             ...(b ? [baue(Boss, b)] : []),
         ];
         this.boss = b ? haupt[haupt.length - 1] : null;
@@ -190,11 +189,6 @@ export default class GameScene extends Phaser.Scene {
         // Eine collider-Zeile für alle Gegner (auch die schlafenden): Sie stehen auf Boden und Plattformen.
         if (this.rechnet) this.physics.add.collider(liste, this.platforms);   // Attrappen der Gäste haben keine Physik
 
-        // --- Kampfzonen: Abschnitte, die sich verriegeln ---
-        this.zonen = (level.kampfzonen ?? []).map((z, i) => ({
-            ...z, id: i, zu: false, erledigt: false, torObjekte: [], zuSeit: 0,
-            wachen: this.enemies.filter(e => e.x >= z.x0 && e.x <= z.x1 && e.y >= z.y0 && e.y <= z.y1),
-        }));
 
         // --- Explosive Fässer ---
         this.faesser = (level.faesser ?? []).map((f, i) => { const o = new Fass(this, f.x, f.y); o.id = i; return o; });
@@ -301,9 +295,6 @@ export default class GameScene extends Phaser.Scene {
         this.wipeSeit = 0;
         this.baueFlagge();
         this.baueSeilbahn();
-        this.zonenText = this.add.text(this.scale.width / 2, 84, 'KAMPFZONE: Besiege alle Gegner, um weiterzukommen!', {
-            fontSize: '18px', color: '#ffcc66', backgroundColor: '#000000aa', padding: { x: 10, y: 4 },
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(22).setVisible(false);
         this.teamHud = this.add.graphics().setScrollFactor(0).setDepth(20);   // Lebensbalken der Mitspieler
         this.teamTexte = new Map();
         this.belebenHinweis = this.add.text(this.scale.width / 2, this.scale.height - 90, '', {
@@ -343,6 +334,10 @@ export default class GameScene extends Phaser.Scene {
         g.fillStyle(this.heller(o.body, 15), a).fillRect(x - 13, y - 10, 26, 4);
         g.fillStyle(0x2a2a2a, a).fillRect(x - 13, y + 6, 26, 4);
         g.fillStyle(0xb8a040, a).fillRect(x - 3, y + 6, 6, 4);                            // Gürtelschnalle
+        if (o.rippen) {                                                                   // Rippen und Wirbelsäule
+            for (let k = 0; k < 4; k++) g.fillStyle(0xd8d4c0, a).fillRect(x - 9, y - 8 + k * 4, 18, 2);
+            g.fillStyle(0xd8d4c0, a).fillRect(x - 1, y - 10, 2, 18);
+        }
         if (o.strap) {                                                                    // Patronengurt
             g.lineStyle(3, 0x8a6d2a, a).beginPath().moveTo(x - 12, y - 9).lineTo(x + 12, y + 6).strokePath();
         }
@@ -353,6 +348,14 @@ export default class GameScene extends Phaser.Scene {
             g.fillStyle(0x555a4a, a).fillRect(x - 9, hy, 18, 15);
             g.fillStyle(0xff4444, a).fillRect(x + (f > 0 ? -1 : -9), hy + 4, 10, 4);       // leuchtende Brille
             g.fillStyle(0x2a2a2a, a).fillRect(x + (f > 0 ? 5 : -12), hy + 9, 7, 6);        // Filter
+        } else if (o.head === 'skull') {
+            g.fillStyle(0xe4e0cc, a).fillRect(x - 8, hy, 16, 12);                           // Schädel
+            g.fillStyle(0xc9c4ac, a).fillRect(x - 7, hy + 11, 14, 5);                       // Kiefer
+            const so = f > 0 ? 1 : -1;
+            g.fillStyle(0x15130f, a).fillRect(x - 6 + so, hy + 3, 5, 5).fillRect(x + 1 + so, hy + 3, 5, 5);   // Augenhöhlen
+            g.fillStyle(0xff5533, a).fillRect(x - 4 + so * 2, hy + 5, 2, 2).fillRect(x + 3 + so * 2, hy + 5, 2, 2);   // glühende Punkte
+            g.fillStyle(0x15130f, a).fillRect(x - 1, hy + 8, 2, 2);                        // Nasenloch
+            for (let k = -5; k <= 5; k += 3) g.fillStyle(0x15130f, a).fillRect(x + k, hy + 12, 1, 3);   // Zähne
         } else if (o.head === 'hood') {
             g.fillStyle(this.dunkler(o.body, 50), a).fillRect(x - 10, hy - 2, 20, 17);
             g.fillStyle(0xffee66, a).fillRect(x + (f > 0 ? 0 : -9), hy + 5, 9, 3);          // leuchtende Augen
@@ -395,6 +398,19 @@ export default class GameScene extends Phaser.Scene {
                     .lineTo(handX + bx * 3 + by * 6, handY + by * 3 - bx * 6).strokePath();                                            // Parierstange
                 g.lineStyle(5, 0xcfd8e0, a).beginPath().moveTo(handX + bx * 4, handY + by * 4).lineTo(handX + bx * o.gun, handY + by * o.gun).strokePath();   // Klinge
                 g.lineStyle(1, 0xffffff, a).beginPath().moveTo(handX + bx * 5, handY + by * 5).lineTo(handX + bx * (o.gun - 1), handY + by * (o.gun - 1)).strokePath();
+            } else if (o.art === 'bow') {
+                // Bogen: Holzbogen quer zur Zielrichtung, Sehne wird beim Zielen zurückgezogen, ein Pfeil liegt an
+                const zug = o.zug ?? 0, px = -dy, py = dx;
+                const t1x = handX + px * 24 - dx * 5, t1y = handY + py * 24 - dy * 5, t2x = handX - px * 24 - dx * 5, t2y = handY - py * 24 - dy * 5;
+                const nx = handX - dx * (2 + zug * 14), ny = handY - dy * (2 + zug * 14);
+                g.lineStyle(4, 0x7a5a2a, a).beginPath().moveTo(t1x, t1y).lineTo(handX + px * 12 + dx * 6, handY + py * 12 + dy * 6)
+                    .lineTo(handX + dx * 9, handY + dy * 9).lineTo(handX - px * 12 + dx * 6, handY - py * 12 + dy * 6).lineTo(t2x, t2y).strokePath();
+                g.lineStyle(1, 0xe8e0c8, a).beginPath().moveTo(t1x, t1y).lineTo(nx, ny).lineTo(t2x, t2y).strokePath();
+                if (zug > 0) {
+                    g.lineStyle(5, o.skin, a).beginPath().moveTo(schulter.x, schulter.y).lineTo(nx, ny).strokePath();       // Zugarm
+                    g.lineStyle(2, 0xd8c9a0, a).beginPath().moveTo(nx, ny).lineTo(handX + dx * 24, handY + dy * 24).strokePath();   // Pfeilschaft
+                    g.fillStyle(0xaab0b8, a).fillTriangle(handX + dx * 31, handY + dy * 31, handX + dx * 23 + px * 3, handY + dy * 23 + py * 3, handX + dx * 23 - px * 3, handY + dy * 23 - py * 3);
+                }
             } else if (o.art === 'fist') {
                 // Faust: in Ruhe geballt vor dem Körper, beim Hieb schnellt der Arm nach vorn
                 const ext = o.hieb !== undefined ? 22 * Math.sin(Math.PI * Math.min(1, o.hieb * 1.2)) : 0;
@@ -588,7 +604,6 @@ export default class GameScene extends Phaser.Scene {
         this.zeichneBelebtAnim(g);
 
         this.zeichneFlagge(g);
-        this.zeichneTore(g, mitte);
         this.zeichneWarnungen(g);
         if (p.seil) this.zeichneSeilGeraet(g, p.x, p.y);
         if (this.mp) this.mp.zeichne(g, mitte);   // Figuren der Mitspieler
@@ -616,6 +631,7 @@ export default class GameScene extends Phaser.Scene {
             if (!e.active || Math.abs(e.x - mitte.x) > 800 || Math.abs(e.y - mitte.y) > 500) continue;
             if (e === this.boss) { this.drawBoss(g, e); continue; }
             if (e.brut) { this.drawBrut(g, e); continue; }
+            if (e.skelett) { this.drawSkelett(g, e, p); continue; }
             const dx = p.x - e.x;
             const blick = Math.abs(dx) < 700 ? (Math.sign(dx) || 1) : (e.direction ?? 1);
             const fern = e.range !== undefined;  // nur der Fernkämpfer hat "range"
@@ -1119,7 +1135,7 @@ export default class GameScene extends Phaser.Scene {
         g.lineStyle(5, 0xe0b890).beginPath().moveTo(x + 4, y - 8).lineTo(x + 9, y - 32).strokePath();
     }
 
-    // ---------- Schwierigkeit: Kampfzonen, Brut, Steinschlag ----------
+    // ---------- Schwierigkeit: Brut und Steinschlag ----------
 
     anzahlSpieler() { return this.online ? Math.max(1, this.mp.netz.liste().length) : 1; }
 
@@ -1169,78 +1185,16 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
-    // ---------- Kampfzonen ----------
-    // Eine Kampfzone ist ein Abschnitt mit Gegnern, der sich hinter dem Spieler verriegelt: Erst wenn alle Gegner darin besiegt sind,
-    // öffnen sich die Tore wieder. Wer hineinrennt, muss also kämpfen. (Sicherung: Nach drei Minuten oder wenn alle am Boden liegen, öffnen sie sich auch.)
-
-    zonenUpdate() {
-        if (!this.rechnet || !this.zonen.length) return;
-        const ziele = this.alleZiele();
-        const jetzt = this.time.now;
-        for (const z of this.zonen) {
-            if (z.erledigt) continue;
-            const lebend = z.wachen.some((g) => g.active);
-            if (!z.zu) {
-                if (!lebend) { z.erledigt = true; continue; }
-                const drin = ziele.some((t) => t.rect.centerX > z.x0 + z.rand && t.rect.centerX < z.x1 - z.rand && t.rect.centerY > z.y0 && t.rect.centerY < z.y1);
-                const nahTor = ziele.some((t) => z.torPos.some((p) => Math.abs(t.rect.centerX - p.x) < 80 && t.rect.centerY > p.oben - 30 && t.rect.centerY < p.unten + 30));
-                if (drin && !nahTor) this.torStellen(z.id, true);
-            } else if (!lebend || ziele.length === 0 || jetzt - z.zuSeit > 180000) {
-                this.torStellen(z.id, false);
-                z.erledigt = true;
-            }
-        }
-    }
-
-    // Schließt (zu = true) oder öffnet die Tore einer Zone. Gäste bekommen es als Meldung.
-    torStellen(id, zu) {
-        const z = this.zonen[id];
-        if (!z || z.zu === zu) return;
-        z.zu = zu;
-        z.zuSeit = this.time.now;
-        if (zu) {
-            for (const t of z.torPos) {
-                const r = this.add.rectangle(t.x, (t.oben + t.unten) / 2, TOR_BREITE, t.unten - t.oben, 0x3a4046).setVisible(false);
-                this.physics.add.existing(r, true);
-                this.platforms.push(r);
-                z.torObjekte.push(r);
-            }
-            sfx.play('tor');
-            this.cameras.main.shake(250, 0.008);
-            this.showMessage(z.text ?? 'KAMPFZONE!\nBesiege alle Gegner, um weiterzukommen.');
-        } else {
-            for (const r of z.torObjekte) {
-                const i = this.platforms.indexOf(r);
-                if (i >= 0) this.platforms.splice(i, 1);
-                r.destroy();
-            }
-            z.torObjekte = [];
-            sfx.play('pickup');
-            this.showMessage('Weg frei!');
-        }
-        this.zonenText.setVisible(this.zonen.some((q) => q.zu));
-        if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: 'tor', id, zu });
-    }
-
-    // Die Tore: Rahmen immer sichtbar, das Gitter fällt beim Schließen herab.
-    zeichneTore(g, mitte) {
-        const jetzt = this.time.now;
-        for (const z of this.zonen) {
-            for (const t of z.torPos) {
-                if (Math.abs(t.x - mitte.x) > 900 || Math.abs((t.oben + t.unten) / 2 - mitte.y) > 700) continue;
-                const hoehe = t.unten - t.oben;
-                g.fillStyle(0x2a2f34).fillRect(t.x - 17, t.oben, 6, hoehe).fillRect(t.x + 11, t.oben, 6, hoehe);       // Rahmen
-                g.fillStyle(0x4a5158).fillRect(t.x - 18, t.oben - 6, 36, 10);                                         // Querbalken
-                for (let k = 0; k < 6; k++) g.fillStyle(k % 2 ? 0x1a1a1a : 0xd9b43a).fillRect(t.x - 18 + k * 6, t.oben - 6, 6, 4);   // Warnstreifen
-                if (!z.zu) continue;
-                const fall = Math.min(1, (jetzt - z.zuSeit) / 350);
-                const h = hoehe * fall;
-                g.fillStyle(0x23282d).fillRect(t.x - 11, t.oben, 22, h);
-                for (let by = 0; by < h; by += 28) g.fillStyle(0x59626a).fillRect(t.x - 11, t.oben + by, 22, 4);        // Querstreben
-                for (let bx = -9; bx <= 9; bx += 6) g.fillStyle(0x6d7780).fillRect(t.x + bx, t.oben, 3, h);             // Stäbe
-                g.fillStyle(0xc9302c, 0.8 + 0.2 * Math.sin(jetzt * 0.01)).fillRect(t.x - 3, t.oben + 6, 6, 6);          // rotes Licht
-            }
-        }
+    // Ein Skelett mit Bogen: Beim Zielen (Körper leuchtet gelb) ist der Bogen gespannt, sonst hängt die Sehne locker.
+    drawSkelett(g, e, p) {
+        const dx = p.x - e.x;
+        const blick = Math.abs(dx) < 700 ? (Math.sign(dx) || 1) : (e.direction ?? 1);
+        this.drawHumanoid(g, e.x, e.y, {
+            facing: blick, body: e.fillColor, skin: 0xd8d4c0, head: 'skull', rippen: true,
+            moving: Math.abs(e.body.velocity.x) > 10, air: !e.body.blocked.down,
+            aim: Phaser.Math.Angle.Between(e.x, e.y, p.x, p.y), gun: 26, art: 'bow', zug: e.fillColor === 0xffee55 ? 1 : 0,
+            rueck: Math.max(0, 1 - (this.time.now - (e.lastShotTime ?? -999)) / 160) * 4,
+        });
     }
 
     // Ein Brutling: klein, mit Stacheln und leuchtenden Augen.
@@ -1341,7 +1295,6 @@ export default class GameScene extends Phaser.Scene {
             case 'hieb': this.hiebStart(d.n, d.a, !!d.s); break;
             case 'weck': { const g = this.gegnerNachId[d.id]; if (g) this.wecke(g); break; }
             case 'warn': this.warnungen.push({ x: d.x, t0: this.time.now, bis: this.time.now + d.d }); break;
-            case 'tor': this.torStellen(d.id, d.zu); break;
             case 'explosion': this.explosionEffekt(d.x, d.y, d.r); break;
             case 'fassZ': { const f = this.faesser.find((o) => o.id === d.id); if (f) f.zuendet = true; break; }
             case 'fassWeg': {
@@ -1651,13 +1604,19 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Erzeugt eine Gegner-Kugel. Wird vom Fernkämpfer aufgerufen.
-    spawnEnemyBullet(x, y, winkel, speed, damage, gross = false) {
-        sfx.play(gross ? 'hit' : 'enemyShot');
+    // art: null = normale Kugel, 'pfeil' = Pfeil eines Skeletts, 'fels' (oder true) = Felsbrocken
+    spawnEnemyBullet(x, y, winkel, speed, damage, art = null) {
+        if (art === true) art = 'fels';
+        sfx.play(art === 'fels' ? 'hit' : (art === 'pfeil' ? 'bogen' : 'enemyShot'));
         const bullet = new Bullet(this, x, y, winkel, speed, 0xff6644);  // orange-rot
-        if (gross) {                                           // Felsbrocken: größer, grau und nicht gedreht
+        if (art === 'fels') {                                  // Felsbrocken: größer, grau und nicht gedreht
             bullet.setSize(22, 22).setRotation(0).setFillStyle(0x8a7a60).setStrokeStyle(2, 0x4a4238);
             bullet.body.setSize(22, 22);
             bullet.gross = true;
+        } else if (art === 'pfeil') {                          // Pfeil: lang und dünn, hell
+            bullet.setSize(26, 3).setFillStyle(0xd8c9a0);
+            bullet.body.setSize(10, 6);
+            bullet.pfeil = true;
         }
         bullet.damage = damage;  // Wir hängen den Schaden direkt an die Kugel
         bullet.id = ++this.bulletZaehler;
@@ -1725,7 +1684,6 @@ export default class GameScene extends Phaser.Scene {
         if (this.mp) { this.mp.aktualisiere(); this.mpUpdate(); }   // eigenen Zustand senden, fremde Figuren nachführen, Wiederbeleben
         this.seilUpdate();
         this.pruefeFlagge();
-        this.zonenUpdate();
         if (!this.mp && this.player.tot && this.checkpoint && this.time.now >= this.respawnZeit) this.respawnAnCheckpoint();
 
         // Schaden kommt irgendwo später im Frame an; wir vergleichen deshalb mit dem Wert des letzten Frames.

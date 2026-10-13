@@ -44,9 +44,9 @@ export default class RangedEnemy extends Enemy {
                 const winkel = Phaser.Math.Angle.Between(this.x, this.y, player.x + vx * flug, player.y + Math.max(-60, Math.min(60, vy * flug * 0.5)));
                 // Starke Schützen (5 oder mehr Leben) feuern zwei Kugeln knapp nebeneinander.
                 const kugeln = this.maxHealth >= 5 ? [-0.07, 0.07] : [0];
-                for (const v of kugeln) this.scene.spawnEnemyBullet(this.x, this.y, winkel + v, this.bulletSpeed, this.bulletDamage);
+                for (const v of kugeln) this.scene.spawnEnemyBullet(this.x, this.y, winkel + v, this.bulletSpeed, this.bulletDamage, this.geschossArt);
                 // Mündungsfeuer an der Waffe (Schulter y - 6, Arm 12 + Waffe 26) und Rückstoß für die Zeichnung
-                this.scene.zeigeEffekt('muendung', this.x + Math.cos(winkel) * 38, this.y - 6 + Math.sin(winkel) * 38, winkel, 0.9, 0xff7744);
+                if (this.muendung !== false) this.scene.zeigeEffekt('muendung', this.x + Math.cos(winkel) * 38, this.y - 6 + Math.sin(winkel) * 38, winkel, 0.9, 0xff7744);
                 this.lastShotTime = now;
                 this.aimingUntil = 0;
                 this.nextShot = now + this.fireDelay;

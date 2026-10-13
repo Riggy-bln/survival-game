@@ -24,6 +24,7 @@ const platforms = [];
 const decor = [];
 const enemies = [];
 const rangedEnemies = [];
+const skelette = [];
 const pickups = [];
 const treppen = [];    // Treppen (für die Zeichnung der Wangen, Geländer und Warnstreifen)
 const bruecken = [];  // Brücken (für die Zeichnung der Geländer, Streben und Seile)
@@ -97,6 +98,9 @@ const nahkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
     enemies.push({ x, y: oben - 30, left: links, right: rechts, hp });
 const fernkaempfer = (x, links, rechts, hp = 3, oben = BODEN) =>
     rangedEnemies.push({ x, y: oben - 30, left: links, right: rechts, hp });
+// skelett: ein Skelett-Bogenschütze (Fernkämpfer, schießt Pfeile)
+const skelett = (x, links, rechts, hp = 3, oben = BODEN) =>
+    skelette.push({ x, y: oben - 30, left: links, right: rechts, hp });
 
 // Gegenstände: "oben" = y der Fläche, auf der sie liegen.
 const munition = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'ammo' });
@@ -422,7 +426,7 @@ gelaende(1472, [[0, 0], [64, 64], [128, 64]], 'fels');   // Schutthang, über de
 hoehlen.push({ links: 1585, rechts: 2135, oben: BODEN - 330, unten: BODEN, art: 'gebaeude', etagen: [140, 240] });   // Rückwand der Ruine
 schwebend(1600, BODEN - 140, 360);                       // Deck (Oberkante 360), x 1600 bis 1960
 schwebend(2010, BODEN - 240, 110);                       // kleines Versteck darüber (Oberkante 260)
-fernkaempfer(1780, 1660, 1900, 3, BODEN - 140);          // Schütze auf dem Deck
+skelett(1780, 1660, 1900, 3, BODEN - 140);          // Schütze auf dem Deck
 nahkaempfer(1800, 1650, 1930, 4);                // Nahkämpfer darunter
 heilung(2065, BODEN - 240);                              // versteckte Heilung im Versteck
 nahkaempfer(2170, 2080, 2250, 3);
@@ -526,7 +530,7 @@ for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
 tunnelblock(3500, 40, 80);                             // Kiste A als Deckung (x 3500 bis 3580)
 tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
 // (Hier am Eingang des Gangs öffnet sich jetzt der Wartungsschacht zur Tiefen Galerie, siehe ZONE S.)
-fernkaempfer(3655, 3612, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
+skelett(3655, 3612, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
 nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
 munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
 
@@ -579,7 +583,7 @@ nahkaempfer(3170, 3080, 3250, 4, GAL_B);                          // bewacht den
 // langer Gang im Osten
 kiste(3560, 50, 80, GAL_B);
 munition(3600, GAL_B - 50);
-fernkaempfer(3730, 3680, 3800, 3, GAL_B);
+skelett(3730, 3680, 3800, 3, GAL_B);
 fass(3830, GAL_B);
 nahkaempfer(3940, 3870, 4020, 4, GAL_B);
 // Waffenkammer 2
@@ -611,7 +615,7 @@ gelaende(4290, [[0, 0], [96, 64], [192, 64], [288, 128], [384, 128], [480, 192],
 huegel(4770, 240, 96, BUNKER);                               // der Betonbunker auf dem Wall (Oberkante 240)
 nahkaempfer(4434, 4402, 4466, 4, BODEN - 64);                // Nahkämpfer auf dem ersten Absatz
 fernkaempfer(4626, 4594, 4658, 4, BODEN - 128);              // Schütze auf dem zweiten Absatz
-fernkaempfer(4818, 4786, 4850, 4, BODEN - 240);              // Scharfschütze auf dem Bunkerdach
+skelett(4818, 4786, 4850, 4, BODEN - 240);              // Scharfschütze auf dem Bunkerdach
 // Wichtig: Die Patrouille muss zu den ebenen Flächen passen. Ein Gegner hat 32 Pixel Breite,
 // also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Stufe.
 munition(4800, BODEN - 240);                                 // Belohnung auf dem Bunkerdach
@@ -694,18 +698,18 @@ heilung(5020, KAT_B);
 granate(5065, KAT_B);
 munition(5110, KAT_B);
 nahkaempfer(5200, 5150, 5260, 4, KAT_B);
-fernkaempfer(5240, 5225, 5275, 3, KAT_B);
+skelett(5240, 5225, 5275, 3, KAT_B);
 // Gang zur Halle
 kiste(5620, 50, 80, KAT_B);
 munition(5660, KAT_B - 50);
-fernkaempfer(5745, 5722, 5768, 3, KAT_B);
+skelett(5745, 5722, 5768, 3, KAT_B);
 // Halle
 nahkaempfer(5880, 5820, 5990, 8, KAT_B);                     // der schwere Wächter
 munition(5835, KAT_B - 100);
 heilung(5965, KAT_B - 200);
 granate(5850, KAT_B - 300);
 granate(5880, KAT_B - 300);
-fernkaempfer(5850, 5820, 5880, 4, KAT_B - 300);             // Schütze ganz oben
+skelett(5850, 5820, 5880, 4, KAT_B - 300);             // Schütze ganz oben
 fass(5990, KAT_B);
 // Sicherheitsraum im Osten
 kiste(6480, 44, 60, KAT_B);
@@ -730,7 +734,7 @@ felsnase(CHASM_R, 800, 96, -1); felsnase(CHASM_R, 868, 32, -1);       // und rec
 bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 288], [CHASM_R - 100, CHASM_R, BODEN - 288]] });   // Seile und Pfosten
 gelaende(CHASM_R, [[0, 288], [192, 288], [416, 160], [512, 160], [768, 0]]);   // Plateau, Rampe, Absatz (160), Rampe hinab bis x 9408
 nahkaempfer(7905, 7874, 7934, 3, BODEN - 96);                              // auf dem Absatz der Klippe
-fernkaempfer(8310, 8245, 8380, 4, BODEN - 288);                            // Scharfschütze auf dem Plateau
+skelett(8310, 8245, 8380, 4, BODEN - 288);                            // Scharfschütze auf dem Plateau
 fernkaempfer(8750, 8665, 8815, 4, BODEN - 288);                            // Schütze auf dem Plateau dahinter
 nahkaempfer(9105, 9074, 9134, 3, BODEN - 160);                             // auf dem Absatz des Abstiegs
 nahkaempfer(9530, 9450, 9600, 4);                                          // am Boden vor dem Ausgangsschacht
@@ -761,7 +765,7 @@ signs.push({ x: 7780, y: MINE_BODEN - 110, text: 'Mine 3\n"Nicht allein hinunter
 kiste(7800, 50, 80);                                                       // Deckung
 kiste(8060, 70, 80);
 nahkaempfer(7970, 7900, 8040, 4, MINE_BODEN);                              // zwischen den Kisten
-fernkaempfer(8250, 8200, 8330, 3, MINE_BODEN);                             // hinter der zweiten Kiste
+skelett(8250, 8200, 8330, 3, MINE_BODEN);                             // hinter der zweiten Kiste
 munition(8100, MINE_BODEN - 70);                                           // Beute auf Kiste 2
 // Unter der Schlucht (x 8400 bis 8640): hier landet, wer hineinfällt
 heilung(8520, MINE_BODEN);
@@ -770,8 +774,8 @@ schwebend(8700, MINE_BODEN - 100, 160, HOLZ);                              // Eb
 schwebend(8880, MINE_BODEN - 200, 160, HOLZ);                              // Ebene 2 (Oberkante 1130)
 schwebend(9060, MINE_BODEN - 280, 230, HOLZ);                              // Ebene 3, der Steg (Oberkante 1050)
 nahkaempfer(8950, 8700, 9250, 8, MINE_BODEN);                              // der schwere Wächter am Boden
-fernkaempfer(8780, 8720, 8840, 3, MINE_BODEN - 100);                       // Schütze auf Ebene 1
-fernkaempfer(9150, 9090, 9270, 4, MINE_BODEN - 280);                       // Schütze auf dem Steg
+skelett(8780, 8720, 8840, 3, MINE_BODEN - 100);                       // Schütze auf Ebene 1
+skelett(9150, 9090, 9270, 4, MINE_BODEN - 280);                       // Schütze auf dem Steg
 munition(8960, MINE_BODEN - 200);                                          // Beute auf Ebene 2
 heilung(9100, MINE_BODEN - 280);                                           // Belohnung auf dem Steg
 granate(9230, MINE_BODEN - 280);
@@ -813,7 +817,7 @@ fernkaempfer(10830, 10805, 10848, 3, BODEN - 64);
 // =====================================================================
 signs.push({ x: 10990, y: BODEN - 90, text: 'Tal der Brücken:\nHügel, Schluchten\nund kaputte Brücken' });
 sanfterHuegel(11020, 448, 96, 0.2);
-fernkaempfer(11245, 11205, 11285, 3, BODEN - 96);                         // Schütze auf der Kuppe von Hügel 1
+skelett(11245, 11205, 11285, 3, BODEN - 96);                         // Schütze auf der Kuppe von Hügel 1
 munition(11200, BODEN - 96);
 signs.push({ x: 11470, y: BODEN - 70, text: 'Vorsicht:\nBrücke beschädigt' });
 // Schlucht 1: Stahlbrücke mit 80 Pixel Lücke, darunter Absätze und Wasser
@@ -827,7 +831,7 @@ heilung(11580, MINE_BODEN);
 // Hügel 2 mit Hausresten
 sanfterHuegel(11808, 608, 128, 0.2);
 schwebend(12040, BODEN - 128 - 95, 160, BETON);                            // Reste der Decke eines Hauses
-fernkaempfer(12120, 12075, 12165, 4, BODEN - 128);                         // Schütze auf der Kuppe
+skelett(12120, 12075, 12165, 4, BODEN - 128);                         // Schütze auf der Kuppe
 heilung(12090, BODEN - 128);
 munition(12120, BODEN - 223);                                              // Beute auf der Deckenplatte
 granate(12170, BODEN - 223);
@@ -839,7 +843,7 @@ schwebend(12690, BODEN + 95, 110, BETON);                                  // Ab
 bruecken.push({ art: 'autobahn', stuecke: [[12420, 12550, BODEN], [12590, 12680, BODEN + 30]] });
 hoehlen.push({ links: 12420, rechts: 12800, oben: BODEN, unten: 950, art: 'schacht', wasser: true });
 nahkaempfer(12540, 12450, 12640, 4, 950);                                  // unten in der Schlucht
-fernkaempfer(12745, 12712, 12778, 3, BODEN + 95);                          // auf dem Absatz
+skelett(12745, 12712, 12778, 3, BODEN + 95);                          // auf dem Absatz
 granate(12480, 950);
 nahkaempfer(12850, 12820, 12880, 3);                                       // zwischen Schlucht und Hügel 3
 // Hügel 3
@@ -896,12 +900,12 @@ heilung(14200, TUNNEL_BODEN + 100);                                      // Beut
 granate(14240, TUNNEL_BODEN + 100);
 munition(14260, TUNNEL_BODEN + 100);
 tunnelblock(14430, 60, 60);                                              // Deckung vor dem Schützen
-fernkaempfer(14545, 14510, 14580, 4, TUNNEL_BODEN);
+skelett(14545, 14510, 14580, 4, TUNNEL_BODEN);
 fass(14580, TUNNEL_BODEN);
 nahkaempfer(14700, 14650, 14760, 4, TUNNEL_BODEN);
 tunnelblock(14800, 40, 80);
 munition(14840, TUNNEL_BODEN - 40);
-fernkaempfer(14945, 14905, 14985, 4, TUNNEL_BODEN);
+skelett(14945, 14905, 14985, 4, TUNNEL_BODEN);
 heilung(15010, TUNNEL_BODEN);
 granate(15050, TUNNEL_BODEN);
 nahkaempfer(15100, 15060, 15140, 6, TUNNEL_BODEN);                       // der Wächter vor dem Schacht
@@ -912,8 +916,8 @@ gelaende(13640, [[0, 0], [160, 96], [256, 96], [384, 224], [480, 224], [484, 320
 nahkaempfer(13850, 13824, 13872, 3, BODEN - 96);
 fernkaempfer(14072, 14040, 14104, 3, BODEN - 224);
 nahkaempfer(14186, 14146, 14226, 4, BODEN - 320);
-fernkaempfer(14424, 14392, 14456, 4, BODEN - 448);
-fernkaempfer(14590, 14545, 14630, 6, BODEN - 544);                       // Scharfschütze am Gipfel
+skelett(14424, 14392, 14456, 4, BODEN - 448);
+skelett(14590, 14545, 14630, 6, BODEN - 544);                       // Scharfschütze am Gipfel
 heilung(14510, BODEN - 544);
 munition(14535, BODEN - 544);
 granate(14560, BODEN - 544);
@@ -979,25 +983,6 @@ decor.push({ x: 8800 + V + 20, y: BODEN - 7, w: 6, h: 22, color: 0xd9b43a });   
 decor.push({ x: 8800 + V, y: BODEN - 7, w: 46, h: 6, color: 0xd9b43a });          // H: Querbalken
 for (const dx of [-135, 135]) decor.push({ x: 8800 + V + dx, y: BODEN - 8, w: 6, h: 8, color: 0xcc3333 });   // Randlichter
 
-// ---- Kampfzonen: Abschnitte, die sich hinter dem Spieler verriegeln, bis alle Gegner darin besiegt sind ----
-// x0/x1/y0/y1 = Bereich (die Gegner darin sind die Wachen), rand = so weit muss man hinein, damit sich die Tore schließen,
-// torPos = Tore (x-Mitte, Oberkante, Unterkante). Die Tore stehen auf ebenem Boden und sind höher als jeder Sprung.
-const kampfzone = (x0, x1, y0, y1, rand, tore, text) => ({ x0, x1, y0, y1, rand, torPos: tore.map(([x, oben, unten]) => ({ x, oben, unten })), text });
-const kampfzonen = [
-    kampfzone(1452, 2296, BODEN - 500, BODEN + 60, 60, [[1452, BODEN - 340, BODEN], [2296, BODEN - 340, BODEN]], 'KAMPFZONE: Ruine!\nBesiege alle Gegner, um weiterzukommen.'),
-    kampfzone(4268, 4980, BODEN - 560, BODEN + 60, 60, [[4268, BODEN - 460, BODEN], [4980, BODEN - 460, BODEN]], 'KAMPFZONE: Bunker!\nBesiege alle Gegner, um weiterzukommen.'),
-    kampfzone(4046, 4388, GAL_O - 40, GAL_B + 40, 40, [[4046, GAL_O, GAL_B]], 'Die Tür ist zugefallen!\nBesiege den Wächter.'),
-    kampfzone(5766, 6034, 930, KAT_B + 40, 36, [[5766, KAT_O, KAT_B], [6034, KAT_O, KAT_B]], 'KAMPFZONE: Halle!\nBesiege alle Gegner, um weiterzukommen.'),
-    kampfzone(14614, 15178, BODEN + DECKE - 24, TUNNEL_BODEN + 52, 40, [[14614, BODEN + DECKE, TUNNEL_BODEN], [15178, BODEN + DECKE, TUNNEL_BODEN]], 'KAMPFZONE: Lager!\nBesiege alle Gegner, um weiterzukommen.'),
-    kampfzone(16222, 16890, 0, BODEN + 60, 50, [[16222, BODEN - 700, BODEN], [16890, BODEN - 700, BODEN]], 'DIE ARENA IST VERSIEGELT!\nBesiege die Kreatur.'),
-];
-// Warnschilder vor den Zonen
-signs.push({ x: 1380, y: BODEN - 100, text: 'ACHTUNG:\nKampfzone voraus' });
-signs.push({ x: 4200, y: BODEN - 100, text: 'ACHTUNG:\nKampfzone voraus' });
-signs.push({ x: 5700, y: KAT_B - 120, text: 'ACHTUNG:\nKampfzone voraus' });
-signs.push({ x: 14540, y: TUNNEL_BODEN - 110, text: 'ACHTUNG:\nKampfzone voraus' });
-signs.push({ x: 16110, y: BODEN - 110, text: 'ACHTUNG:\nArena voraus' });
-
 export default {
     width: BREITE,   // Breite der Welt in Pixeln
     height: HOEHE,   // Höhe der Welt in Pixeln
@@ -1008,6 +993,7 @@ export default {
     signs,
     enemies,
     rangedEnemies,
+    skelette,
     // Die große Fahne auf dem Gipfel (Checkpoint) und die Seilbahn vom Gipfel bis kurz vor die Arena
     flagge: { x: 14492, y: BODEN - 544 },
     seilbahn: { x0: 14610, y0: BODEN - 544 - 100, x1: 16100, y1: BODEN - 150,
@@ -1015,7 +1001,6 @@ export default {
     boss: { x: 8250 + V, y: BODEN - 60, left: 8040 + V, right: 8620 + V, hp: 80 },
     // Die Brut: schlafende Brutlinge am Arenarand, die die Kreatur in Phase 2 und 3 ruft
     brutlinge: [16290, 16820, 16340, 16770, 16400, 16720, 16460, 16670].map(x => ({ x, y: BODEN - 18, left: 16240, right: 16860, hp: 2 })),
-    kampfzonen,
     pickups,
     faesser,
     bruecken,

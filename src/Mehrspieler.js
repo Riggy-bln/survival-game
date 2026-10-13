@@ -160,7 +160,7 @@ export default class Mehrspieler {
         const b = [];
         const kugel = (k, besitzer) => b.push([k.id, Math.round(k.x), Math.round(k.y), Math.round(k.rotation * 100) / 100, besitzer, k.speed ?? 900]);
         for (const k of sz.bullets) if (k.active) kugel(k, k.owner ?? 1);
-        for (const k of sz.enemyBullets) if (k.active) kugel(k, k.gross ? 9 : 0);         // Besitzer 0 = Gegner, 9 = Felsbrocken
+        for (const k of sz.enemyBullets) if (k.active) kugel(k, k.gross ? 9 : (k.pfeil ? 8 : 0));   // Besitzer 0 = Gegner, 8 = Pfeil, 9 = Felsbrocken
         const g = sz.grenadeList.filter((x) => x.active).map((x) => [x.id, Math.round(x.x), Math.round(x.y), x.owner ?? 1]);
         this.netz.sende({ t: 'w', e, b, g, k: sz.kills });
     }
@@ -195,10 +195,11 @@ export default class Mehrspieler {
             let bild = this.kugelBilder.get(id);
             if (!bild) {
                 bild = besitzer === 9 ? sz.add.rectangle(x, y, 22, 22, 0x8a7a60).setStrokeStyle(2, 0x4a4238).setDepth(6)
+                    : besitzer === 8 ? sz.add.rectangle(x, y, 26, 3, 0xd8c9a0).setRotation(ang).setDepth(6)
                     : sz.add.rectangle(x, y, 14, 4, besitzer === 0 ? 0xff6644 : 0xffdd55).setRotation(ang).setDepth(6);
-                bild.vx = Math.cos(ang) * tempo; bild.vy = Math.sin(ang) * tempo; bild.vonGegner = besitzer === 0 || besitzer === 9;
+                bild.vx = Math.cos(ang) * tempo; bild.vy = Math.sin(ang) * tempo; bild.vonGegner = besitzer === 0 || besitzer >= 8;
                 this.kugelBilder.set(id, bild);
-                if (besitzer === 0) sfx.play('enemyShot');
+                if (besitzer === 0) sfx.play('enemyShot'); else if (besitzer === 8) sfx.play('bogen');
             } else { bild.x = x; bild.y = y; }
         }
         for (const [id, bild] of this.kugelBilder) if (!gesehen.has(id)) { bild.destroy(); this.kugelBilder.delete(id); }

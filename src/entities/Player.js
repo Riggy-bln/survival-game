@@ -48,6 +48,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         // "auswahl" ist der gewählte Platz; mit der linken Maustaste benutzt man den gewählten Gegenstand.
         this.auswahl = 1;
         this.hatSchwert = false;   // das Schwert muss man erst finden
+        this.seil = null;          // fährt gerade auf der Seilbahn? (sonst null)
         this.magAmmo = this.magSize;  // Start: volles Magazin
         this.ammo = 30;               // Start-Reserve
 
@@ -192,6 +193,8 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         // Ist das Magazin leer, aber noch Reserve da? Dann automatisch nachladen.
         if (this.magAmmo === 0) this.startReload();
         this.updateReload();
+
+        if (this.seil) return;   // auf der Seilbahn steuert die Szene die Bewegung
 
         // Beim Rückstoß nicht laufen, sonst würde die Steuerung ihn sofort überschreiben.
         if (now < this.stunnedUntil) return;

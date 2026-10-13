@@ -30,6 +30,10 @@ const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28, sword: 30 };
 const SLOT = 64, SLOT_ABSTAND = 8;
 const SLOT_X0 = (1280 - (4 * SLOT + 3 * SLOT_ABSTAND)) / 2, SLOT_Y = 720 - SLOT - 14;
 
+// Seilbahn
+const SEIL_TEMPO = 430;      // Fahrgeschwindigkeit auf dem Seil (Pixel pro Sekunde)
+const SEIL_HANG = 62;        // so weit hängt die Körpermitte unter dem Seil
+
 // Schwerthieb
 const HIEB_DAUER = 260;        // so lange dauert der Schwung (ms)
 const HIEB_PAUSE = 400;        // Pause bis zum nächsten Hieb (ms)
@@ -269,6 +273,12 @@ export default class GameScene extends Phaser.Scene {
         this.mp = this.online ? new Mehrspieler(this, netz) : null;   // Netzwerk-Anteil des Mehrspielermodus
         // Wiederbeleben und Zuschauerkamera
         this.kameraZiel = this.add.rectangle(0, 0, 4, 4, 0x000000, 0).setVisible(false);
+        // Checkpoint (Fahne auf dem Gipfel) und Seilbahn
+        this.checkpoint = null;
+        this.respawnZeit = 0;
+        this.wipeSeit = 0;
+        this.baueFlagge();
+        this.baueSeilbahn();
         this.teamHud = this.add.graphics().setScrollFactor(0).setDepth(20);   // Lebensbalken der Mitspieler
         this.teamTexte = new Map();
         this.belebenHinweis = this.add.text(this.scale.width / 2, this.scale.height - 90, '', {
@@ -499,6 +509,7 @@ export default class GameScene extends Phaser.Scene {
     // Zeichnet die Figur eines Mitspielers (Zustand r kommt aus Mehrspieler.js).
     zeichneFremdenSpieler(g, r) {
         this.zeichneBelebenBalken(g, r.nr, r.x, r.y);
+        if (r.z && level.seilbahn) this.zeichneSeilGeraet(g, r.x, r.y);
         if (r.warTot && !r.tot) this.belebtEffekt(r.x, r.y);      // ein Dritter steht wieder auf
         r.warTot = !!r.tot;
         if (r.tot) { this.zeichneLiegend(g, r.x, r.y, SPIELERFARBEN[(r.nr - 1) % 4]); return; }
@@ -538,6 +549,8 @@ export default class GameScene extends Phaser.Scene {
         this.zeichneBelebenBalken(g, this.meineNr, p.x, p.y);
         this.zeichneBelebtAnim(g);
 
+        this.zeichneFlagge(g);
+        if (p.seil) this.zeichneSeilGeraet(g, p.x, p.y);
         if (this.mp) this.mp.zeichne(g, mitte);   // Figuren der Mitspieler
 
         // --- Gegenstände: schweben, glänzen und funkeln ---
@@ -869,6 +882,192 @@ export default class GameScene extends Phaser.Scene {
         if (traf) sfx.play('schwertHit');
     }
 
+    // ---------- Checkpoint (große Fahne) ----------
+
+    // Die feste Hälfte der Fahne: Mast, Knauf und Sockel (der Stoff weht und wird jedes Bild neu gemalt).
+    baueFlagge() {
+        const f = level.flagge;
+        if (!f) return;
+        const g = this.add.graphics().setDepth(2.7);
+        g.fillStyle(0x4a4f55).fillRect(f.x - 18, f.y - 14, 36, 14);              // Sockel aus Steinen
+        g.fillStyle(0x5e646b).fillRect(f.x - 18, f.y - 14, 36, 4);
+        g.fillStyle(0x2f3338).fillRect(f.x - 3, f.y - 194, 6, 182);              // Mast
+        g.fillStyle(0x6b7178).fillRect(f.x - 1, f.y - 194, 2, 182);
+        g.fillStyle(0xe8c030).fillRect(f.x - 6, f.y - 202, 12, 10);              // goldener Knauf
+        g.fillStyle(0xfff0a0).fillRect(f.x - 4, f.y - 200, 4, 4);
+    }
+
+    // Der wehende Stoff. Rot = noch nicht erreicht, grün = Checkpoint aktiv.
+    zeichneFlagge(g) {
+        const f = level.flagge;
+        if (!f) return;
+        const t = this.time.now, aktiv = !!this.checkpoint;
+        const hell = aktiv ? 0x4fd477 : 0xc23a3a, dunkel = aktiv ? 0x2f9a52 : 0x8a2626;
+        const oben = f.y - 190, breite = 112, hoehe = 66;
+        for (let i = 0; i < breite; i += 8) {
+            const welle = Math.sin(t * 0.004 - i * 0.1) * (1 + i * 0.07);
+            const h = hoehe - i * 0.14;
+            g.fillStyle(((i / 8) | 0) % 2 ? hell : dunkel).fillRect(f.x + 3 + i, oben + welle, 8, h);
+            g.fillStyle(0x000000, 0.18).fillRect(f.x + 3 + i, oben + welle + h - 4, 8, 4);        // Saum
+        }
+        const ew = Math.sin(t * 0.004 - 4) * 2;                                   // Emblem: ein weißes Kreuz auf dem Stoff
+        g.fillStyle(0xffffff, 0.9).fillRect(f.x + 36, oben + 14 + ew, 8, 32).fillRect(f.x + 24, oben + 26 + ew, 32, 8);
+        if (aktiv) {                                                              // leuchtender Schein
+            g.fillStyle(0x66ff99, 0.10 + 0.05 * Math.sin(t * 0.005)).fillCircle(f.x + 55, oben + 32, 80);
+        }
+    }
+
+    // Kommt ein lebender Spieler an der Fahne vorbei, ist der Checkpoint erreicht.
+    pruefeFlagge() {
+        const f = level.flagge;
+        if (!f || this.checkpoint || this.player.tot) return;
+        const p = this.player;
+        if (p.x >= f.x - 24 && p.x <= f.x + 140 && p.y > f.y - 140 && p.y < f.y + 30) {
+            this.checkpointErreicht(false);
+            if (this.mp) this.mp.meldeCheckpoint();
+        }
+    }
+
+    checkpointErreicht(vomNetz) {
+        if (this.checkpoint) return;
+        const f = level.flagge;
+        this.checkpoint = { x: f.x + 50, y: f.y - 40 };
+        sfx.play('win');
+        this.fx.pickup(f.x, f.y - 60, 0x66ee88, 'CHECKPOINT');
+        this.showMessage(vomNetz ? 'Das Team hat den Checkpoint erreicht!\nHier startet ihr nach dem Tod neu.' : 'Checkpoint erreicht!\nHier startest du nach dem Tod neu.');
+    }
+
+    // Einzelspieler: Leben auf null, aber es gibt einen Checkpoint. Man liegt kurz am Boden und steht dann an der Fahne wieder auf.
+    sterbeEinzel() {
+        const p = this.player;
+        p.tot = true;
+        p.body.setVelocity(0, 0);
+        sfx.play('lose');
+        this.cameras.main.shake(250, 0.01);
+        this.showMessage('Du bist gefallen!\nDu startest am Checkpoint neu ...');
+        this.respawnZeit = this.time.now + 2200;
+    }
+
+    // Zurück an die Fahne: volles Leben, etwas Munition, kurzer Schutz.
+    respawnAnCheckpoint() {
+        if (!this.checkpoint) return;
+        const p = this.player;
+        if (p.seil) this.seilLoslassen(false);
+        p.tot = false;
+        p.health = p.maxHealth;
+        p.invulnerableUntil = this.time.now + 2500;
+        p.setPosition(this.checkpoint.x + (this.meineNr - 1) * 26, this.checkpoint.y);
+        p.body.reset(p.x, p.y);
+        p.ammo = Math.max(p.ammo, 30);
+        p.magAmmo = p.magSize;
+        p.reloadingUntil = 0;
+        p.medkits = Math.max(p.medkits, 1);
+        p.grenades = Math.max(p.grenades, 2);
+        this.cameras.main.startFollow(p, true, 0.1, 0.1);
+        this.cameras.main.flash(400, 200, 255, 220);
+        this.fx.pickup(p.x, p.y, 0x66ee88, '');
+        sfx.play('heal');
+        this.showMessage('Zurück am Checkpoint!');
+        this.letzteHP = p.health;
+        this.wipeSeit = 0;
+    }
+
+    // ---------- Seilbahn ----------
+
+    // Die feste Hälfte: Seil, Startturm, Endturm und Gittermasten dazwischen.
+    baueSeilbahn() {
+        const sb = level.seilbahn;
+        if (!sb) return;
+        const g = this.add.graphics().setDepth(2.6);
+        const steigung = (sb.y1 - sb.y0) / (sb.x1 - sb.x0);
+        const seilY = (x) => sb.y0 + (x - sb.x0) * steigung;
+        const mast = (x, unten, oben, b) => {
+            g.lineStyle(4, 0x3a4046).beginPath().moveTo(x - b, unten).lineTo(x - 4, oben).strokePath();
+            g.lineStyle(4, 0x3a4046).beginPath().moveTo(x + b, unten).lineTo(x + 4, oben).strokePath();
+            const h = unten - oben, stufen = Math.max(2, Math.round(h / 46));
+            g.lineStyle(2, 0x59626a);
+            for (let k = 0; k < stufen; k++) {
+                const u0 = k / stufen, u1 = (k + 1) / stufen;
+                const l0 = x - b + (b - 4) * u0, r0 = x + b - (b - 4) * u0, l1 = x - b + (b - 4) * u1, r1 = x + b - (b - 4) * u1;
+                const y0 = unten - h * u0, y1 = unten - h * u1;
+                g.beginPath().moveTo(l0, y0).lineTo(r1, y1).strokePath();
+                g.beginPath().moveTo(r0, y0).lineTo(l1, y1).strokePath();
+                g.beginPath().moveTo(l1, y1).lineTo(r1, y1).strokePath();
+            }
+            g.fillStyle(0x2f3338).fillRect(x - 14, oben - 2, 28, 5);                       // Querträger
+            g.fillStyle(0x80878e).fillCircle(x, oben - 4, 6);                              // Seilrolle
+            g.fillStyle(0xc9a227).fillRect(x - 2, oben - 12, 4, 4);                        // Warnlicht
+        };
+        for (const m of sb.masten) mast(m.x, m.boden, seilY(m.x) + 6, 22);
+        mast(sb.x0 + 14, BODEN - 544, sb.y0 + 6, 14);                                      // Startturm auf dem Gipfel
+        g.fillStyle(0x6b4a2a).fillRect(sb.x0 + 14, BODEN - 544 - 22, 34, 22);              // Winden-Häuschen
+        g.fillStyle(0x4a331d).fillRect(sb.x0 + 14, BODEN - 544 - 22, 34, 4);
+        g.fillStyle(0xd9b43a).fillRect(sb.x0 + 24, BODEN - 544 - 14, 10, 8);
+        mast(sb.x1, BODEN, sb.y1 + 6, 20);                                                 // Endturm vor der Arena
+        g.fillStyle(0x6b4a2a).fillRect(sb.x1 + 10, BODEN - 12, 50, 12);                    // Auslauf-Rampe
+        // das Seil selbst: dunkel, mit hellem Glanz
+        g.lineStyle(4, 0x1f2326).beginPath().moveTo(sb.x0, sb.y0).lineTo(sb.x1, sb.y1).strokePath();
+        g.lineStyle(1, 0x9aa3ab, 0.9).beginPath().moveTo(sb.x0, sb.y0 - 2).lineTo(sb.x1, sb.y1 - 2).strokePath();
+        this.seilHinweis = this.add.text(this.scale.width / 2, this.scale.height - 130, 'E: an der Seilbahn einhängen', {
+            fontSize: '22px', color: '#ffffff', backgroundColor: '#000000aa', padding: { x: 12, y: 6 },
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(25).setVisible(false);
+        this.seilSteigung = steigung;
+        this.seilNaechsterTon = 0;
+    }
+
+    seilYBei(x) { const sb = level.seilbahn; return sb.y0 + (x - sb.x0) * this.seilSteigung; }
+
+    // Jedes Bild: einhängen (E), mitfahren, loslassen (Leertaste) und am Ende abspringen.
+    seilUpdate() {
+        const sb = level.seilbahn, p = this.player;
+        if (!sb || this.gameOver) return;
+        if (p.seil) {
+            if (p.tot) { this.seilLoslassen(false); return; }
+            const laenge = Math.hypot(sb.x1 - sb.x0, sb.y1 - sb.y0);
+            const ux = (sb.x1 - sb.x0) / laenge, uy = (sb.y1 - sb.y0) / laenge;
+            p.body.setVelocity(ux * SEIL_TEMPO, uy * SEIL_TEMPO);
+            p.y = this.seilYBei(p.x) + SEIL_HANG;                              // bleibt am Seil hängen
+            if (this.time.now > this.seilNaechsterTon) { this.seilNaechsterTon = this.time.now + 140; sfx.play('seil'); }
+            if (Phaser.Input.Keyboard.JustDown(p.keys.SPACE)) this.seilLoslassen(true);
+            else if (p.x >= sb.x1) this.seilLoslassen(false);
+            return;
+        }
+        const nah = !p.tot && Math.abs(p.x - sb.x0) < 80 && Math.abs(p.y - (sb.y0 + SEIL_HANG)) < 120;
+        this.seilHinweis.setVisible(nah);
+        if (nah && this.time.now > (p.seilPause ?? 0) && Phaser.Input.Keyboard.JustDown(p.keys.E)) {
+            p.seil = true;
+            this.seilHinweis.setVisible(false);
+            p.body.allowGravity = false;
+            p.x = sb.x0;
+            p.y = sb.y0 + SEIL_HANG;
+            sfx.play('throw');
+            this.showMessage('Leertaste: loslassen');
+        }
+    }
+
+    seilLoslassen(abspringen) {
+        const sb = level.seilbahn, p = this.player;
+        if (!p.seil) return;
+        p.seil = null;
+        p.seilPause = this.time.now + 600;
+        p.body.allowGravity = true;
+        const laenge = Math.hypot(sb.x1 - sb.x0, sb.y1 - sb.y0);
+        const vx = (sb.x1 - sb.x0) / laenge * SEIL_TEMPO, vy = (sb.y1 - sb.y0) / laenge * SEIL_TEMPO;
+        p.body.setVelocity(vx * (abspringen ? 0.8 : 0.9), abspringen ? -260 : vy * 0.4);
+        this.seilHinweis.setVisible(false);
+    }
+
+    // Rolle, Aufhängung und erhobene Arme eines Fahrgasts (x, y = Körpermitte).
+    zeichneSeilGeraet(g, x, y) {
+        const ky = y - SEIL_HANG;
+        g.fillStyle(0x555b61).fillRect(x - 9, ky - 6, 18, 9);
+        g.fillStyle(0x9aa3ab).fillCircle(x - 6, ky - 1, 4).fillCircle(x + 6, ky - 1, 4);
+        g.lineStyle(2, 0x222222).beginPath().moveTo(x, ky + 3).lineTo(x, y - 32).strokePath();
+        g.fillStyle(0xc9a227).fillRect(x - 10, y - 34, 20, 4);                            // Haltegriff
+        g.lineStyle(5, 0xe0b890).beginPath().moveTo(x - 4, y - 8).lineTo(x - 9, y - 32).strokePath();
+        g.lineStyle(5, 0xe0b890).beginPath().moveTo(x + 4, y - 8).lineTo(x + 9, y - 32).strokePath();
+    }
+
     // ---------- Mehrspieler: Welt ----------
 
     // Wen soll dieser Gegner angreifen? Den nächsten lebenden Spieler (online auch die Mitspieler).
@@ -1065,9 +1264,16 @@ export default class GameScene extends Phaser.Scene {
             this.pruefeBeleben(dt);
         }
         // Niederlage: alle liegen am Boden. Der Gastgeber entscheidet und sagt es allen.
-        if (this.istHost && !this.gameOver && this.player.tot && [...this.mp.fern.values()].every((r) => r.tot)) {
-            this.mp.meldeNiederlage();
-            this.zeigeNiederlage();
+        const alleAmBoden = this.player.tot && [...this.mp.fern.values()].every((r) => r.tot);
+        if (!alleAmBoden) this.wipeSeit = 0;
+        else if (this.istHost && !this.gameOver) {
+            if (this.checkpoint) {                                           // mit Checkpoint: alle stehen dort wieder auf
+                this.wipeSeit = this.wipeSeit || this.time.now;
+                if (this.time.now - this.wipeSeit > 2200) { this.mp.meldeRespawn(); this.respawnAnCheckpoint(); }
+            } else {
+                this.mp.meldeNiederlage();
+                this.zeigeNiederlage();
+            }
         }
     }
 
@@ -1320,6 +1526,9 @@ export default class GameScene extends Phaser.Scene {
         if (!this.player.tot) this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
         else this.player.body.setVelocityX(0);       // Gefallene liegen still
         if (this.mp) { this.mp.aktualisiere(); this.mpUpdate(); }   // eigenen Zustand senden, fremde Figuren nachführen, Wiederbeleben
+        this.seilUpdate();
+        this.pruefeFlagge();
+        if (!this.mp && this.player.tot && this.checkpoint && this.time.now >= this.respawnZeit) this.respawnAnCheckpoint();
 
         // Schaden kommt irgendwo später im Frame an; wir vergleichen deshalb mit dem Wert des letzten Frames.
         if (this.player.health < (this.letzteHP ?? this.player.health)) { this.fx.blood(this.player.x, this.player.y, 10); this.cameras.main.shake(150, 0.007); this.cameras.main.flash(90, 140, 0, 0); }
@@ -1415,6 +1624,7 @@ export default class GameScene extends Phaser.Scene {
         this.updateHealthBar();
         if (this.player.isDead()) {
             if (this.mp) { if (!this.player.tot) this.geheNieder(); }      // online: man liegt am Boden und kann wiederbelebt werden
+            else if (this.checkpoint) { if (!this.player.tot) this.sterbeEinzel(); }   // Einzelspieler mit Checkpoint: Respawn
             else { this.showEndScreen('BESIEGT', '#ff4444'); return; }
         }
 

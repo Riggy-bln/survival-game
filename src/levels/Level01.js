@@ -919,7 +919,8 @@ granate(14560, BODEN - 544);
 fass(14610, BODEN - 544);
 nahkaempfer(14692, 14660, 14724, 4, BODEN - 352);
 fernkaempfer(14916, 14884, 14948, 3, BODEN - 160);
-signs.push({ x: 14500, y: BODEN - 640, text: 'Gipfel' });
+signs.push({ x: 14430, y: BODEN - 640, text: 'Gipfel' });
+signs.push({ x: 14575, y: BODEN - 544 - 70, text: 'Seilbahn zum Boss\nE: einhängen' });
 // Das Tal hinter dem Gebirge
 nahkaempfer(15540, 15500, 15600, 4);
 stacheldraht(15500);
@@ -981,6 +982,10 @@ export default {
     signs,
     enemies,
     rangedEnemies,
+    // Die große Fahne auf dem Gipfel (Checkpoint) und die Seilbahn vom Gipfel bis kurz vor die Arena
+    flagge: { x: 14492, y: BODEN - 544 },
+    seilbahn: { x0: 14610, y0: BODEN - 544 - 100, x1: 16100, y1: BODEN - 150,
+                masten: [15100, 15560].map(x => ({ x, boden: bodenBei(x) })) },
     boss: { x: 8250 + V, y: BODEN - 60, left: 7980 + V, right: 8650 + V, hp: 50 },
     pickups,
     faesser,

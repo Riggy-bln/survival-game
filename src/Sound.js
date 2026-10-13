@@ -74,6 +74,7 @@ class Sound {
             case 'hurt':     this.tone(200, 60, 0.3, 'sawtooth', 0.2); this.noise(0.15, 0.15, 1500); break;
             case 'schwert':  this.noise(0.18, 0.18, 4500); this.tone(500, 1400, 0.12, 'sawtooth', 0.05); break;
             case 'schwertHit': this.tone(1800, 900, 0.1, 'square', 0.1); this.noise(0.08, 0.15, 6000); break;
+            case 'seil':     this.noise(0.14, 0.05, 2500); this.tone(180, 140, 0.12, 'sawtooth', 0.03); break;
             case 'throw':    this.noise(0.15, 0.08, 1200); break;
             case 'explosion':this.noise(0.8, 0.5, 1800); this.tone(110, 30, 0.6, 'sawtooth', 0.3); break;
             case 'reload':   this.tone(300, 500, 0.06, 'square', 0.08); this.tone(500, 300, 0.06, 'square', 0.08, 0.15); break;

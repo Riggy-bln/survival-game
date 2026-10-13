@@ -58,13 +58,21 @@ function variiere(c, n) {
 // Das ist viel schneller, als jedes Frame tausende Kleinteile neu zu zeichnen. So können wir
 // die Erde in feinen 8-Pixel-Kacheln malen, ohne dass das Spiel langsamer wird.
 // "zeichne" bekommt ein Werkzeug r, mit dem man in Welt-Koordinaten malt.
+// Das Mal-Werkzeug für die Erde: rechnet Welt-Koordinaten in Bild-Koordinaten um (x0, y0 = Ecke des Bildes).
+// Jede Form hat am Ende eine optionale Deckkraft a (1 = voll sichtbar, 0.2 = fast durchsichtig).
+function werkzeug(g, x0, y0) {
+    return {
+        rect: (c, x, y, w, h, a = 1) => g.fillStyle(c, a).fillRect(x - x0, y - y0, w, h),
+        tri: (c, x1, y1, x2, y2, x3, y3, a = 1) => g.fillStyle(c, a).fillTriangle(x1 - x0, y1 - y0, x2 - x0, y2 - y0, x3 - x0, y3 - y0),
+        ell: (c, x, y, w, h, a = 1) => g.fillStyle(c, a).fillEllipse(x - x0, y - y0, w, h),
+        line: (c, breite, x1, y1, x2, y2, a = 1) => g.lineStyle(breite, c, a).beginPath().moveTo(x1 - x0, y1 - y0).lineTo(x2 - x0, y2 - y0).strokePath(),
+    };
+}
+
 function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
     if (!scene.textures.exists(schluessel)) {
         const g = scene.add.graphics();
-        const r = {
-            rect: (c, x, y, w, h) => g.fillStyle(c).fillRect(x - x0, y - y0, w, h),
-            tri: (c, x1, y1, x2, y2, x3, y3) => g.fillStyle(c).fillTriangle(x1 - x0, y1 - y0, x2 - x0, y2 - y0, x3 - x0, y3 - y0),
-        };
+        const r = werkzeug(g, x0, y0);
         zeichne(r);
         let ok = false;
         try {
@@ -81,121 +89,183 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
             // Ersatzweg: direkt zeichnen (langsamer, aber sichtbar)
             if (window.zeigeFehler) window.zeigeFehler('Erd-Textur ' + schluessel + ' war leer: zeichne direkt.');
             const d = scene.add.graphics().setDepth(1);
-            zeichne({
-                rect: (c, x, y, w, h) => d.fillStyle(c).fillRect(x, y, w, h),
-                tri: (c, x1, y1, x2, y2, x3, y3) => d.fillStyle(c).fillTriangle(x1, y1, x2, y2, x3, y3),
-            });
+            zeichne(werkzeug(d, 0, 0));
             return d;
         }
     }
     return scene.add.image(x0, y0, schluessel).setOrigin(0, 0).setDepth(1);
 }
 
-// Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief detailliert wird.
-function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
-    const S = 8;  // Größe einer Kachel ("Pixel") in der Erde
-    const hellOben = oberflaeche ? 0x7a5a3c : 0x66564a;
-    const GRAS_OBEN = [0x6aa032, 0x7ab83c, 0x5d9029];
-    const GRAS_MITTE = [0x4f7f27, 0x467022, 0x588a2c];
+// Eine Welle als Funktion der Welt-X-Position. Weil sie nur von x abhängt (nicht vom Bildausschnitt),
+// setzen sich die Erdschichten über Abschnittsgrenzen hinweg nahtlos fort.
+const welle = (x, hoehe, tempo, phase) => hoehe * Math.sin(x * tempo + phase);
 
-    // --- Erde Spalte für Spalte, Kachel für Kachel ---
-    for (let x = l; x < l + w; x += S) {
-        const bw = Math.min(S, l + w - x);
-        // Wie dick die Grasschicht in dieser Spalte ist: 1, 2 oder 3 Kacheln (unregelmäßig)
-        const q = rnd.frac();
-        const grasTiefe = oberflaeche ? (q < 0.25 ? S : q < 0.8 ? 2 * S : 3 * S) : 0;
-        for (let ty = 0; ty < tiefe; ty += S) {
-            const hoehe = Math.min(S, tiefe - ty);
-            if (ty < grasTiefe) {
-                const letzte = ty + S >= grasTiefe;
-                const c = ty === 0 ? rnd.pick(GRAS_OBEN) : (letzte ? 0x3b5f1d : rnd.pick(GRAS_MITTE));
-                r.rect(c, x, t + ty, bw, hoehe);
-                if (ty === 0 && rnd.frac() < 0.6) r.rect(0x9bd14a, x, t, bw, 2);        // Lichtkante
-                if (rnd.frac() < 0.35) r.rect(variiere(c, rnd.between(-16, 16)), x + rnd.between(0, 5), t + ty + rnd.between(0, 5), 2, 2);
-                continue;
+// Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief gemalt wird.
+// Statt eines Kachelrasters gibt es geschwungene Schichten (Gras, Humus, Mutterboden, Lehm,
+// dunkler Untergrund, Fels), darüber weiche Flecken, Körnung, runde Felsen, Wurzeln und Risse.
+function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
+    const SPALTE = 4;   // Schichten werden in 4 Pixel breiten Streifen gemalt (die Kanten sind wellig)
+
+    // Untergrenze jeder Schicht (Tiefe unter der Oberkante) als Funktion von x
+    const gras  = (x) => 7 + welle(x, 3, 0.06, 0) + welle(x, 2, 0.17, 1.3);
+    const humus = (x) => gras(x) + 13 + welle(x, 5, 0.031, 0.5) + welle(x, 3, 0.11, 2);
+    const boden = (x) => 54 + welle(x, 10, 0.017, 2) + welle(x, 6, 0.043, 0);
+    const lehm  = (x) => boden(x) + 38 + welle(x, 9, 0.013, 4) + welle(x, 5, 0.05, 1);
+    const tief  = (x) => lehm(x) + 70 + welle(x, 18, 0.009, 1) + welle(x, 8, 0.037, 3);
+
+    // Schichten von oben nach unten: [Untergrenze(x), Farbe]. Die letzte reicht bis ganz nach unten.
+    const schichten = oberflaeche
+        ? [[gras, 0x46602a], [humus, 0x2f241b], [boden, 0x54402d], [lehm, 0x78603f], [tief, 0x40342a], [() => 9999, 0x4b4a46]]
+        : [[() => 6, 0x6a5e50], [(x) => 46 + welle(x, 8, 0.02, 1), 0x4a4038], [(x) => 130 + welle(x, 14, 0.012, 2), 0x41372f],
+           [(x) => 250 + welle(x, 20, 0.009, 4), 0x39322c], [() => 9999, 0x34312e]];
+
+    for (let x = l; x < l + w; x += SPALTE) {
+        const bw = Math.min(SPALTE, l + w - x);
+        let y0 = 0;
+        schichten.forEach(([grenze, c], k) => {
+            const y1 = Math.min(tiefe, grenze(x));
+            if (y1 > y0) {
+                // Die Farbe schwankt sanft mit x, damit keine Fläche gleichmäßig aussieht
+                r.rect(variiere(c, Math.round(welle(x, 4, 0.09, k * 1.7) + welle(x, 3, 0.23, k))), x, t + y0, bw, y1 - y0);
+                if (k > 0) r.rect(0x000000, x, t + y0, bw, 2, 0.28);          // dunkle Schichtkante
+                y0 = y1;
             }
-            // Erdkachel: mit der Tiefe vom warmen Braun zur Grundfarbe der Plattform
-            let c = mische(hellOben, grund, Math.min(1, ty / tiefe));
-            if (Math.floor((ty + 18 * Math.sin(x * 0.02)) / 40) % 2 === 1) c = variiere(c, -7);   // Schichtband
-            if (oberflaeche && ty === grasTiefe) c = variiere(c, -14);                             // Schatten unter dem Gras
-            c = variiere(c, rnd.between(-8, 8));
-            r.rect(c, x, t + ty, bw, hoehe);
-            // Körnung: ein bis zwei winzige hellere/dunklere Punkte pro Kachel
-            const punkte = rnd.between(0, 2);
-            for (let k = 0; k < punkte; k++) {
-                r.rect(variiere(c, rnd.pick([-18, -12, 12, 18])), x + rnd.between(0, 5), t + ty + rnd.between(0, 5), 2, 2);
-            }
+        });
+    }
+
+    // Weiche Flecken (große, sehr durchsichtige Ellipsen): wie Feuchtigkeit und Mineralien im Boden
+    for (let i = 0; i < w * tiefe / 9000; i++) {
+        const ex = l + rnd.between(0, w), ey = t + rnd.between(14, Math.max(15, tiefe - 4));
+        if (rnd.frac() < 0.5) r.ell(0x000000, ex, ey, rnd.between(30, 90), rnd.between(8, 26), 0.12);
+        else r.ell(oberflaeche ? 0xc8a070 : 0x9a9080, ex, ey, rnd.between(30, 80), rnd.between(8, 22), 0.08);
+    }
+    // Feine, wellige Schichtlinien
+    for (let d = 40; d < tiefe; d += rnd.between(24, 34)) {
+        for (let x = l; x < l + w; x += SPALTE) {
+            r.rect(0x000000, x, t + d + welle(x, 4, 0.05, d), SPALTE, 1, 0.13);
         }
     }
-
-    // --- Steine aus Pixelblöcken (mit Glanz oben links und Schatten unten) ---
-    const formen = [[2, 3, 2], [3, 4, 4, 2], [2, 4, 3], [4, 5, 4], [1, 2]];
-    for (let i = 0; i < w / 40; i++) {
-        const sx = l + rnd.between(8, Math.max(9, w - 24)), sy = t + rnd.between(30, Math.max(31, tiefe - 14));
-        const form = rnd.pick(formen);
-        const grau = variiere(0x7d776a, rnd.between(-12, 12));
-        form.forEach((n, j) => {
-            const breite = n * 4;
-            r.rect(j === form.length - 1 ? 0x4f4a42 : grau, sx - breite / 2, sy + j * 4, breite, 4);
-        });
-        r.rect(0xa49f90, sx - form[0] * 2, sy, 4, 4);
+    // Körnung: winzige helle und dunkle Punkte, frei verteilt (nicht auf einem Raster)
+    for (let i = 0; i < w * tiefe / 200; i++) {
+        r.rect(rnd.pick([0x1c140e, 0x1c140e, 0xb09872, 0x6a5a48]), l + rnd.between(0, Math.max(0, w - 3)),
+            t + rnd.between(12, Math.max(13, tiefe - 2)), rnd.between(2, 3), rnd.between(1, 2), 0.5);
     }
-    // Kies: kleine helle und dunkle Punkte
-    for (let i = 0; i < w / 10; i++) {
-        r.rect(rnd.pick([0x93897a, 0x2d241a, 0x8a7d66]), l + rnd.between(0, Math.max(0, w - 3)), t + rnd.between(26, tiefe - 2), 3, 2);
+    // Kiesel
+    for (let i = 0; i < w / 14; i++) {
+        const px = l + rnd.between(0, w), py = t + rnd.between(22, Math.max(23, tiefe - 3));
+        const s = rnd.between(3, 6);
+        r.ell(0x7d776a, px, py, s, s - 1, 0.85);
+        r.ell(0xb0aca0, px - 1, py - 1, s * 0.5, s * 0.4, 0.6);
     }
-    // Risse: kleine dunkle Zickzack-Linien
-    for (let i = 0; i < w / 120; i++) {
-        let cx = l + rnd.between(6, Math.max(7, w - 6)), cy = t + rnd.between(28, Math.max(29, tiefe - 30));
-        for (let k = 0; k < 5; k++) { r.rect(0x2a2018, cx, cy, 2, 5); cx += rnd.pick([-3, 3]); cy += 5; }
+    // Runde Felsbrocken mit Schatten, Glanzlicht und Riss
+    for (let i = 0; i < w / 85; i++) {
+        const bx = l + rnd.between(14, Math.max(15, w - 14)), by = t + rnd.between(36, Math.max(37, tiefe - 16));
+        const bw = rnd.between(18, 46), bh = Math.round(bw * rnd.between(55, 80) / 100);
+        r.ell(0x000000, bx + 2, by + 3, bw, bh, 0.35);
+        r.ell(variiere(0x77716a, rnd.between(-14, 14)), bx, by, bw, bh);
+        r.ell(0xb4afa2, bx - bw * 0.18, by - bh * 0.2, bw * 0.45, bh * 0.35, 0.55);
+        r.line(0x2a2622, 1, bx + bw * 0.1, by - bh * 0.3, bx + bw * 0.25, by + bh * 0.3, 0.7);
+    }
+    // Risse: dunkle, verzweigte Linien
+    for (let i = 0; i < w / 110; i++) {
+        let cx = l + rnd.between(6, Math.max(7, w - 6)), cy = t + rnd.between(30, Math.max(31, tiefe - 40));
+        for (let k = 0; k < rnd.between(4, 8); k++) {
+            const nx = cx + rnd.between(-7, 7), ny = cy + rnd.between(5, 10);
+            r.line(0x14100c, rnd.between(1, 2), cx, cy, nx, ny, 0.7);
+            if (rnd.frac() < 0.25) r.line(0x14100c, 1, nx, ny, nx + rnd.between(-10, 10), ny + rnd.between(3, 8), 0.6);
+            cx = nx; cy = ny;
+        }
     }
 
     if (oberflaeche) {
-        // Wurzeln wachsen aus der Grasdecke nach unten
-        for (let i = 0; i < w / 90; i++) {
-            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + 20;
-            for (let k = 0; k < 7; k++) {
-                r.rect(0x2a1f15, rx, ry, 2, 5);
-                ry += 5; rx += rnd.pick([-3, 0, 0, 3]);
-                if (k === 3 && rnd.frac() < 0.6) r.rect(0x2a1f15, rx + 3, ry, 6, 2);     // Seitenwurzel
+        // Wurzeln: gebogene, nach unten dünner werdende Linien mit Wurzelhaaren
+        for (let i = 0; i < w / 70; i++) {
+            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + gras(rx);
+            let winkel = Math.PI / 2 + rnd.between(-30, 30) / 100;
+            const laenge = rnd.between(6, 12);
+            for (let k = 0; k < laenge; k++) {
+                winkel += rnd.between(-35, 35) / 100;
+                const nx = rx + Math.cos(winkel) * rnd.between(6, 10), ny = ry + Math.abs(Math.sin(winkel)) * rnd.between(6, 10);
+                r.line(0x241a11, Math.max(1, 3 - k / 3), rx, ry, nx, ny, 0.9);
+                if (rnd.frac() < 0.3) r.line(0x241a11, 1, nx, ny, nx + rnd.between(-8, 8), ny + rnd.between(2, 7), 0.7);
+                rx = nx; ry = ny;
             }
         }
-        // Funde aus dem Krieg: Knochen, Metallschrott, Patronenhülsen
+        // Funde aus dem Krieg: Knochen, Patronenhülsen, Stacheldraht, Metallplatten
+        for (let i = 0; i < w / 230; i++) {
+            const fx = l + rnd.between(14, Math.max(15, w - 24)), fy = t + rnd.between(40, Math.max(41, tiefe - 12));
+            const art = rnd.between(0, 3);
+            if (art === 0) {            // Knochen
+                r.line(0xcfc7b0, 3, fx, fy, fx + 14, fy + rnd.between(-3, 3), 0.95);
+                r.ell(0xcfc7b0, fx, fy, 5, 5); r.ell(0xcfc7b0, fx + 14, fy, 5, 5);
+            } else if (art === 1) {     // Patronenhülsen
+                for (let k = 0; k < 3; k++) r.line(0xc9a227, 3, fx + k * 5, fy + k, fx + k * 5 + 2, fy + 7, 0.95);
+            } else if (art === 2) {     // Stacheldraht
+                let sx = fx;
+                for (let k = 0; k < 6; k++) { r.line(0x8d8f93, 1, sx, fy, sx + 5, fy + (k % 2 ? 4 : -4), 0.9); sx += 5; }
+            } else {                    // verrostete Platte, schräg
+                r.tri(0x8a4a22, fx, fy, fx + 16, fy - 3, fx + 12, fy + 6, 0.95);
+                r.tri(0x5e3016, fx, fy, fx + 12, fy + 6, fx + 2, fy + 5, 0.9);
+            }
+        }
+
+        // --- Gras oben: Halme als spitze Dreiecke, hinten dunkel und kurz, vorne hell und länger ---
+        for (let x = l; x < l + w; x += rnd.between(2, 4)) {                         // hintere Reihe
+            const h = rnd.between(4, 9);
+            r.tri(rnd.pick([0x384e20, 0x435c26]), x - 2, t + 3, x + 2, t + 3, x + rnd.between(-3, 3), t - h);
+        }
+        for (let x = l; x < l + w; x += rnd.between(2, 5)) {                         // vordere Reihe
+            const h = rnd.between(7, rnd.frac() < 0.1 ? 22 : 15);
+            const c = rnd.frac() < 0.07 ? 0x9a8f50 : rnd.pick([0x4f6b2a, 0x5f7f32, 0x75963d, 0x8fae4a]);
+            r.tri(c, x - 1.5, t + 3, x + 1.5, t + 3, x + rnd.between(-5, 5), t - h);
+        }
+        // Franse unter der Grasdecke: Grasbüschel hängen ein Stück in die Erde
+        for (let x = l; x < l + w; x += 3) {
+            const gy = t + gras(x);
+            r.tri(0x2f4a1c, x - 2, gy - 1, x + 2, gy - 1, x + rnd.between(-2, 2), gy + rnd.between(2, 8), 0.9);
+        }
+        // Blumen
         for (let i = 0; i < w / 260; i++) {
-            const fx = l + rnd.between(10, Math.max(11, w - 20)), fy = t + rnd.between(40, Math.max(41, tiefe - 10));
-            const art = rnd.between(0, 2);
-            if (art === 0) { r.rect(0xd8d0bc, fx, fy, 12, 3); r.rect(0xd8d0bc, fx - 2, fy - 1, 3, 5); r.rect(0xd8d0bc, fx + 11, fy - 1, 3, 5); }
-            else if (art === 1) { r.rect(0x8a4a22, fx, fy, 10, 5); r.rect(0x5e3016, fx, fy + 4, 10, 1); }
-            else { for (let k = 0; k < 3; k++) r.rect(0xc9a227, fx + k * 5, fy + (k % 2) * 2, 2, 5); }
-        }
-        // --- Halme, Blumen und Büschel auf der Grasdecke ---
-        for (let x = l; x < l + w; x += rnd.between(2, 5)) {
-            const h = rnd.between(4, 10);
-            const gruen = rnd.pick([0x6aa032, 0x7ab83c, 0x8bc84a, 0x5d9029]);
-            r.rect(gruen, x, t - h, 2, h);
-            if (rnd.frac() < 0.04) {                                               // Blume (Pixelkreuz)
-                const bl = rnd.pick([0xe8d44a, 0xd9534f, 0xf0f0f0, 0xb06ad9]);
-                r.rect(bl, x - 2, t - h - 2, 6, 2); r.rect(bl, x, t - h - 4, 2, 6);
-                r.rect(0xffe066, x, t - h - 2, 2, 2);
+            const bx = l + rnd.between(10, Math.max(11, w - 10)), hh = rnd.between(10, 17);
+            r.line(0x4f6b2a, 1, bx, t + 2, bx, t - hh, 1);
+            const bl = rnd.pick([0xe6e0d0, 0xd9b43a, 0xb04a4a]);
+            for (let k = 0; k < 5; k++) {
+                const a = k * Math.PI * 2 / 5;
+                r.ell(bl, bx + Math.cos(a) * 2.5, t - hh + Math.sin(a) * 2.5, 3, 3, 0.95);
             }
+            r.ell(0xf2c230, bx, t - hh, 3, 3);
         }
-        for (let i = 0; i < w / 120; i++) {                                         // trockene Büschel
+        // trockene Büschel und kleine Steine auf der Oberfläche
+        for (let i = 0; i < w / 120; i++) {
             const x = l + rnd.between(0, w);
-            r.tri(0xa89a52, x - 6, t, x + 6, t, x, t - 12);
-            r.tri(0x8a7c3a, x - 2, t, x + 8, t, x + 3, t - 9);
+            r.tri(0xa89a52, x - 6, t + 2, x + 6, t + 2, x, t - 12);
+            r.tri(0x8a7c3a, x - 2, t + 2, x + 8, t + 2, x + 3, t - 9);
         }
-        for (let i = 0; i < w / 200; i++) r.rect(0x7d776a, l + rnd.between(0, w - 8), t - 4, 8, 5);   // Steinchen auf dem Gras
+        for (let i = 0; i < w / 200; i++) {
+            const x = l + rnd.between(4, Math.max(5, w - 12)), s = rnd.between(6, 12);
+            r.ell(0x77716a, x, t, s, s * 0.6);
+            r.ell(0xb4afa2, x - s * 0.15, t - 2, s * 0.4, s * 0.25, 0.6);
+        }
     } else {
-        // Untergrund: heller Rand oben, Kiesel auf dem Boden
-        r.rect(0x8a7a64, l, t, w, 2);
-        for (let i = 0; i < w / 30; i++) r.rect(0x8c8474, l + rnd.between(0, Math.max(0, w - 4)), t - 3, rnd.between(2, 5), 3);
-        if (istDecke) {                                                             // Tropfsteine an der Decke
-            for (let x = l + 6; x < l + w - 6; x += rnd.between(14, 32)) {
-                const h = rnd.between(6, 20);
-                r.tri(0x40372c, x - 5, t + tiefe, x + 5, t + tiefe, x, t + tiefe + h);
+        // Untergrund: Geröll auf dem Boden, Tropfsteine an Decken
+        for (let i = 0; i < w / 25; i++) {
+            const s = rnd.between(3, 8);
+            r.ell(rnd.pick([0x7d776a, 0x66605a, 0x8c8474]), l + rnd.between(0, w), t - 1, s, s * 0.7);
+        }
+        if (istDecke) {
+            for (let x = l + 6; x < l + w - 6; x += rnd.between(14, 30)) {
+                const h = rnd.between(6, 22);
+                r.tri(0x40372c, x - 5, t + tiefe - 1, x + 5, t + tiefe - 1, x, t + tiefe + h);
+                r.tri(0x5a4e40, x - 2, t + tiefe - 1, x + 1, t + tiefe - 1, x - 1, t + tiefe + h * 0.7, 0.8);
             }
         }
     }
+
+    // Tiefe: nach unten wird es dunkler (weiche Streifen mit steigender Deckkraft)
+    for (let yy = 0; yy < tiefe; yy += 10) r.rect(0x000000, l, t + yy, w, 10, 0.30 * yy / tiefe);
+    // Kantenschatten an den Seiten: gibt dem Block Rundung
+    r.rect(0x000000, l, t + 8, 3, tiefe - 8, 0.25);
+    r.rect(0x000000, l + w - 3, t + 8, 3, tiefe - 8, 0.25);
 }
 
 // Gibt allen Plattformen ihr Aussehen. Es gibt drei Arten:

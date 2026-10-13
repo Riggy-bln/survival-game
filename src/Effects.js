@@ -125,8 +125,8 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, ecken
     // Außenecken einer Decke werden in Pixelstufen abgerundet (statt rechtwinklig): links/rechts je zwei Stufen
     const weg = [], u = t + tiefe;
     if (istDecke && w >= 16) {
-        if (ecken.links) weg.push([l, u - 4, 8, 4], [l, u - 8, 4, 4]);
-        if (ecken.rechts) weg.push([l + w - 8, u - 4, 8, 4], [l + w - 4, u - 8, 4, 4]);
+        if (ecken.links) weg.push([l, u - 8, 16, 8], [l, u - 16, 8, 8]);
+        if (ecken.rechts) weg.push([l + w - 16, u - 8, 16, 8], [l + w - 8, u - 16, 8, 8]);
         if (weg.length) r = mitAusschnitt(r, weg);
     }
     const S = 8;  // Größe einer Kachel ("Pixel") in der Erde
@@ -363,7 +363,7 @@ export function decoratePlatforms(scene, platforms, boden) {
 
         if (istErde) {
             const anOberflaeche = t <= boden + 1 && grundfarbe !== FELS;   // Fels trägt kein Gras
-            const istDecke = !anOberflaeche && p.height <= 80;
+            const istDecke = !anOberflaeche && p.height <= 180;
             const tiefe = Math.min(p.height, TIEFE);
             nr += 1;
             // Außenecken: Nachbar links/rechts, der mindestens so tief reicht, macht eine Innenecke (nicht abrunden)

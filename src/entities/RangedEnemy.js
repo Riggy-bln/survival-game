@@ -27,7 +27,7 @@ export default class RangedEnemy extends Enemy {
     // Überschreibt Enemy.update(): statt hin- und herzulaufen verhält er sich so:
     // außer Reichweite = stehen, zu nah = zurückweichen, sonst Schuss vorbereiten.
     update() {
-        const player = this.scene.player;
+        const player = this.scene.zielFuer(this);   // der nächste lebende Spieler (online auch Mitspieler)
         const now = this.scene.time.now;
         const abstand = Math.abs(player.x - this.x);
 
@@ -40,7 +40,7 @@ export default class RangedEnemy extends Enemy {
                 const winkel = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
                 this.scene.spawnEnemyBullet(this.x, this.y, winkel, this.bulletSpeed, this.bulletDamage);
                 // Mündungsfeuer an der Waffe (Schulter y - 6, Arm 12 + Waffe 26) und Rückstoß für die Zeichnung
-                this.scene.fx.muzzleFlash(this.x + Math.cos(winkel) * 38, this.y - 6 + Math.sin(winkel) * 38, winkel, 0.9, 0xff7744);
+                this.scene.zeigeEffekt('muendung', this.x + Math.cos(winkel) * 38, this.y - 6 + Math.sin(winkel) * 38, winkel, 0.9, 0xff7744);
                 this.lastShotTime = now;
                 this.aimingUntil = 0;
                 this.nextShot = now + this.fireDelay;

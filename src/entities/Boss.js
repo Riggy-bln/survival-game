@@ -60,7 +60,7 @@ export default class Boss extends Enemy {
     }
 
     update() {
-        const player = this.scene.player;
+        const player = this.scene.zielFuer(this);   // der nächste lebende Spieler (online auch Mitspieler)
         const now = this.scene.time.now;
         const body = this.body;
         const wut = this.isEnraged() ? 1.3 : 1;  // Wütende Kreatur: 30 % schneller
@@ -122,7 +122,7 @@ export default class Boss extends Enemy {
                     // Zwei Druckwellen am Boden: eine nach links (Winkel PI), eine nach rechts (0).
                     this.scene.spawnEnemyBullet(this.x, this.y + 42, Math.PI, 320, 15);
                     this.scene.spawnEnemyBullet(this.x, this.y + 42, 0, 320, 15);
-                    this.scene.fx.druckwelle(this.x, this.y + 46);               // sichtbare Druckwelle am Boden
+                    this.scene.zeigeEffekt('druckwelle', this.x, this.y + 46);               // sichtbare Druckwelle am Boden
                     this.setPhase('tired', 900, 0x9fb8a6);
                 }
                 break;
@@ -165,7 +165,7 @@ export default class Boss extends Enemy {
             const winkel = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
             for (const versatz of [-0.28, 0, 0.28]) {
                 this.scene.spawnEnemyBullet(this.x, this.y - 10, winkel + versatz, 360, 15);
-                this.scene.fx.muzzleFlash(this.x + Math.cos(winkel) * 30, this.y - 40 + Math.sin(winkel) * 30, winkel + versatz, 1.2, 0x88ff66);   // grüner Schleimblitz am Maul
+                this.scene.zeigeEffekt('muendung', this.x + Math.cos(winkel) * 30, this.y - 40 + Math.sin(winkel) * 30, winkel + versatz, 1.2, 0x88ff66);   // grüner Schleimblitz am Maul
             }
             this.setPhase('spit', 500, 0xcc66ff);
         }

@@ -21,6 +21,8 @@ const WORLD_WIDTH = level.width;
 const WORLD_HEIGHT = level.height;
 const BODEN = level.boden;
 
+const BELEBEN_DAUER = 3;   // so viele Sekunden muss man E halten, um einen Gefallenen wiederzubeleben
+
 // Länge der Waffe in Pixeln (vom Griff bis zur Mündung) für die Zeichnung und das Mündungsfeuer
 const WAFFENLAENGE = { pistol: 18, rifle: 32, shotgun: 28 };
 
@@ -37,6 +39,12 @@ export default class GameScene extends Phaser.Scene {
         const netz = this.registry.get('netz');
         this.online = (this.modus === 'host' || this.modus === 'gast') && !!netz;   // Online-Mehrspieler?
         this.meineNr = this.online ? netz.meineNr : 1;
+        this.istHost = this.online && netz.rolle === 'host';   // rechnet die Welt und verteilt sie
+        this.istGast = this.online && netz.rolle === 'gast';   // zeigt die Welt nur an
+        this.rechnet = !this.istGast;                          // wer Gegner, Kugeln, Schaden und Explosionen berechnet
+        this.bulletZaehler = 0;                                // fortlaufende Nummern für Kugeln und Granaten
+        this.belebenInfo = {};                                 // Wiederbeleben: nr -> { p, bis }
+        this.belebenZeit = 0;
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
         // --- Himmel und Hintergrund-Schichten (Parallax: weiter weg = langsamer) ---
@@ -78,6 +86,7 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Boden und Plattformen ---
         this.platforms = [];
+        this.brechbarZaehler = 0;     // Nummern der zerstörbaren Blöcke (für den Mehrspielermodus)
         // Für jeden Eintrag der Liste in Level01.js eine Plattform bauen.
         // "p" steht für einen Eintrag. Fehlt "color", gilt die Standardfarbe nach dem "??".
         for (const p of level.platforms) {
@@ -86,6 +95,7 @@ export default class GameScene extends Phaser.Scene {
                 const wand = this.platforms[this.platforms.length - 1];
                 wand.brechbar = true;
                 wand.hp = p.hp ?? 5;
+                wand.id = this.brechbarZaehler++;
                 wand.maxHp = wand.hp;
             }
             if (p.kollision) {                       // Stufenblock eines sanften Hügels: unsichtbar, nur zum Laufen
@@ -116,32 +126,45 @@ export default class GameScene extends Phaser.Scene {
         // weil Lebensanzeige und Evakuierung sie brauchen. "? :" heißt: wenn vorhanden, dann ...
         // Kleine Hilfsfunktion: baut einen Gegner der gegebenen Klasse aus einem Listeneintrag.
         // Hat der Eintrag "hp", überschreibt das die Standard-Lebenspunkte (zähere Gegner).
+        // Mehr Spieler = zähere Gegner: Pro zusätzlichem Spieler +50 % Leben. Der Gastgeber rechnet das aus;
+        // die Gäste lesen Leben und Höchstleben später aus den Weltmeldungen.
+        const spielerZahl = this.online ? Math.max(1, netz.liste().length) : 1;
+        this.lebenFaktor = 1 + 0.5 * (spielerZahl - 1);
         const baue = (Klasse, e) => {
             const gegner = new Klasse(this, e.x, e.y, e.left, e.right);
-            if (e.hp) {
-                gegner.health = e.hp;
-                gegner.maxHealth = e.hp;
+            const basis = e.hp ?? gegner.health;
+            const hp = this.istGast ? basis : Math.max(1, Math.round(basis * this.lebenFaktor));
+            gegner.health = hp;
+            gegner.maxHealth = hp;
+            if (this.istGast) {                       // Gäste rechnen keine Gegner: Die Figur ist eine Attrappe, die der Gastgeber steuert
+                gegner.body.enable = false;
+                gegner.body.setAllowGravity(false);
+                gegner.body.blocked.down = true;      // sie "steht" beim Zeichnen am Boden (Laufanimation statt Sprungbeine)
+                gegner.istGeist = true;
+                gegner.update = () => {};
             }
             return gegner;
         };
-        // Online gibt es in diesem Schritt noch keine Gegner (sie kommen im nächsten Schritt, vom Gastgeber gerechnet).
-        const b = this.online ? null : level.boss;
-        this.boss = b ? baue(Boss, b) : null;
-        this.enemies = this.online ? [] : [
+        const b = level.boss;
+        const liste = [
             ...level.enemies.map(e => baue(Enemy, e)),
             ...level.rangedEnemies.map(e => baue(RangedEnemy, e)),
-            ...(this.boss ? [this.boss] : []),
+            ...(b ? [baue(Boss, b)] : []),
         ];
+        liste.forEach((g, i) => { g.id = i; });      // feste Nummer: auf allen Geräten dieselbe Reihenfolge
+        this.gegnerNachId = liste;                   // bleibt unverändert (auch wenn Gegner sterben)
+        this.boss = b ? liste[liste.length - 1] : null;
+        this.enemies = liste.slice();
         this.enemyBullets = [];  // Kugeln der Gegner
         // Eine collider-Zeile für alle Gegner: Sie stehen auf Boden und Plattformen.
-        this.physics.add.collider(this.enemies, this.platforms);
+        if (this.rechnet) this.physics.add.collider(this.enemies, this.platforms);   // Attrappen der Gäste haben keine Physik
 
         // --- Explosive Fässer ---
-        this.faesser = (level.faesser ?? []).map(f => new Fass(this, f.x, f.y));
+        this.faesser = (level.faesser ?? []).map((f, i) => { const o = new Fass(this, f.x, f.y); o.id = i; return o; });
 
         // --- Gegenstände ---
         // Die Positionen stehen in Level01.js (Boden: y = 490).
-        this.pickups = level.pickups.map(p => new Pickup(this, p.x, p.y, p.type));
+        this.pickups = level.pickups.map((p, i) => { const o = new Pickup(this, p.x, p.y, p.type); o.id = i; return o; });
 
         // --- Hubschrauber (Levelende) ---
         // Das Evakuierungsfeld: eine grün leuchtende Zone am Boden (220 breit, 120 hoch).
@@ -232,6 +255,11 @@ export default class GameScene extends Phaser.Scene {
         // Neustart auf Enter, denn R bedeutet jetzt Nachladen.
         this.restartKey = this.input.keyboard.addKey('ENTER');
         this.mp = this.online ? new Mehrspieler(this, netz) : null;   // Netzwerk-Anteil des Mehrspielermodus
+        // Wiederbeleben und Zuschauerkamera
+        this.kameraZiel = this.add.rectangle(0, 0, 4, 4, 0x000000, 0).setVisible(false);
+        this.belebenHinweis = this.add.text(this.scale.width / 2, this.scale.height - 90, '', {
+            fontSize: '22px', color: '#ffffff', backgroundColor: '#000000aa', padding: { x: 12, y: 6 },
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(25).setVisible(false);
         this.pauseKey = this.input.keyboard.addKey('ESC');
         this.muteKey = this.input.keyboard.addKey('N');
         // Nach dem Fortsetzen kann derselbe Esc-Druck noch in der Warteschlange stecken.
@@ -422,6 +450,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Zeichnet die Figur eines Mitspielers (Zustand r kommt aus Mehrspieler.js).
     zeichneFremdenSpieler(g, r) {
+        this.zeichneBelebenBalken(g, r.nr, r.x, r.y);
+        if (r.tot) { this.zeichneLiegend(g, r.x, r.y, SPIELERFARBEN[(r.nr - 1) % 4]); return; }
         const rueck = Math.max(0, 1 - (r.s ?? 9999) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[r.w] ?? 4);
         this.drawHumanoid(g, r.x, r.y, {
             facing: Math.cos(r.a) >= 0 ? 1 : -1, alpha: 1, body: SPIELERFARBEN[(r.nr - 1) % 4], skin: 0xe0b890, rueck,
@@ -445,11 +475,13 @@ export default class GameScene extends Phaser.Scene {
         const winkel = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
         // Rückstoß: Nach einem Schuss ruckt die Waffe zurück und hebt sich, dann kehrt sie in 130 ms zurück.
         const rueck = Math.max(0, 1 - (this.time.now - (p.lastShotTime ?? -999)) / 130) * ({ pistol: 5, rifle: 3, shotgun: 10 }[p.weapon] ?? 4);
-        this.drawHumanoid(g, p.x, p.y, {
+        if (p.tot) this.zeichneLiegend(g, p.x, p.y, SPIELERFARBEN[(this.meineNr - 1) % 4]);
+        else this.drawHumanoid(g, p.x, p.y, {
             facing: Math.cos(winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: SPIELERFARBEN[(this.meineNr - 1) % 4], skin: 0xe0b890, rueck,
             head: 'bandana', strap: true, aim: winkel, gun: WAFFENLAENGE[p.weapon] ?? 18,
             moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
         });
+        this.zeichneBelebenBalken(g, this.meineNr, p.x, p.y);
 
         if (this.mp) this.mp.zeichne(g, mitte);   // Figuren der Mitspieler
 
@@ -603,13 +635,11 @@ export default class GameScene extends Phaser.Scene {
         this.platforms.push(rect);
     }
 
-    // Erzeugt eine Kugel, die vom Spieler zum Ziel fliegt.
+    // Erzeugt die Kugeln eines Schusses, die vom Spieler zum Ziel fliegen.
     shoot(zielX, zielY) {
-        const winkel = Phaser.Math.Angle.Between(
-            this.player.x, this.player.y, zielX, zielY
-        );
-        // Mündung: Schulter (y - 6) + 12 Pixel Arm + Waffenlänge in Zielrichtung
         const p = this.player;
+        const winkel = Phaser.Math.Angle.Between(p.x, p.y, zielX, zielY);
+        // Mündung: Schulter (y - 6) + 12 Pixel Arm + Waffenlänge in Zielrichtung
         const abstand = 12 + (WAFFENLAENGE[p.weapon] ?? 18);
         const mx = p.x + Math.cos(winkel) * abstand, my = p.y - 6 + Math.sin(winkel) * abstand;
         const gross = { pistol: 1, rifle: 1.1, shotgun: 1.7 }[p.weapon] ?? 1;
@@ -619,22 +649,32 @@ export default class GameScene extends Phaser.Scene {
         if (p.weapon === 'shotgun') { this.fx.muendungsrauch(mx, my); this.cameras.main.shake(110, 0.006); }
         else this.cameras.main.shake(50, 0.0015);
         p.lastShotTime = this.time.now;                                         // für den Rückstoß der Waffe
-        sfx.play(this.player.weapon);  // Geräusch heißt wie die Waffe: pistol, rifle, shotgun
+        sfx.play(p.weapon);  // Geräusch heißt wie die Waffe: pistol, rifle, shotgun
         // Eine Schrotflinte feuert mehrere Kugeln, jede mit zufälliger Abweichung (Streuung).
-        for (let i = 0; i < this.player.pellets; i++) {
-            const streuung = Phaser.Math.FloatBetween(-this.player.spread, this.player.spread);
-            const bullet = new Bullet(this, this.player.x, this.player.y, winkel + streuung, 900);
-            // Hat die Waffe nur kurze Reichweite, verschwindet die Kugel nach "range" Millisekunden.
-            if (this.player.range > 0) bullet.diesAt = this.time.now + this.player.range;
+        const winkelListe = [];
+        for (let i = 0; i < p.pellets; i++) winkelListe.push(winkel + Phaser.Math.FloatBetween(-p.spread, p.spread));
+        // Ein Gast erzeugt nur Bilder (sofortige Rückmeldung); die echten Kugeln erzeugt der Gastgeber.
+        for (const w of winkelListe) this.spawneSpielerKugel(p.x, p.y, w, p.range, this.meineNr, this.istGast);
+        if (this.mp) this.mp.meldeSchuss(mx, my, winkel, winkelListe, p.range, p.weapon);
+    }
 
-            // Trifft die Kugel eine Plattform, verschwindet sie.
-            this.physics.add.collider(bullet, this.platforms, (b, platte) => {
-                if (platte.brechbar) this.treffeBroeckelig(platte, b.x, b.y);   // Spielerkugeln können brüchige Wände zerstören
-                this.fx.sparks(b.x, b.y, 3);
-                b.destroy();
-            });
-            this.bullets.push(bullet);
-        }
+    // Eine Spielerkugel. besitzer = Nummer des Spielers. visuell = nur ein Bild (kein Treffer, kein Schaden).
+    spawneSpielerKugel(x, y, winkel, reichweite, besitzer, visuell) {
+        const bullet = new Bullet(this, x, y, winkel, 900);
+        bullet.id = ++this.bulletZaehler;
+        bullet.owner = besitzer;
+        bullet.speed = 900;
+        bullet.visuell = visuell;
+        // Hat die Waffe nur kurze Reichweite, verschwindet die Kugel nach "range" Millisekunden.
+        if (reichweite > 0) bullet.diesAt = this.time.now + reichweite;
+        // Trifft die Kugel eine Plattform, verschwindet sie.
+        this.physics.add.collider(bullet, this.platforms, (b, platte) => {
+            if (platte.brechbar && this.rechnet) this.treffeBroeckelig(platte, b.x, b.y);   // nur wer rechnet, zerstört Wände
+            this.fx.sparks(b.x, b.y, 3);
+            b.destroy();
+        });
+        this.bullets.push(bullet);
+        return bullet;
     }
 
     // Effekt für einen gestorbenen Gegner: Leiche (kippt vom Spieler weg) oder Boss-Explosionen.
@@ -646,18 +686,238 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    // ---------- Mehrspieler: Welt ----------
+
+    // Wen soll dieser Gegner angreifen? Den nächsten lebenden Spieler (online auch die Mitspieler).
+    zielFuer(wer) {
+        if (!this.mp) return this.player;
+        let bestes = null, besteEntfernung = Infinity;
+        const pruefe = (z) => {
+            const d = (z.x - wer.x) ** 2 + (z.y - wer.y) ** 2;
+            if (d < besteEntfernung) { besteEntfernung = d; bestes = z; }
+        };
+        if (!this.player.tot) pruefe(this.player);
+        for (const r of this.mp.fern.values()) if (!r.tot) pruefe(r);
+        return bestes ?? this.player;
+    }
+
+    // Alle Spieler, die gerade Schaden nehmen können: [{ nr, rect }]
+    alleZiele() {
+        const liste = [];
+        if (!this.player.tot) liste.push({ nr: this.meineNr, rect: this.player.getBounds() });
+        if (this.mp) {
+            for (const r of this.mp.fern.values()) {
+                if (!r.tot) liste.push({ nr: r.nr, rect: new Phaser.Geom.Rectangle(r.x - 16, r.y - 24, 32, 48) });
+            }
+        }
+        return liste;
+    }
+
+    // Schaden an einem Spieler (nur Gastgeber bzw. Einzelspieler). Für Mitspieler geht eine Meldung an ihr Gerät: Dort gilt
+    // wie sonst die Sekunde Unverwundbarkeit. Der Gastgeber merkt sie sich auch, um nicht jedes Bild eine Meldung zu schicken.
+    schadeAnSpieler(nr, menge, vonX) {
+        if (nr === this.meineNr) { this.player.takeDamage(menge, vonX); return; }
+        const r = this.mp && this.mp.fern.get(nr);
+        if (!r || r.tot || this.time.now < (r.schutzBis ?? 0)) return;
+        r.schutzBis = this.time.now + 1000;
+        this.mp.sendeAn(nr, { t: 'schaden', m: menge, x: vonX });
+    }
+
+    // Ein Gegner ist gestorben (Gastgeber/Einzelspieler): zählen, Leiche zeigen, den Gästen Bescheid sagen.
+    gegnerStirbt(enemy) {
+        this.kills += 1;
+        this.zeigeTod(enemy);
+        if (this.istHost) this.mp.sendeAnAlle({ t: 'tot', id: enemy.id });
+    }
+
+    // Die Gäste bekommen die Todesmeldung: Leiche zeigen und die Attrappe entfernen.
+    gegnerTotEmpfangen(d) {
+        const g = this.gegnerNachId[d.id];
+        if (!g || !g.active) return;
+        this.zeigeTod(g);
+        g.destroy();
+        this.enemies = this.enemies.filter((e) => e.active);
+    }
+
+    zeigeBlut(x, y, n = 8) { this.zeigeEffekt('blut', x, y, 0, n); }
+
+    // Ein Effekt, den alle sehen sollen: wird hier gezeigt und vom Gastgeber an die Gäste verteilt.
+    zeigeEffekt(art, x, y, a = 0, g = 1, f = 0xffdd55) {
+        this.effektLokal(art, x, y, a, g, f);
+        if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: art, x, y, a, g, f });
+    }
+
+    effektLokal(art, x, y, a, g, f) {
+        if (art === 'muendung') this.fx.muzzleFlash(x, y, a, g, f);
+        else if (art === 'druckwelle') this.fx.druckwelle(x, y);
+        else if (art === 'blut') this.fx.blood(x, y, g);
+    }
+
+    // Mündungsfeuer, Funken und Ton eines Schusses von jemand anderem.
+    zeigeSchussEffekt(mx, my, winkel, waffe) {
+        const gross = { pistol: 1, rifle: 1.1, shotgun: 1.7 }[waffe] ?? 1;
+        this.fx.muzzleFlash(mx, my, winkel, gross);
+        this.fx.sparks(mx, my, 3);
+        if (waffe === 'shotgun') this.fx.muendungsrauch(mx, my);
+        sfx.play(waffe);
+    }
+
+    // Effekt-Meldungen vom Gastgeber (bei den Gästen).
+    effektEmpfangen(d) {
+        switch (d.k) {
+            case 'muendung': case 'druckwelle': case 'blut': this.effektLokal(d.k, d.x, d.y, d.a, d.g, d.f); break;
+            case 'schuss': this.zeigeSchussEffekt(d.x, d.y, d.a, d.wp); break;
+            case 'explosion': this.explosionEffekt(d.x, d.y, d.r); break;
+            case 'fassZ': { const f = this.faesser.find((o) => o.id === d.id); if (f) f.zuendet = true; break; }
+            case 'fassWeg': {
+                const f = this.faesser.find((o) => o.id === d.id);
+                if (f) f.destroy();
+                this.faesser = this.faesser.filter((o) => o.active);
+                break;
+            }
+            case 'wand': { const w = this.wandNachId(d.id); if (w) this.wandTreffer(w, d.x, d.y); break; }
+            case 'wandWeg': { const w = this.wandNachId(d.id); if (w) this.zerbrich(w); break; }
+        }
+    }
+
+    wandNachId(id) { return this.platforms.find((p) => p.brechbar && p.id === id && p.active); }
+
+    pickupEntfernen(id) {
+        const p = this.pickups.find((o) => o.id === id && o.active);
+        if (p) p.destroy();
+    }
+
+    // Der Gastgeber erzeugt die echten Kugeln eines Gastes.
+    fremderSchuss(nr, d) {
+        for (const w of d.w) this.spawneSpielerKugel(d.x, d.y, w, d.r, nr, false);
+        this.zeigeSchussEffekt(d.mx, d.my, d.a, d.wp);
+        this.mp.netz.sendeAnAlleAusser(nr, { t: 'fx', k: 'schuss', x: d.mx, y: d.my, a: d.a, wp: d.wp });
+    }
+
+    // Der Gastgeber erzeugt die echte Granate eines Gastes.
+    fremdeGranate(nr, d) {
+        const g = new Grenade(this, d.x, d.y, d.vx, d.vy);
+        g.owner = nr;
+        g.id = ++this.bulletZaehler;
+        this.physics.add.collider(g, this.platforms);
+        this.grenadeList.push(g);
+        sfx.play('throw');
+    }
+
+    // ---------- Mehrspieler: Gefallene und Wiederbeleben ----------
+
+    // Leben auf null: Online scheidet man nicht aus, sondern liegt am Boden, bis ein Mitspieler einen wiederbelebt.
+    geheNieder() {
+        const p = this.player;
+        p.tot = true;
+        p.body.setVelocity(0, 0);
+        p.setAlpha(1);
+        this.kameraZiel.setPosition(p.x, p.y);
+        this.cameras.main.startFollow(this.kameraZiel, true, 0.1, 0.1);     // Zuschauerkamera
+        sfx.play('lose');
+        this.showMessage('Du bist am Boden!\nEin Mitspieler kann dich mit E wiederbeleben.');
+    }
+
+    wiederbelebt() {
+        const p = this.player;
+        if (!p.tot) return;
+        p.tot = false;
+        p.health = 50;
+        p.invulnerableUntil = this.time.now + 2500;
+        this.cameras.main.startFollow(p, true, 0.1, 0.1);
+        sfx.play('heal');
+        this.showMessage('Du wurdest wiederbelebt!');
+    }
+
+    belebenAnzeige(ziel, p) { this.belebenInfo[ziel] = { p, bis: this.time.now + 400 }; }
+
+    // Jedes Bild im Online-Modus: Zuschauerkamera, Wiederbeleben halten, Niederlage prüfen.
+    mpUpdate() {
+        const dt = this.game.loop.delta / 1000;
+        if (this.player.tot) {
+            const k = [...this.mp.fern.values()].find((r) => !r.tot);        // einem lebenden Mitspieler zuschauen
+            if (k) {
+                this.kameraZiel.x += (k.x - this.kameraZiel.x) * 0.1;
+                this.kameraZiel.y += (k.y - this.kameraZiel.y) * 0.1;
+            }
+            this.belebenHinweis.setText('Du bist am Boden. Warte auf Hilfe.').setVisible(true);
+        } else {
+            this.pruefeBeleben(dt);
+        }
+        // Niederlage: alle liegen am Boden. Der Gastgeber entscheidet und sagt es allen.
+        if (this.istHost && !this.gameOver && this.player.tot && [...this.mp.fern.values()].every((r) => r.tot)) {
+            this.mp.meldeNiederlage();
+            this.zeigeNiederlage();
+        }
+    }
+
+    // Steht ein Gefallener in der Nähe, kann man mit gedrückter E-Taste 3 Sekunden lang wiederbeleben.
+    pruefeBeleben(dt) {
+        let ziel = null;
+        for (const r of this.mp.fern.values()) {
+            if (r.tot && Math.hypot(r.x - this.player.x, r.y - this.player.y) < 90) { ziel = r; break; }
+        }
+        if (!ziel) { this.belebenZeit = 0; this.belebenHinweis.setVisible(false); return; }
+        this.belebenHinweis.setText(`E halten: Spieler ${ziel.nr} wiederbeleben`).setVisible(true);
+        if (this.player.keys.E.isDown) {
+            this.belebenZeit += dt;
+            const p = Math.min(1, this.belebenZeit / BELEBEN_DAUER);
+            this.mp.meldeBelebenFortschritt(ziel.nr, p);
+            if (p >= 1) {
+                this.mp.meldeBelebt(ziel.nr);
+                ziel.tot = false;                     // gleich als wieder da betrachten (der echte Zustand kommt in 50 ms nach)
+                this.belebenZeit = 0;
+            }
+        } else {
+            this.belebenZeit = 0;
+        }
+    }
+
+    zeigeNiederlage() {
+        if (this.gameOver) return;
+        const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
+        const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
+        this.showEndScreen('BESIEGT', '#ff4444', 'Alle Spieler sind gefallen',
+            `Zeit: ${zeit}     Gegner besiegt: ${this.kills} / ${this.totalEnemies}`,
+            this.mp && this.mp.istHost ? 'Enter: neues Spiel für alle      Esc zweimal: Menü' : 'Der Gastgeber startet das nächste Spiel      Esc zweimal: Menü');
+    }
+
+    // Ein Gefallener liegt flach auf dem Boden (x, y = Mitte der aufrechten Figur).
+    zeichneLiegend(g, x, y, farbe) {
+        const f = y + 24;                                               // Bodenhöhe
+        g.fillStyle(this.dunkler(farbe, 45)).fillRect(x - 24, f - 10, 16, 10);   // Beine
+        g.fillStyle(farbe).fillRect(x - 10, f - 18, 26, 18);                      // Rumpf
+        g.fillStyle(0x2a2a2a).fillRect(x - 10, f - 8, 26, 4);                     // Gürtel
+        g.fillStyle(0xe0b890).fillRect(x + 16, f - 16, 14, 14);                   // Kopf
+        g.fillStyle(0xcc2222).fillRect(x + 15, f - 14, 16, 4);                    // Stirnband
+        if (Math.floor(this.time.now / 500) % 2 === 0) g.fillStyle(0xff4444).fillRect(x - 2, f - 40, 4, 12).fillRect(x - 6, f - 36, 12, 4);   // blinkendes Kreuz: "hilf mir"
+    }
+
+    // Der grüne Balken über einem Gefallenen, während jemand ihn wiederbelebt.
+    zeichneBelebenBalken(g, nr, x, y) {
+        const info = this.belebenInfo[nr];
+        if (!info || this.time.now > info.bis) return;
+        g.fillStyle(0x000000, 0.7).fillRect(x - 26, y - 62, 52, 8);
+        g.fillStyle(0x66ee88).fillRect(x - 24, y - 60, 48 * info.p, 4);
+    }
+
     // Zündet ein Fass: Nach "verzoegerung" Millisekunden explodiert es (kleinerer Radius, weniger Eigenschaden).
+    // Nur wer rechnet, zündet Fässer; die Gäste erfahren es durch Meldungen.
     zuendeFass(fass, verzoegerung = 0) {
-        if (!fass.active || fass.zuendet) return;
+        if (!this.rechnet || !fass.active || fass.zuendet) return;
         fass.zuendet = true;
+        if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: 'fassZ', id: fass.id });
         this.time.delayedCall(verzoegerung, () => {
+            if (!fass.active) return;
             const x = fass.x, y = fass.y;
             fass.destroy();
+            if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: 'fassWeg', id: fass.id });
             this.explode(x, y, 120, 25);
         });
     }
 
     // Wirft eine Granate Richtung Maus. Je weiter die Maus weg ist, desto weiter fliegt sie.
+    // Ein Gast erzeugt nur ein Bild (sofortige Rückmeldung) und meldet den Wurf; die echte Granate rechnet der Gastgeber.
     throwGrenade() {
         const p = this.player;
         const pointer = this.input.activePointer;
@@ -665,15 +925,20 @@ export default class GameScene extends Phaser.Scene {
         const abstand = Phaser.Math.Distance.Between(p.x, p.y, pointer.worldX, pointer.worldY);
         const tempo = Phaser.Math.Clamp(abstand * 1.6, 250, 650);
         // Etwas nach oben zusätzlich (-180), damit sie einen Bogen fliegt statt gerade.
-        const g = new Grenade(this, p.x, p.y - 10, Math.cos(winkel) * tempo, Math.sin(winkel) * tempo - 180);
+        const vx = Math.cos(winkel) * tempo, vy = Math.sin(winkel) * tempo - 180;
+        const g = new Grenade(this, p.x, p.y - 10, vx, vy);
+        g.owner = this.meineNr;
+        g.id = ++this.bulletZaehler;
+        g.visuell = this.istGast;
         this.physics.add.collider(g, this.platforms);
         this.grenadeList.push(g);
         p.grenades -= 1;
         sfx.play('throw');
+        if (this.istGast) this.mp.meldeGranate(Math.round(p.x), Math.round(p.y - 10), Math.round(vx), Math.round(vy));
     }
 
-    // Explosion: Schaden an allen im Radius (auch am Spieler!) plus ein Feuerball als Optik.
-    explode(x, y, radius = 140, selbstschaden = 30) {
+    // Nur die Wirkung einer Explosion zum Anschauen: Feuerball, Wackeln, Knall, Trümmer. (Auch die Gäste zeigen sie.)
+    explosionEffekt(x, y, radius) {
         const ball = this.add.circle(x, y, radius, 0xffaa33, 0.7).setDepth(5);
         this.tweens.add({
             targets: ball, alpha: 0, scale: 1.25, duration: 350,
@@ -682,6 +947,12 @@ export default class GameScene extends Phaser.Scene {
         this.cameras.main.shake(200, 0.01);
         sfx.play('explosion');
         this.fx.explosion(x, y);
+    }
+
+    // Explosion: Schaden an allen im Radius (auch an Spielern!) plus ein Feuerball als Optik.
+    explode(x, y, radius = 140, selbstschaden = 30) {
+        this.explosionEffekt(x, y, radius);
+        if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: 'explosion', x, y, r: radius });
         for (const p of this.platforms) {                      // Explosionen zerstören brüchige Wände in der Nähe
             if (p.brechbar && p.hp > 0 && Phaser.Math.Distance.Between(x, y, p.x, p.y) <= radius + 50) { p.hp = 0; this.zuZerbrechen.push(p); }
         }
@@ -689,8 +960,8 @@ export default class GameScene extends Phaser.Scene {
         for (const enemy of this.enemies) {
             if (!enemy.active) continue;
             if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) <= radius) {
-                if (enemy.takeDamage(6)) { this.kills += 1; this.zeigeTod(enemy); }
-                else this.fx.blood(enemy.x, enemy.y);
+                if (enemy.takeDamage(6)) this.gegnerStirbt(enemy);
+                else this.zeigeBlut(enemy.x, enemy.y);
             }
         }
         this.enemies = this.enemies.filter(e => e.active);  // gestorbene sofort aus der Liste nehmen
@@ -698,8 +969,8 @@ export default class GameScene extends Phaser.Scene {
         for (const f of this.faesser) {
             if (f.active && !f.zuendet && Phaser.Math.Distance.Between(x, y, f.x, f.y) <= radius + 20) this.zuendeFass(f, 160);
         }
-        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) <= radius) {
-            this.player.takeDamage(selbstschaden, x);  // Eigenbeschuss: Abstand halten!
+        for (const z of this.alleZiele()) {                    // Spieler in der Nähe nehmen Schaden (auch du selbst!)
+            if (Phaser.Math.Distance.Between(x, y, z.rect.centerX, z.rect.centerY) <= radius) this.schadeAnSpieler(z.nr, selbstschaden, x);
         }
     }
 
@@ -707,19 +978,26 @@ export default class GameScene extends Phaser.Scene {
     treffeBroeckelig(wand, x, y) {
         if (!wand.active || wand.hp <= 0) return;
         wand.hp -= 1;
+        this.wandTreffer(wand, x, y);
+        if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: 'wand', id: wand.id, x, y });
+        if (wand.hp <= 0) this.zuZerbrechen.push(wand);      // erst am Anfang des nächsten Bildes entfernen (nicht mitten in der Physik)
+    }
+
+    // Nur die Optik eines Treffers auf eine brüchige Wand (auch bei den Gästen).
+    wandTreffer(wand, x, y) {
         this.fx.truemmerE.explode(6, x, y);
         sfx.play('hit');
         if (wand.deko) {
             wand.deko.setAlpha(0.55);
             this.time.delayedCall(70, () => { if (wand.deko && wand.deko.active) wand.deko.setAlpha(1); });
         }
-        if (wand.hp <= 0) this.zuZerbrechen.push(wand);      // erst am Anfang des nächsten Bildes entfernen (nicht mitten in der Physik)
     }
 
     // Entfernt eine zerbrochene Wand: Staub, Brocken, Rauch, ein Knall und eine Meldung. Der Weg ist frei.
     zerbrich(wand) {
         if (!wand.active) return;
         const x = wand.x, y = wand.y;
+        if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: 'wandWeg', id: wand.id });
         if (wand.deko) wand.deko.destroy();
         const i = this.platforms.indexOf(wand);
         if (i >= 0) this.platforms.splice(i, 1);              // aus der Liste, die die Physik benutzt (dieselbe Liste bleibt bestehen)
@@ -738,6 +1016,8 @@ export default class GameScene extends Phaser.Scene {
         sfx.play('enemyShot');
         const bullet = new Bullet(this, x, y, winkel, speed, 0xff6644);  // orange-rot
         bullet.damage = damage;  // Wir hängen den Schaden direkt an die Kugel
+        bullet.id = ++this.bulletZaehler;
+        bullet.speed = speed;
         this.physics.add.collider(bullet, this.platforms, () => { this.fx.sparks(bullet.x, bullet.y, 3); bullet.destroy(); });
         this.enemyBullets.push(bullet);
     }
@@ -796,8 +1076,9 @@ export default class GameScene extends Phaser.Scene {
         this.warAmBoden = boden;
         this.letzteFallgeschw = this.player.body.velocity.y;
 
-        this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
-        if (this.mp) this.mp.aktualisiere();   // eigenen Zustand senden, fremde Figuren nachführen
+        if (!this.player.tot) this.player.update();  // Der Spieler kümmert sich selbst um Laufen und Springen.
+        else this.player.body.setVelocityX(0);       // Gefallene liegen still
+        if (this.mp) { this.mp.aktualisiere(); this.mpUpdate(); }   // eigenen Zustand senden, fremde Figuren nachführen, Wiederbeleben
 
         // Schaden kommt irgendwo später im Frame an; wir vergleichen deshalb mit dem Wert des letzten Frames.
         if (this.player.health < (this.letzteHP ?? this.player.health)) { this.fx.blood(this.player.x, this.player.y, 10); this.cameras.main.shake(150, 0.007); this.cameras.main.flash(90, 140, 0, 0); }
@@ -811,7 +1092,7 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Schießen (Maustaste gedrückt halten = Dauerfeuer) ---
         // Schießen geht nur mit Kugel im Magazin und nicht während des Nachladens.
-        if (pointer.isDown && this.player.canShoot() &&
+        if (pointer.isDown && !this.player.tot && this.player.canShoot() &&
             this.time.now - this.lastShot > this.player.fireDelay) {  // Feuerrate der Waffe
             this.shoot(pointer.worldX, pointer.worldY);
             this.player.magAmmo -= 1;  // jeder Schuss kostet eine Kugel aus dem Magazin
@@ -822,7 +1103,7 @@ export default class GameScene extends Phaser.Scene {
         for (const gr of this.grenadeList) {
             gr.update();
             if (gr.isReady()) {
-                this.explode(gr.x, gr.y);
+                if (!gr.visuell) this.explode(gr.x, gr.y);     // Gäste zeigen nur ein Bild; die Explosion kommt vom Gastgeber
                 gr.destroy();
             }
         }
@@ -830,11 +1111,11 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Gegenstände aufsammeln ---
         for (const pickup of this.pickups) {
-            if (!pickup.active) continue;
+            if (!pickup.active || this.player.tot) continue;
             const beruehrt = Phaser.Geom.Intersects.RectangleToRectangle(
                 pickup.getBounds(), this.player.getBounds()
             );
-            if (beruehrt) pickup.applyTo(this.player);
+            if (beruehrt && pickup.applyTo(this.player) && this.mp) this.mp.meldePickup(pickup.id);
         }
         this.pickups = this.pickups.filter(p => p.active);
 
@@ -844,27 +1125,27 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Gegner bewegen ---
         // Nur lebende Gegner bewegen: Eine Granate kann einen Gegner schon in diesem Frame zerstört haben.
-        this.enemies.forEach(enemy => { if (enemy.active) enemy.update(); });
+        // Gäste bewegen keine Gegner selbst: Sie zeigen nur, was der Gastgeber meldet.
+        if (this.rechnet) this.enemies.forEach(enemy => { if (enemy.active) enemy.update(); });
         this.drawCharacters();
 
         // --- Nahkampf: Gegner berührt den Spieler ---
         // takeDamage entscheidet selbst, ob der Schaden wirklich ankommt (Unverwundbarkeit).
+        const ziele = this.rechnet ? this.alleZiele() : [];
         for (const enemy of this.enemies) {
-            const beruehrt = Phaser.Geom.Intersects.RectangleToRectangle(
-                enemy.getBounds(), this.player.getBounds()
-            );
-            if (beruehrt) {
-                this.player.takeDamage(enemy.contactDamage, enemy.x);
+            if (!this.rechnet) break;
+            const eb = enemy.getBounds();
+            for (const z of ziele) {
+                if (Phaser.Geom.Intersects.RectangleToRectangle(eb, z.rect)) this.schadeAnSpieler(z.nr, enemy.contactDamage, enemy.x);
             }
         }
         // --- Gegner-Kugeln treffen den Spieler ---
         for (const kugel of this.enemyBullets) {
             if (!kugel.active) continue;
-            const getroffen = Phaser.Geom.Intersects.RectangleToRectangle(
-                kugel.getBounds(), this.player.getBounds()
-            );
-            if (getroffen) {
-                this.player.takeDamage(kugel.damage, kugel.x);  // Unverwundbarkeit gilt auch hier
+            const kb = kugel.getBounds();
+            const opfer = ziele.find((z) => Phaser.Geom.Intersects.RectangleToRectangle(kb, z.rect));
+            if (opfer) {
+                this.schadeAnSpieler(opfer.nr, kugel.damage, kugel.x);  // Unverwundbarkeit gilt auch hier
                 kugel.destroy();
             }
         }
@@ -880,8 +1161,8 @@ export default class GameScene extends Phaser.Scene {
 
         this.updateHealthBar();
         if (this.player.isDead()) {
-            this.showEndScreen('BESIEGT', '#ff4444');
-            return;
+            if (this.mp) { if (!this.player.tot) this.geheNieder(); }      // online: man liegt am Boden und kann wiederbelebt werden
+            else { this.showEndScreen('BESIEGT', '#ff4444'); return; }
         }
 
         // --- Levelende: Hubschrauber erreicht? ---
@@ -891,7 +1172,7 @@ export default class GameScene extends Phaser.Scene {
         this.updateEvacZone();
         this.updateBossBar();
         // Gewonnen ist nur, wer die Zone berührt UND die Kreatur besiegt hat.
-        if (amZiel && this.evacOpen) {
+        if (amZiel && this.evacOpen && !this.player.tot) {
             if (this.mp) {
                 if (this.mp.meldeSieg()) return;              // Online: meldet den Sieg dem ganzen Team (der Gastgeber zeigt ihn sofort)
             } else {
@@ -906,20 +1187,24 @@ export default class GameScene extends Phaser.Scene {
         for (const bullet of this.bullets) {
             for (const enemy of this.enemies) {
                 if (!bullet.active || !enemy.active) continue;  // schon zerstört? überspringen
+                if (bullet.visuell) {                           // Gast: nur ein Bild, kein Schaden (der Gastgeber entscheidet)
+                    if (Phaser.Geom.Intersects.RectangleToRectangle(bullet.getBounds(), enemy.getBounds())) { this.fx.blood(bullet.x, bullet.y, 4); bullet.destroy(); }
+                    continue;
+                }
                 const getroffen = Phaser.Geom.Intersects.RectangleToRectangle(
                     bullet.getBounds(), enemy.getBounds()
                 );
                 if (getroffen) {
                     bullet.destroy();
                     // takeDamage meldet true zurück, wenn der Gegner dadurch gestorben ist.
-                    if (enemy.takeDamage(1)) { this.kills += 1; this.zeigeTod(enemy); }
-                    else this.fx.blood(bullet.x, bullet.y, 5);
+                    if (enemy.takeDamage(1)) this.gegnerStirbt(enemy);
+                    else this.zeigeBlut(bullet.x, bullet.y, 5);
                 }
             }
         }
         // Kugeln (von beiden Seiten) treffen Fässer
         for (const kugel of this.bullets.concat(this.enemyBullets)) {
-            if (!kugel.active) continue;
+            if (!kugel.active || !this.rechnet) continue;
             for (const f of this.faesser) {
                 if (f.active && !f.zuendet &&
                     Phaser.Geom.Intersects.RectangleToRectangle(kugel.getBounds(), f.getBounds())) {

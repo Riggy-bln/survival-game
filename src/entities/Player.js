@@ -48,12 +48,13 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Zeitpunkte (in Millisekunden seit Spielstart), bis zu denen etwas gilt.
         // 0 heißt: gilt gerade nicht, denn die Zeit ist schon vorbei.
+        this.tot = false;            // Mehrspieler: am Boden, wartet auf Wiederbelebung
         this.invulnerableUntil = 0;  // bis dahin kann der Spieler keinen Schaden nehmen
         this.stunnedUntil = 0;       // bis dahin kann er nicht laufen (Rückstoß)
 
         // Tasten, die der Spieler abfragt
         this.cursors = scene.input.keyboard.createCursorKeys();
-        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G');
+        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G,E');
     }
 
     // Benutzt einen Verbandskasten, aber nur wenn es sinnvoll ist:

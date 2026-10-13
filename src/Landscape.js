@@ -302,7 +302,7 @@ export function buildStuetzen(scene, level) {
         return y;
     };
     // Hier gibt es schon eine eigene Gebäude-Rückwand, ein Gerüst oder einen Schacht: keine Stützen
-    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800], [2730, 3070]];
+    const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800], [2730, 3200]];
     const WAND_MAX = 320;
     for (const p of level.platforms.filter(q => q.h < 40 && !q.kollision)) {
         if (sperre.some(([a, b]) => p.x >= a && p.x <= b)) continue;

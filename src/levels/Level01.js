@@ -41,7 +41,7 @@ const SCHACHT = 260;            // Breite eines Schachts
 const EINGANG = TUNNEL_LINKS + 260;   // hier beginnt die Felsdecke: der Höhleneingang (x 3000)
 const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
 const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
-const TUNNEL_BODEN = 990;       // y der Oberkante des Tunnelbodens (230 unter der Oberfläche)
+const TUNNEL_BODEN = 1048;      // y der Oberkante des Tunnelbodens (288 unter der Oberfläche): der Gang ist 228 hoch
 
 // ---- Die tiefe Mine (zweite Ebene unter der Erde, siehe ZONE K) ----
 const V = 6000;                 // Verschiebung der Boss-Zonen H und I nach rechts (das Level ist länger geworden)
@@ -306,15 +306,16 @@ signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\nein Höhleneingang\nf�
 // 200 Pixeln über den Graben (möglich bis ca. 280).
 // Ein natürlicher, felsiger Abstieg: unterschiedlich breite und hohe Absätze, eine Plattform zum Verschnaufen,
 // eine Kante, an der man hinunterspringt, und Felsbrocken. Statt gleichmäßiger Stufen wirkt es wie gewachsener Fels.
-//             von    bis   Oberkante  (Höhe ab Tunnelboden 990)
-const abstieg = [[2740, 2804, 776],    // erste Kante, 16 unter der Oberfläche
-                 [2804, 2836, 808],    // kleiner Absatz
-                 [2836, 2900, 840],    // Plattform zum Verschnaufen
-                 [2900, 2932, 904],    // schmaler Absatz: 64 tief, hier springt man hinunter (hinauf: springen)
-                 [2932, 3000, 936],    // Geröllhalde
-                 [3000, 3064, 968]];   // letzte Stufe, schon unter der Felsdecke
+//             von    bis   Oberkante
+const abstieg = [[2740, 2804, 792],    // erste Kante, 32 unter der Oberfläche
+                 [2804, 2836, 824],    // kleiner Absatz
+                 [2836, 2932, 856],    // Plattform zum Verschnaufen
+                 [2932, 2996, 920],    // Kante: 64 tief (unter freiem Himmel), hinauf springen
+                 [2996, 3060, 952],    // hier beginnt die Felsdecke (x 3000)
+                 [3060, 3124, 984],
+                 [3124, 3188, 1016]];  // letzte Stufe, danach der Tunnelboden (1048)
 // Wichtig: Direkt am Eingang (Decke ab x 3000, Unterkante 820) muss der Boden mindestens 868 tief liegen,
-// sonst stößt der Kopf des Spielers (48 hoch) an die Decke und er kommt nicht hinein.
+// sonst stößt der Kopf des Spielers (48 hoch) an die Decke. Hier sind es 952, also 132 Platz.
 for (const [von, bis, oben] of abstieg) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
 gelaendeAusWerten(EINGANG + 4, [32, 64, 32], true);                       // Felsbrocken auf der Decke über dem Eingang
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
@@ -350,21 +351,21 @@ decor.push({ x: 3264, y: TUNNEL_BODEN - 8, w: 11, h: 11, color: 0x222222 });
 decor.push({ x: 3240, y: TUNNEL_BODEN - 44, w: 16, h: 8, color: 0x8c8474 });                  // Gesteinsbrocken im Wagen
 decor.push({ x: 3262, y: TUNNEL_BODEN - 46, w: 12, h: 10, color: 0x77716a });
 // Felsbrocken und Geröll auf dem Abstieg (Dekoration)
-for (const [bx, by, bw, bh] of [[2820, 808, 22, 14], [2870, 840, 30, 18], [2970, 936, 26, 16], [3040, 968, 18, 12], [2760, 776, 20, 12]]) {
+for (const [bx, by, bw, bh] of [[2820, 824, 22, 14], [2870, 856, 30, 18], [2970, 920, 26, 16], [3090, 984, 22, 14], [2760, 792, 20, 12]]) {
     decor.push({ x: bx, y: by - bh / 2, w: bw, h: bh, color: 0x77716a });
     decor.push({ x: bx - bw / 4, y: by - bh * 0.8, w: bw / 2, h: bh / 2, color: 0x948c7c });
 }
-signs.push({ x: 2860, y: 800, text: 'EINSTURZ-\nGEFAHR' });
+signs.push({ x: 2870, y: 806, text: 'EINSTURZ-\nGEFAHR' });
 hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });   // rechter Schacht
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
     decor.push({ x: x, y: BODEN + DECKE + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen
     lampen.push(x);
 }
-treppe(TUNNEL_RECHTS - 150, 3, 50, 77);                // Stufen im rechten Schacht (x 4070 bis 4220)
+treppe(TUNNEL_RECHTS - 200, 4, 50, 72);                // Stufen im rechten Schacht (x 4020 bis 4220), je 72 hoch
 tunnelblock(3480, 40, 80);                             // Kiste A als Deckung (x 3480 bis 3560)
 tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
-nahkaempfer(3200, 3080, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang des Gangs
+nahkaempfer(3330, 3224, 3420, 4, TUNNEL_BODEN);        // Nahkämpfer am Eingang des Gangs
 fernkaempfer(3640, 3590, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
 nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
 munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B

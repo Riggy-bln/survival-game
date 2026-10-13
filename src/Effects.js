@@ -770,7 +770,7 @@ export function buildHuegel(scene, formen, boden) {
 }
 
 // Ferne Berge: eine weiche Silhouette aus 8-Pixel-Spalten (summierte Sinuswellen), optional mit Kiefern.
-export function buildBerge(scene, worldWidth, boden, scrollFaktor, farbe, mitte, amp, seed, baeume = false) {
+export function buildBerge(scene, worldWidth, boden, scrollFaktor, farbe, mitte, amp, seed, baeume = false, spitz = false) {
     const rnd = new Phaser.Math.RandomDataGenerator([seed]);
     const g = scene.add.graphics().setScrollFactor(scrollFaktor).setDepth(-25 + scrollFaktor);
     const tief = boden - 60 - scene.scale.height / 2;
@@ -779,7 +779,11 @@ export function buildBerge(scene, worldWidth, boden, scrollFaktor, farbe, mitte,
     g.fillStyle(farbe);
     const reichweite = worldWidth * scrollFaktor + MAX_BREITE + 200;
     for (let x = -50; x < reichweite; x += 8) {
-        const h = mitte + amp * (0.5 * Math.sin(x * 0.004 + p1) + 0.3 * Math.sin(x * 0.011 + p2) + 0.2 * Math.sin(x * 0.027 + p3));
+        let h = mitte + amp * (0.5 * Math.sin(x * 0.004 + p1) + 0.3 * Math.sin(x * 0.011 + p2) + 0.2 * Math.sin(x * 0.027 + p3));
+        if (spitz) {                                                // Felsgrate: spitze Gipfel und steile Flanken statt sanfter Wellen
+            const grat = 1 - 2 * Math.abs(Math.sin(x * 0.0034 + p2)), grat2 = 1 - 2 * Math.abs(Math.sin(x * 0.0091 + p3));
+            h = mitte + amp * (0.55 * grat + 0.3 * grat2 + 0.15 * Math.sin(x * 0.03 + p1));
+        }
         const hq = Math.round(h / 8) * 8, basis = fuss - hq;
         g.fillRect(x, basis, 8, hq + 900);
         if (baeume && rnd.frac() < 0.14) {                         // kleine Kiefer aus Pixelstufen

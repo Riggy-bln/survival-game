@@ -472,10 +472,10 @@ signs.push({ x: 1925, y: BODEN - 95, text: 'Leitern:\nW / S oder\nPfeiltasten' }
 // =====================================================================
 // ZONE C: Versorgungspunkt 1 (x 2450 bis 2750). Ruhig, ein Atemzug.
 // =====================================================================
-gelaende(2304, [[0, 0], [96, 64], [320, 64], [416, 0]]);      // sanfte Anhöhe für den Versorgungspunkt
-versorgungspunkt(2570, BODEN - 64);
-heilung(2530, BODEN - 64);
-munition(2610, BODEN - 64);
+gelaende(2304, [[0, 0], [128, 128], [288, 128], [292, 32], [416, 32]]);   // ein Hügel (128 hoch) mit einer Klippe zur Höhle hin
+versorgungspunkt(2500, BODEN - 128);
+heilung(2455, BODEN - 128);
+munition(2548, BODEN - 128);
 granate(1850, BODEN - 140);                     // im Versteck der Ruine
 
 // =====================================================================
@@ -636,11 +636,15 @@ schwert(4330, GAL_B - 44);                                        // das Schwert
 // Auf den Absätzen sitzen Schützen, auf dem Gipfel wartet ein Nahkämpfer mit Munition.
 // =====================================================================
 signs.push({ x: 3000, y: BODEN - 170, text: 'Gefahr voraus:\nSchützen am Hang' });
-gelaende(EINGANG, [[0, 0], [160, 96], [256, 96], [384, 192], [512, 192], [640, 96], [736, 96], [832, 0]]);
-fernkaempfer(3148, 3116, 3180, 3, BODEN - 96);           // Schütze auf dem ersten Absatz
-nahkaempfer(3388, 3340, 3436, 4, BODEN - 192);           // Nahkämpfer auf dem Gipfel
-munition(3410, BODEN - 192);                             // Belohnung auf dem Gipfel
-fernkaempfer(3628, 3596, 3660, 3, BODEN - 96);           // Schütze auf dem zweiten Absatz
+// Der Bergrücken: vier Absätze (96, 224, 352 und eine Klippe zurück auf 192), dann fällt er steil zum Krater ab.
+// Zwischen den Absätzen liegen Hänge (Steigung etwa 1:1) und eine echte Felswand (die Klippe auf der Ostseite).
+gelaende(EINGANG, [[0, 0], [128, 96], [224, 96], [352, 224], [448, 224], [576, 352], [672, 352], [676, 192], [768, 192]]);
+fernkaempfer(3116, 3084, 3148, 3, BODEN - 96);           // Schütze auf dem ersten Absatz
+nahkaempfer(3340, 3308, 3372, 4, BODEN - 224);           // Nahkämpfer auf dem zweiten Absatz
+skelett(3548, 3534, 3562, 3, BODEN - 352);               // Scharfschütze auf dem Gipfel (352 hoch)
+munition(3592, BODEN - 352);                             // Belohnung auf dem Gipfel
+fernkaempfer(3662, 3634, 3690, 3, BODEN - 192);          // Schütze auf dem Absatz hinter der Klippe
+sprossenleiter(3634, BODEN - 352, BODEN - 192, -1, 'holz', 28);   // Leiter: vom Absatz hinter der Klippe zurück auf den Gipfel
 {
     const oben = wachturm(3830, 190, -1);                    // Wachturm am Rand des Kraters: sein Schütze deckt den Abstieg in die Tiefe
     skelett(3835, 3800, 3860, 4, oben);
@@ -653,14 +657,17 @@ fernkaempfer(3628, 3596, 3660, 3, BODEN - 96);           // Schütze auf dem zwe
 // Hinter dem Dach geht es über einen Absatz (96) hinab, damit man auch zurück hinaufkommt (mehr als 150 springt niemand).
 // =====================================================================
 signs.push({ x: 4300, y: BODEN - 130, text: 'Bunker voraus:\nGegner auf mehreren Absätzen' });
-gelaende(4290, [[0, 0], [96, 64], [192, 64], [288, 128], [384, 128], [480, 192], [576, 192], [580, 96], [672, 96], [676, 0]]);   // Erdwall
-huegel(4770, 240, 96, BUNKER);                               // der Betonbunker auf dem Wall (Oberkante 240)
-nahkaempfer(4434, 4402, 4466, 4, BODEN - 64);                // Nahkämpfer auf dem ersten Absatz
-fernkaempfer(4626, 4594, 4658, 4, BODEN - 128);              // Schütze auf dem zweiten Absatz
-skelett(4818, 4786, 4850, 4, BODEN - 240);              // Scharfschütze auf dem Bunkerdach
+// Der Erdwall ist jetzt ein richtiger Berg: Absätze auf 96, 192 und 288, oben der Bunker (Dach 336 hoch), dahinter eine Felswand
+// hinunter auf einen Absatz (128). Eine Leiter führt von dort zurück aufs Dach.
+gelaende(4290, [[0, 0], [96, 96], [192, 96], [288, 192], [384, 192], [480, 288], [576, 288], [580, 128], [640, 128]]);
+huegel(4770, 336, 96, BUNKER);                               // der Betonbunker auf dem Berg (Oberkante 336)
+sprossenleiter(4888, BODEN - 336, BODEN - 128, -1, 'holz', 28);
+nahkaempfer(4434, 4402, 4466, 4, BODEN - 96);                // Nahkämpfer auf dem ersten Absatz
+fernkaempfer(4626, 4594, 4658, 4, BODEN - 192);              // Schütze auf dem zweiten Absatz
+skelett(4818, 4786, 4850, 4, BODEN - 336);              // Scharfschütze auf dem Bunkerdach
 // Wichtig: Die Patrouille muss zu den ebenen Flächen passen. Ein Gegner hat 32 Pixel Breite,
 // also reicht er 16 Pixel über seine Grenzen hinaus. Sonst stößt er an die nächste Stufe.
-munition(4800, BODEN - 240);                                 // Belohnung auf dem Bunkerdach
+munition(4800, BODEN - 336);                                 // Belohnung auf dem Bunkerdach
 granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)
 // Das Feld: zwei Hügel mit einer Senke dazwischen
 gelaende(4900, [[0, 0], [128, 64], [256, 64], [352, 0], [704, 0]]);   // ein Hügel, danach eben bis zum Einsturzloch (ZONE Q)
@@ -691,10 +698,7 @@ for (let etage = 1; etage <= 6; etage++) {
     schwebend(links, BODEN - 100 * etage, 380);                          // 380 breit, Oberkante = Etagenhöhe
 }
 hoehlen.push({ links: 7060, rechts: 7260, oben: BODEN - 440, unten: BODEN, art: 'gebaeude', etagen: [400] });   // Gebäuderest am Ende der Skybridge
-bauteil(6900, 7150, BODEN - 400, BODEN - 380, 'beton', 9999, { gruppe: 'sky', rolle: 'boden' });    // Skybridge (Oberkante wie Etage 4), stürzt ein, wenn beide Pfeiler fallen
-bauteil(6926, 6950, BODEN - 380, BODEN, 'beton', 10, { gruppe: 'sky', rolle: 'stuetze' });
-bauteil(7102, 7126, BODEN - 380, BODEN, 'beton', 10, { gruppe: 'sky', rolle: 'stuetze' });
-fass(7168, BODEN);                                                        // neben dem Ostpfeiler: ein Schuss, und die Brücke stürzt ein
+schwebend(6900, BODEN - 400, 250);                                       // Skybridge (Oberkante wie Etage 4)
 // Feuerleiter an der Westseite: vom Boden zu den Etagen 1, 3 und 5
 sprossenleiter(6378, BODEN - 100, BODEN, 1, 'stahl', 30);
 sprossenleiter(6378, BODEN - 300, BODEN - 100, 1, 'stahl', 30);
@@ -887,28 +891,35 @@ hoehlen.push({ links: 11520, rechts: 11800, oben: BODEN, unten: MINE_BODEN, art:
 nahkaempfer(11660, 11570, 11750, 4, MINE_BODEN);                           // unten im Wasser
 heilung(11580, MINE_BODEN);
 // Hügel 2 mit Hausresten
-sanfterHuegel(11808, 608, 192, 0.2);
+// Der Hügel wird von einer Spalte geteilt: Dahinter steht eine hohe Felsnadel. Wer danebenspringt, fällt aus dem Bild.
+gelaende(11808, [[0, 0], [128, 96], [192, 192], [400, 192]]);
+huegel(12312, 224, 104);                                                    // die Felsnadel (12312 bis 12416)
+aushoehlen(12208, 12312, BODEN, HOEHE);                                    // die Spalte (104 breit): bodenlos
+hoehlen.push({ links: 12208, rechts: 12312, oben: BODEN, unten: HOEHE, art: 'schacht', eigeneLampen: true });
+skelett(12364, 12340, 12388, 3, BODEN - 224);                              // Scharfschütze auf der Nadel
 schwebend(12040, BODEN - 192 - 95, 160, BETON);                            // Reste der Decke eines Hauses
 skelett(12120, 12075, 12165, 4, BODEN - 192);                         // Schütze auf der Kuppe
 heilung(12090, BODEN - 192);
 munition(12120, BODEN - 287);                                              // Beute auf der Deckenplatte
 granate(12170, BODEN - 287);
-signs.push({ x: 12390, y: BODEN - 70, text: 'Autobahnbrücke:\neingestürzt' });
+signs.push({ x: 12480, y: BODEN - 70, text: 'Autobahnbrücke:\neingestürzt' });
 // Schlucht 2: eingestürzte Autobahnbrücke aus Betonplatten, flache Schlucht mit Absatz rechts
 schwebend(12420, BODEN, 130, BETON);                                       // Platte 1, bündig mit dem Boden (x 12420 bis 12550)
 schwebend(12590, BODEN + 30, 90, BETON);                                   // Platte 2, abgesackt (x 12590 bis 12680)
 schwebend(12690, BODEN + 95, 110, BETON);                                  // Absatz rechts zum Hinaufklettern
 bruecken.push({ art: 'autobahn', stuecke: [[12420, 12550, BODEN], [12590, 12680, BODEN + 30]] });
-hoehlen.push({ links: 12420, rechts: 12800, oben: BODEN, unten: 950, art: 'schacht', wasser: true });
-nahkaempfer(12540, 12450, 12640, 4, 950);                                  // unten in der Schlucht
+aushoehlen(12420, 12800, 950, HOEHE);                                       // kein Boden mehr: Die Schlucht ist bodenlos
+hoehlen.push({ links: 12420, rechts: 12800, oben: BODEN, unten: HOEHE, art: 'schacht', eigeneLampen: true });
 skelett(12745, 12712, 12778, 3, BODEN + 95);                          // auf dem Absatz
-granate(12480, 950);
 nahkaempfer(12850, 12820, 12880, 3);                                       // zwischen Schlucht und Hügel 3
 // Hügel 3
-sanfterHuegel(12896, 480, 128, 0.4);
-nahkaempfer(13140, 13065, 13215, 4, BODEN - 128);
-fernkaempfer(13190, 13090, 13200, 4, BODEN - 128);
-munition(13120, BODEN - 128);
+gelaende(12896, [[0, 0], [96, 128], [240, 128]]);                          // Hügel 3a
+gelaende(13236, [[0, 160], [96, 160], [140, 0]]);                          // Hügel 3b, hinter einer zweiten Spalte
+aushoehlen(13136, 13236, BODEN, HOEHE);                                    // Spalte (100 breit): bodenlos
+hoehlen.push({ links: 13136, rechts: 13236, oben: BODEN, unten: HOEHE, art: 'schacht', eigeneLampen: true });
+nahkaempfer(13040, 13010, 13070, 4, BODEN - 128);
+munition(13112, BODEN - 128);
+fernkaempfer(13290, 13262, 13312, 4, BODEN - 160);
 
 // =====================================================================
 // ZONE R: Das Gebirge (x 13440 bis 15640). Hier gibt es die größten Höhenunterschiede des Levels: Über der Erde führt
@@ -1032,7 +1043,6 @@ bruecken.push({ art: 'autobahn', stuecke: [[14040 + ARENA, 14180 + ARENA, BODEN 
 fass(1240, BODEN - 96);                      // Zone A, beim ersten Gegner
 fass(1850, BODEN - 140);                     // Zone B, auf dem Deck beim Schützen
 fass(2150);
-fass(3430, BODEN - 192);                     // Zone D, auf dem Gipfel
 fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
 fass(5100, BODEN - 64); fass(5262);          // Zone E, auf dem offenen Feld
 fass(6385);                                  // Zone G, vor dem Hochhaus
@@ -1041,7 +1051,7 @@ fass(7330); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf 
 fass(8900, MINE_BODEN);                      // in der Kaverne
 fass(10200);                                 // am Funkturm
 fass(14100 + ARENA); fass(14550 + ARENA);                    // in der Boss-Arena: den Boss damit locken
-fass(11240, BODEN - 160); fass(12140, BODEN - 192); fass(13160, BODEN - 128);   // im Tal der Brücken
+fass(11240, BODEN - 160); fass(12140, BODEN - 192); fass(13092, BODEN - 128);   // im Tal der Brücken
 
 // Landeplatz des Hubschraubers (Dekoration): eine betonierte Fläche mit einem gelben H und Randlichtern
 decor.push({ x: 8800 + V, y: BODEN - 2, w: 280, h: 6, color: 0x6a6f73 });

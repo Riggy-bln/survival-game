@@ -67,8 +67,10 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Himmel und Hintergrund-Schichten (Parallax: weiter weg = langsamer) ---
         buildSky(this);
-        buildBerge(this, WORLD_WIDTH, BODEN, 0.05, 0x8a5a5c, 150, 120, 'berge1');                 // ferne Berge
-        buildBerge(this, WORLD_WIDTH, BODEN, 0.17, 0x5a4254, 100, 70, 'berge2', true);            // nähere Hügel mit Kiefern
+        buildBerge(this, WORLD_WIDTH, BODEN, 0.04, 0x946468, 250, 190, 'berge0', false, true);    // ferne, hohe Gebirgskette mit spitzen Gipfeln
+        buildBerge(this, WORLD_WIDTH, BODEN, 0.08, 0x8a5a5c, 190, 150, 'berge1', false, true);    // ferne Berge
+        buildBerge(this, WORLD_WIDTH, BODEN, 0.17, 0x5a4254, 130, 100, 'berge2', true);           // nähere Hügel mit Kiefern
+        buildBerge(this, WORLD_WIDTH, BODEN, 0.23, 0x3f3340, 100, 80, 'berge3', true);            // nahe, dunkle Hänge
         buildSkyline(this, WORLD_WIDTH, BODEN, 0.12, 0x6b4a52, 120, 260, 'fern');
         buildSkyline(this, WORLD_WIDTH, BODEN, 0.3, 0x453a47, 90, 230, 'mitte');
 
@@ -266,6 +268,8 @@ export default class GameScene extends Phaser.Scene {
             obj.setScrollFactor(0).setDepth(20);
         });
         this.hiebe = [];              // laufende Schwerthiebe aller Spieler
+        this.sichere = [];            // zuletzt betretene sichere Stellen (für den Absturz ins Nichts)
+        this.naechsteSichere = 0;
         this.erzeugeHotbar();         // Inventarleiste unten
         this.touch = new Touch(this);   // Touch-Steuerung (schaltet sich am Handy selbst ein)
         // Ändert sich die Fensterbreite, ordnen wir die Anzeigen neu an (und räumen beim Verlassen der Szene wieder auf)
@@ -1036,6 +1040,30 @@ export default class GameScene extends Phaser.Scene {
         return null;
     }
 
+    // ---------- Abgründe ----------
+
+    // Fällt der Spieler aus dem Bild (bodenlose Spalte), kostet das Leben, und er steht wieder an der letzten sicheren Stelle,
+    // die er mindestens eine Sekunde vorher betreten hatte (also vor dem Anlauf). Stirbt er dabei, liegt er dort am Boden.
+    pruefeAbsturz() {
+        const p = this.player, jetzt = this.time.now;
+        if (!p.tot && !p.leiter && !p.seil && p.body.blocked.down && jetzt > this.naechsteSichere) {
+            this.naechsteSichere = jetzt + 250;
+            this.sichere.push({ x: p.x, y: p.y, t: jetzt });
+            if (this.sichere.length > 24) this.sichere.shift();
+        }
+        if (p.tot || p.y < WORLD_HEIGHT - 150) return;
+        let ort = null;
+        for (let i = this.sichere.length - 1; i >= 0; i--) { if (jetzt - this.sichere[i].t >= 1000) { ort = this.sichere[i]; break; } }
+        ort = ort ?? this.sichere[0] ?? { x: this.checkpoint ? this.checkpoint.x : 200, y: BODEN - 100 };
+        p.health = Math.max(0, p.health - 35);
+        p.body.reset(ort.x, ort.y - 4);
+        p.invulnerableUntil = jetzt + 1500;
+        sfx.play('hurt');
+        this.cameras.main.flash(300, 0, 0, 0);
+        this.showMessage('In den Abgrund gestürzt!\nZurück auf sicherem Boden.');
+        this.letzteHP = p.health;
+    }
+
     // ---------- Zielen und Touch ----------
 
     // Wohin zielt der Spieler? Mit Maus: der Mauszeiger. Am Handy: die Richtung des Zielsticks (oder des letzten Schnellschusses).
@@ -1163,6 +1191,7 @@ export default class GameScene extends Phaser.Scene {
         this.showMessage('Zurück am Checkpoint!');
         this.letzteHP = p.health;
         this.wipeSeit = 0;
+        this.sichere = [];
     }
 
     // ---------- Seilbahn ----------
@@ -1901,7 +1930,14 @@ export default class GameScene extends Phaser.Scene {
         // --- Gegner bewegen ---
         // Nur lebende Gegner bewegen: Eine Granate kann einen Gegner schon in diesem Frame zerstört haben.
         // Gäste bewegen keine Gegner selbst: Sie zeigen nur, was der Gastgeber meldet.
-        if (this.rechnet) this.enemies.forEach(enemy => { if (enemy.active) enemy.update(); });
+        if (this.rechnet) {
+            this.enemies.forEach(enemy => {
+                if (!enemy.active) return;
+                enemy.update();
+                // Wer in eine bodenlose Spalte fällt, ist weg
+                if (enemy !== this.boss && enemy.y > WORLD_HEIGHT - 100 && enemy.takeDamage(9999)) this.gegnerStirbt(enemy);
+            });
+        }
         this.drawCharacters();
 
         // --- Nahkampf: Gegner berührt den Spieler ---
@@ -1934,6 +1970,7 @@ export default class GameScene extends Phaser.Scene {
             return true;
         });
 
+        this.pruefeAbsturz();
         this.updateHealthBar();
         if (this.player.isDead()) {
             if (this.mp) { if (!this.player.tot) this.geheNieder(); }      // online: man liegt am Boden und kann wiederbelebt werden

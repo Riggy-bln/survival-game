@@ -31,6 +31,8 @@ export default class GameScene extends Phaser.Scene {
 
     // create() läuft einmal beim Start: hier bauen wir die Welt auf.
     create() {
+        // Spielmodus aus dem Menü: 'einzel' (später auch 'online' und 'lokal'). Bleibt auch nach einem Neustart erhalten.
+        this.modus = this.registry.get('modus') ?? 'einzel';
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
         // --- Himmel und Hintergrund-Schichten (Parallax: weiter weg = langsamer) ---

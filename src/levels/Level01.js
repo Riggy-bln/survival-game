@@ -921,6 +921,12 @@ nahkaempfer(14692, 14660, 14724, 4, BODEN - 352);
 fernkaempfer(14916, 14884, 14948, 3, BODEN - 160);
 signs.push({ x: 14430, y: BODEN - 640, text: 'Gipfel' });
 signs.push({ x: 14575, y: BODEN - 544 - 70, text: 'Seilbahn zum Boss\nE: einhängen' });
+// Versorgung am Endturm der Seilbahn: Wer fährt, überspringt die Vorräte vor der Arena und findet sie hier.
+decor.push({ x: 16160, y: BODEN - 14, w: 64, h: 28, color: 0x5b4a2e });                   // Kiste
+decor.push({ x: 16160, y: BODEN - 14, w: 20, h: 6, color: 0xdd3333 });                    // rotes Kreuz
+decor.push({ x: 16160, y: BODEN - 14, w: 6, h: 20, color: 0xdd3333 });
+signs.push({ x: 16160, y: BODEN - 70, text: 'Vorräte\nfür den Kampf' });
+heilung(16215); munition(16240); munition(16265); granate(16190);
 // Das Tal hinter dem Gebirge
 nahkaempfer(15540, 15500, 15600, 4);
 stacheldraht(15500);

@@ -1004,7 +1004,6 @@ export default class GameScene extends Phaser.Scene {
         g.fillStyle(0x4a331d).fillRect(sb.x0 + 14, BODEN - 544 - 22, 34, 4);
         g.fillStyle(0xd9b43a).fillRect(sb.x0 + 24, BODEN - 544 - 14, 10, 8);
         mast(sb.x1, BODEN, sb.y1 + 6, 20);                                                 // Endturm vor der Arena
-        g.fillStyle(0x6b4a2a).fillRect(sb.x1 + 10, BODEN - 12, 50, 12);                    // Auslauf-Rampe
         // das Seil selbst: dunkel, mit hellem Glanz
         g.lineStyle(4, 0x1f2326).beginPath().moveTo(sb.x0, sb.y0).lineTo(sb.x1, sb.y1).strokePath();
         g.lineStyle(1, 0x9aa3ab, 0.9).beginPath().moveTo(sb.x0, sb.y0 - 2).lineTo(sb.x1, sb.y1 - 2).strokePath();

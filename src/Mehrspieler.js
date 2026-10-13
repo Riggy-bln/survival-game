@@ -130,6 +130,7 @@ export default class Mehrspieler {
             r.vx = r.ziel.vx; r.vy = r.ziel.vy; r.a = r.ziel.a; r.w = r.ziel.w; r.g = r.ziel.g; r.h = r.ziel.h; r.s = r.ziel.s;
             r.tot = !!r.ziel.d;
             r.z = !!r.ziel.z;
+            r.k = !!r.ziel.k;
             r.label.setPosition(r.x, r.y - 58);
         }
         if (!this.istHost) this.fuehreWeltNach();
@@ -146,7 +147,7 @@ export default class Mehrspieler {
             x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10,
             vx: Math.round(p.body.velocity.x), vy: Math.round(p.body.velocity.y),
             a: Math.round(winkel * 100) / 100,
-            w: p.inHand(), h: p.health, g: p.body.blocked.down ? 1 : 0, d: p.tot ? 1 : 0, z: p.seil ? 1 : 0,
+            w: p.inHand(), h: p.health, g: p.body.blocked.down ? 1 : 0, d: p.tot ? 1 : 0, z: p.seil ? 1 : 0, k: p.leiter ? 1 : 0,
             s: p.lastShotTime ? Math.round(jetzt - p.lastShotTime) : 9999,    // Millisekunden seit dem letzten Schuss (für den Rückstoß)
         });
     }
@@ -349,7 +350,7 @@ export default class Mehrspieler {
         if (this.istHost) this.netz.sendeAnAlleAusser(von, { ...daten, n: von });   // an die anderen Gäste weitergeben
         let r = this.fern.get(nr);
         if (!r) r = this.neueFigur(nr, daten);
-        r.ziel = { x: daten.x, y: daten.y, vx: daten.vx, vy: daten.vy, a: daten.a, w: daten.w, g: daten.g, h: daten.h, s: daten.s, d: daten.d, z: daten.z, t: performance.now() };
+        r.ziel = { x: daten.x, y: daten.y, vx: daten.vx, vy: daten.vy, a: daten.a, w: daten.w, g: daten.g, h: daten.h, s: daten.s, d: daten.d, z: daten.z, k: daten.k, t: performance.now() };
     }
 
     neueFigur(nr, daten) {

@@ -239,9 +239,62 @@ function kachelZufall(x, y, k = 0) {            // wiederholbarer Zufallswert zw
     return v - Math.floor(v);
 }
 
+// Zerstörbare Bauteile außer Erde: Holz (Böden und Stützen), Sandsäcke, Beton und Holzkisten.
+function zeichneBauteil(g, art, l, t, w, h, p) {
+    const rnd = new Phaser.Math.RandomDataGenerator(['bau' + art + p.x + '_' + p.y]);
+    if (art === 'holz') {
+        const waagerecht = w >= h;                                                  // Boden/Steg oder Pfosten
+        g.fillStyle(0x7a5a2e).fillRect(l, t, w, h);
+        if (waagerecht) {
+            for (let x = 0; x < w; x += 26 + rnd.between(0, 10)) g.fillStyle(0x4a331d).fillRect(l + x, t, 2, h);          // Fugen der Bohlen
+            g.fillStyle(0x9a7a44).fillRect(l, t, w, 3);                                                                  // Lichtkante oben
+            g.fillStyle(0x3a2814).fillRect(l, t + h - 4, w, 4);                                                          // Schatten unten
+            for (let x = 8; x < w - 4; x += 40) g.fillStyle(0x2a1d10).fillRect(l + x, t + 6, 3, 3);                       // Nägel
+        } else {
+            for (let y = 0; y < h; y += 30 + rnd.between(0, 10)) g.fillStyle(0x4a331d).fillRect(l, t + y, w, 2);
+            g.fillStyle(0x9a7a44).fillRect(l, t, 3, h);
+            g.fillStyle(0x3a2814).fillRect(l + w - 3, t, 3, h);
+            for (let y = 10; y < h - 6; y += 36) g.fillStyle(0x2a1d10).fillRect(l + w / 2, t + y, 3, 3);
+        }
+        for (let i = 0; i < 3; i++) g.fillStyle(variiere(0x7a5a2e, rnd.between(-18, 18)), 0.6).fillRect(l + rnd.between(0, Math.max(0, w - 10)), t + rnd.between(2, Math.max(3, h - 4)), rnd.between(6, 14), 2);   // Maserung
+    } else if (art === 'sand') {
+        const reihe = 14;
+        for (let y = 0, r = 0; y < h; y += reihe, r++) {
+            for (let x = (r % 2) * -11; x < w; x += 24) {
+                const bx = Math.max(0, x), bw = Math.min(24, w - bx, x + 24 - bx);
+                if (bw <= 4) continue;
+                const farbe = variiere(0xb59f6a, rnd.between(-12, 12));
+                g.fillStyle(0x6e5e3a).fillRect(l + bx, t + y, bw, Math.min(reihe, h - y));
+                g.fillStyle(farbe).fillRect(l + bx + 1, t + y + 1, bw - 2, Math.min(reihe, h - y) - 3);
+                g.fillStyle(0xd0bb86, 0.7).fillRect(l + bx + 2, t + y + 2, bw - 5, 2);
+                g.fillStyle(0x7e6c42, 0.7).fillRect(l + bx + 3, t + y + Math.min(reihe, h - y) - 5, bw - 6, 2);
+            }
+        }
+    } else if (art === 'beton') {
+        g.fillStyle(0x7d8185).fillRect(l, t, w, h);
+        for (let y = 0; y < h; y += 32) g.fillStyle(0x5a5e62).fillRect(l, t + y, w, 2);
+        g.fillStyle(0x9aa0a4).fillRect(l, t, w, 3);
+        g.fillStyle(0x4c5054).fillRect(l, t + h - 3, w, 3);
+        for (let i = 0; i < Math.max(2, w * h / 1800); i++) g.fillStyle(0x666a6e, 0.8).fillRect(l + rnd.between(2, Math.max(3, w - 10)), t + rnd.between(2, Math.max(3, h - 8)), rnd.between(4, 10), rnd.between(3, 6));   // Abplatzungen
+        for (let k = 0; k < 2; k++) {                                                                                  // Risse
+            let cx = l + rnd.between(4, Math.max(5, w - 6)), cy = t + rnd.between(0, 6);
+            for (let j = 0; j < 4 && cy < t + h - 3; j++) { g.fillStyle(0x2f3236, 0.7).fillRect(cx, cy, 2, 6); cx += rnd.pick([-2, 2]); cy += 6; }
+        }
+        g.fillStyle(0x8c5a2a).fillRect(l + 3, t + 4, 3, 3).fillRect(l + w - 6, t + 4, 3, 3);                         // rostige Bolzen
+    } else if (art === 'kiste') {
+        g.fillStyle(0x7a6540).fillRect(l, t, w, h);
+        for (let x = 16; x < w; x += 16) g.fillStyle(0x4a3d26).fillRect(l + x, t, 2, h);
+        g.fillStyle(0x4a3d26).fillRect(l, t, w, 4).fillRect(l, t + h - 4, w, 4).fillRect(l, t, 4, h).fillRect(l + w - 4, t, 4, h);
+        const n = Math.ceil(Math.hypot(w, h) / 4);
+        for (let i = 0; i <= n; i++) { const u = i / n; g.fillStyle(0x5a4a2e).fillRect(Math.round(l + u * w) - 2, Math.round(t + u * h) - 2, 4, 4); }
+        g.fillStyle(0x9a8660).fillRect(l, t, w, 2);
+    }
+}
+
 function zeichneBroeckelig(scene, p) {
     const g = scene.add.graphics().setDepth(1.2);
     const l = p.x - p.width / 2, t = p.y - p.height / 2, w = p.width, h = p.height;
+    if (p.art) { zeichneBauteil(g, p.art, l, t, w, h, p); return g; }
     for (let y = 0; y < h; y += 8) {
         for (let x = 0; x < w; x += 8) {
             const wx = l + x, wy = t + y;

@@ -1,6 +1,8 @@
 import { sfx } from '../Sound.js';
 import { stufenHilfe } from '../Stufen.js';
 
+const KLETTERN = 170;   // Klettertempo auf der Leiter (Pixel pro Sekunde)
+
 // Alle Waffen als Tabelle: Name, Pause zwischen Schüssen (ms), Magazingröße, Nachladezeit (ms).
 // Eine neue Waffe ist später nur ein weiterer Eintrag. Der Rest des Spiels liest diese Werte.
 const WAFFEN = {
@@ -52,7 +54,11 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Eingaben vom Touchscreen (Touch.js schreibt hier hinein): links/rechts/sprung gelten, solange gehalten;
         // nachladen/heilen/granate sind einmalige Tipps, die update() abholt.
-        this.touchEin = { links: false, rechts: false, sprung: false, nachladen: false, heilen: false, granate: false };
+        this.touchEin = { links: false, rechts: false, sprung: false, hoch: false, runter: false, nachladen: false, heilen: false, granate: false };
+
+        // Leiter: Auf einer Leiter (W/S oder Pfeil hoch/runter) klettert man ohne Schwerkraft. Seitlich weg oder Leertaste lässt los.
+        this.leiter = null;
+        this.leiterPause = 0;      // bis dahin greift man nicht gleich wieder zu
         this.magAmmo = this.magSize;  // Start: volles Magazin
         this.ammo = 30;               // Start-Reserve
 
@@ -64,7 +70,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Tasten, die der Spieler abfragt
         this.cursors = scene.input.keyboard.createCursorKeys();
-        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G,E,ONE,TWO,THREE,FOUR');
+        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G,E,ONE,TWO,THREE,FOUR,W,S');
     }
 
     // Benutzt einen Verbandskasten, aber nur wenn es sinnvoll ist:
@@ -91,6 +97,44 @@ export default class Player extends Phaser.GameObjects.Rectangle {
     // Was hält die Figur gerade in der Hand? (Für die Zeichnung und für die Mitspieler.)
     inHand() {
         return ['', this.weapon, this.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'][this.auswahl];
+    }
+
+    // An die Leiter greifen: Die Figur hängt in der Mitte der Leiter, ohne Schwerkraft.
+    packeLeiter(l) {
+        this.leiter = l;
+        this.body.setAllowGravity(false);
+        const fuss = this.body.bottom;
+        const x = l.x, y = fuss < l.oben + 12 ? l.oben + 12 - 24 : this.y;      // von oben einsteigen: ein Stück unter die Kante
+        this.body.reset(x, y);
+    }
+
+    // Von der Leiter lösen (mit etwas Schwung).
+    loslassen(vx = 0, vy = 0) {
+        if (!this.leiter) return;
+        this.leiter = null;
+        this.leiterPause = this.scene.time.now + 250;
+        this.body.setAllowGravity(true);
+        this.body.setVelocity(vx, vy);
+    }
+
+    // Jedes Bild auf der Leiter: hoch/runter klettern, oben auf die Plattform steigen, seitlich oder mit Leertaste abspringen.
+    klettere(hoch, runter) {
+        const l = this.leiter, body = this.body;
+        const links = this.cursors.left.isDown || this.keys.A.isDown || this.touchEin.links;
+        const rechts = this.cursors.right.isDown || this.keys.D.isDown || this.touchEin.rechts;
+        if (Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) { this.loslassen((rechts ? 1 : links ? -1 : 0) * 220, -300); return; }
+        if ((links || rechts) && !hoch && !runter) { this.loslassen((rechts ? 1 : -1) * 200, -120); return; }
+        const v = hoch ? -KLETTERN : runter ? KLETTERN : 0;
+        body.setVelocity(0, v);
+        this.x += (l.x - this.x) * 0.4;                                  // sanft in die Mitte der Leiter
+        if (v < 0 && body.bottom <= l.oben + 4) {                        // oben angekommen: auf die Plattform steigen
+            this.leiter = null;
+            this.leiterPause = this.scene.time.now + 300;
+            body.setAllowGravity(true);
+            body.reset(l.x + l.seite * (l.ausX ?? 22), l.oben - 24);
+        } else if (v > 0 && body.bottom >= l.unten) {                    // unten angekommen
+            this.loslassen(0, 0);
+        }
     }
 
     // Rüstet eine Waffe aus der Tabelle aus: Werte übernehmen und das Magazin
@@ -198,6 +242,15 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Beim Rückstoß nicht laufen, sonst würde die Steuerung ihn sofort überschreiben.
         if (now < this.stunnedUntil) return;
+
+        // Leitern: nach oben oder unten drücken, wenn man an einer Leiter steht, greift zu. (Das geht vor dem Springen.)
+        const hoch = this.cursors.up.isDown || this.keys.W.isDown || this.touchEin.hoch;
+        const runter = this.cursors.down.isDown || this.keys.S.isDown || this.touchEin.runter;
+        if (this.leiter) { this.klettere(hoch, runter); return; }
+        if ((hoch || runter) && now > this.leiterPause) {
+            const l = this.scene.leiterFuer(this, runter && !hoch ? 1 : -1);
+            if (l) { this.packeLeiter(l); return; }
+        }
 
         // Laufen
         const nachLinks = this.cursors.left.isDown || this.keys.A.isDown || this.touchEin.links;

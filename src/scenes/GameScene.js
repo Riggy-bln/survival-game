@@ -115,6 +115,10 @@ export default class GameScene extends Phaser.Scene {
                 wand.hp = p.hp ?? 5;
                 wand.id = this.brechbarZaehler++;
                 wand.maxHp = wand.hp;
+                wand.art = p.art;                    // Aussehen: 'holz', 'sand', 'beton', 'kiste' (sonst Erde)
+                wand.deckung = !!p.deckung;          // Deckung: auch Gegnerkugeln beschädigen sie
+                wand.gruppe = p.gruppe;              // Zusammengehörige Teile (Stützen und Böden eines Turms)
+                wand.rolle = p.rolle;                // 'stuetze' trägt, 'boden' fällt herunter, wenn alle Stützen der Gruppe weg sind
             }
             if (p.kollision) {                       // Stufenblock eines sanften Hügels: unsichtbar, nur zum Laufen
                 const block = this.platforms[this.platforms.length - 1];
@@ -294,6 +298,9 @@ export default class GameScene extends Phaser.Scene {
         this.mp = this.online ? new Mehrspieler(this, netz) : null;   // Netzwerk-Anteil des Mehrspielermodus
         // Wiederbeleben und Zuschauerkamera
         this.kameraZiel = this.add.rectangle(0, 0, 4, 4, 0x000000, 0).setVisible(false);
+        // Leitern
+        this.leitern = level.leitern ?? [];
+        this.baueLeitern();
         // Checkpoint (Fahne auf dem Gipfel) und Seilbahn
         this.checkpoint = null;
         this.respawnZeit = 0;
@@ -326,7 +333,8 @@ export default class GameScene extends Phaser.Scene {
         // Beine: beim Laufen schwingen sie gegenläufig, in der Luft sind sie gespreizt.
         const s = Math.sin(t * 0.018), c = Math.cos(t * 0.018);
         let l1 = 0, l2 = 0, h1 = 0, h2 = 0;
-        if (o.air) { l1 = 6; l2 = -6; h1 = 3; }
+        if (o.klettern) { const k = Math.sin((o.kPhase ?? 0) * 0.12); h1 = 5 + k * 5; h2 = 5 - k * 5; l1 = 3; l2 = -3; }     // Beine steigen abwechselnd
+        else if (o.air) { l1 = 6; l2 = -6; h1 = 3; }
         else if (o.moving) { l1 = s * 7; l2 = -s * 7; h1 = Math.max(0, c) * 4; h2 = Math.max(0, -c) * 4; }
         for (const [lx, h] of [[l2, h2], [l1, h1]]) {
             g.fillStyle(hose, a).fillRect(x + lx - 6, y + 10, 12, 14 - h);                  // Bein
@@ -377,6 +385,12 @@ export default class GameScene extends Phaser.Scene {
 
         // Arme und Waffe
         const schulter = { x, y: y - 6 };
+        if (o.klettern) {                                                                 // beide Arme greifen an die Holme
+            const ka = Math.sin((o.kPhase ?? 0) * 0.12) * 4;
+            g.lineStyle(6, o.skin, a).beginPath().moveTo(x - 8, y - 8).lineTo(x - 9, y - 26 + ka).strokePath();
+            g.lineStyle(6, o.skin, a).beginPath().moveTo(x + 8, y - 8).lineTo(x + 9, y - 26 - ka).strokePath();
+            return;
+        }
         if (o.aim !== undefined) {
             // Rückstoß: Die Waffe hebt sich leicht (Drehung) und der Arm zieht sich zurück
             const rueck = o.rueck ?? 0;
@@ -578,7 +592,8 @@ export default class GameScene extends Phaser.Scene {
             facing: Math.cos(r.a) >= 0 ? 1 : -1, alpha: 1, body: SPIELERFARBEN[(r.nr - 1) % 4], skin: 0xe0b890, rueck,
             head: 'bandana', strap: true, aim: hb ? hb.a : r.a, gun: WAFFENLAENGE[r.w] ?? 18,
             art: ['sword', 'fist', 'grenade', 'medkit'].includes(r.w) ? r.w : undefined, hieb: hb ? hb.f : undefined,
-            moving: Math.abs(r.vx) > 20 && !!r.g, air: !r.g,
+            moving: Math.abs(r.vx) > 20 && !!r.g, air: !r.g && !r.k,
+            klettern: !!r.k, kPhase: r.y,
         });
     }
 
@@ -603,7 +618,8 @@ export default class GameScene extends Phaser.Scene {
             facing: Math.cos(meinHieb ? meinHieb.a : winkel) >= 0 ? 1 : -1, alpha: p.alpha, body: SPIELERFARBEN[(this.meineNr - 1) % 4], skin: 0xe0b890, rueck,
             head: 'bandana', strap: true, aim: meinHieb ? meinHieb.a : winkel, gun: WAFFENLAENGE[p.auswahl === 2 ? (p.hatSchwert ? 'sword' : 'fist') : p.weapon] ?? 18,
             art: ['', undefined, p.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'][p.auswahl], hieb: meinHieb ? meinHieb.f : undefined,
-            moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down,
+            moving: Math.abs(p.body.velocity.x) > 20 && p.body.blocked.down, air: !p.body.blocked.down && !p.leiter,
+            klettern: !!p.leiter, kPhase: p.y,
         });
         this.zeichneBelebenBalken(g, this.meineNr, p.x, p.y);
         this.zeichneBelebtAnim(g);
@@ -983,6 +999,43 @@ export default class GameScene extends Phaser.Scene {
         if (traf) sfx.play(schwert ? 'schwertHit' : 'hit');
     }
 
+    // ---------- Leitern ----------
+
+    // Malt alle Leitern (fest): zwei Holm-Schienen mit Sprossen. Holz oder Stahl.
+    baueLeitern() {
+        const g = this.add.graphics().setDepth(2.4);
+        for (const l of this.leitern) {
+            const stahl = l.art === 'stahl';
+            const holm = stahl ? 0x59626a : 0x7a5a2a, dunkel = stahl ? 0x3a4046 : 0x4a331d, spr = stahl ? 0x7a848c : 0x8a6a38;
+            for (const dx of [-10, 7]) {
+                g.fillStyle(dunkel).fillRect(l.x + dx, l.oben, 4, l.unten - l.oben);
+                g.fillStyle(holm).fillRect(l.x + dx, l.oben, 3, l.unten - l.oben);
+            }
+            for (let y = l.oben + 6; y < l.unten - 2; y += 14) {
+                g.fillStyle(dunkel).fillRect(l.x - 10, y + 2, 21, 4);
+                g.fillStyle(spr).fillRect(l.x - 10, y, 21, 3);
+            }
+            g.fillStyle(0x2a2a2a).fillRect(l.x - 13, l.oben - 2, 5, 4).fillRect(l.x + 9, l.oben - 2, 5, 4);   // Halterungen oben
+        }
+    }
+
+    // Steht der Spieler so, dass er an eine Leiter greifen kann? richtung -1 = nach oben, 1 = nach unten.
+    leiterFuer(p, richtung) {
+        const fuss = p.body.bottom;
+        for (const l of this.leitern) {
+            const dx = Math.abs(p.x - l.x);
+            const reichweite = Math.max(26, (l.ausX ?? 22) + 6);                       // auch dort, wo man nach dem Ausstieg steht
+            const aufLeiter = dx < reichweite && fuss > l.oben + 2 && fuss <= l.unten + 8;
+            if (richtung < 0 && aufLeiter) return l;
+            if (richtung > 0) {
+                if (aufLeiter) return l;
+                // oben auf der Plattform neben dem Ausstieg stehen und nach unten drücken
+                if (Math.abs(p.x - (l.x + l.seite * (l.ausX ?? 22))) < 26 && Math.abs(fuss - l.oben) < 8) return l;
+            }
+        }
+        return null;
+    }
+
     // ---------- Zielen und Touch ----------
 
     // Wohin zielt der Spieler? Mit Maus: der Mauszeiger. Am Handy: die Richtung des Zielsticks (oder des letzten Schnellschusses).
@@ -1079,6 +1132,7 @@ export default class GameScene extends Phaser.Scene {
     // Einzelspieler: Leben auf null, aber es gibt einen Checkpoint. Man liegt kurz am Boden und steht dann an der Fahne wieder auf.
     sterbeEinzel() {
         const p = this.player;
+        p.loslassen(0, 0);
         p.tot = true;
         p.body.setVelocity(0, 0);
         sfx.play('lose');
@@ -1415,6 +1469,7 @@ export default class GameScene extends Phaser.Scene {
     // Leben auf null: Online scheidet man nicht aus, sondern liegt am Boden, bis ein Mitspieler einen wiederbelebt.
     geheNieder() {
         const p = this.player;
+        p.loslassen(0, 0);
         p.tot = true;
         p.body.setVelocity(0, 0);
         p.setAlpha(1);
@@ -1620,7 +1675,10 @@ export default class GameScene extends Phaser.Scene {
         this.explosionEffekt(x, y, radius);
         if (this.istHost) this.mp.sendeAnAlle({ t: 'fx', k: 'explosion', x, y, r: radius });
         for (const p of this.platforms) {                      // Explosionen zerstören brüchige Wände in der Nähe
-            if (p.brechbar && p.hp > 0 && Phaser.Math.Distance.Between(x, y, p.x, p.y) <= radius + 50) { p.hp = 0; this.zuZerbrechen.push(p); }
+            if (!p.brechbar || p.hp <= 0) continue;
+            // Abstand vom Explosionspunkt bis zum Rand des Blocks (nicht bis zur Mitte): Auch große Böden werden getroffen
+            const ddx = Math.max(Math.abs(x - p.x) - p.width / 2, 0), ddy = Math.max(Math.abs(y - p.y) - p.height / 2, 0);
+            if (Math.hypot(ddx, ddy) <= radius + 20) { p.hp = 0; this.zuZerbrechen.push(p); }
         }
 
         for (const enemy of this.enemies) {
@@ -1668,13 +1726,26 @@ export default class GameScene extends Phaser.Scene {
         const i = this.platforms.indexOf(wand);
         if (i >= 0) this.platforms.splice(i, 1);              // aus der Liste, die die Physik benutzt (dieselbe Liste bleibt bestehen)
         wand.destroy();
-        const letzter = !this.platforms.some(p => p.brechbar);   // war das der letzte Brocken des Haufens?
-        this.fx.truemmerE.explode(letzter ? 44 : 18, x, y);
-        this.fx.staubE.explode(letzter ? 26 : 10, x, y);
+        const letzter = wand.gruppe === 'sturz' && !this.platforms.some(p => p.brechbar && p.gruppe === 'sturz');   // war das der letzte Brocken des Felssturzes?
+        const gross = letzter || wand.rolle === 'boden' || wand.rolle === 'stuetze';
+        this.fx.truemmerE.explode(letzter ? 44 : (gross ? 28 : 18), x, y);
+        this.fx.staubE.explode(letzter ? 26 : (gross ? 16 : 10), x, y);
         if (letzter) this.fx.rauchE.explode(8, x, y);
         this.cameras.main.shake(letzter ? 240 : 100, letzter ? 0.01 : 0.005);
         sfx.play(letzter ? 'explosion' : 'kill');
         if (letzter) this.showMessage('Die Erde gibt nach!\nEin verschütteter Gang wird frei.');
+        this.pruefeEinsturz(wand);
+    }
+
+    // Fällt eine Stütze eines Turms oder Laufstegs aus, stürzt alles dieser Gruppe ein: die Böden (und mit ihnen, was darauf steht)
+    // und die übrigen Stützen.
+    pruefeEinsturz(wand) {
+        if (wand.rolle !== 'stuetze' || !wand.gruppe) return;
+        const teile = this.platforms.filter(p => p.brechbar && p.gruppe === wand.gruppe && (p.rolle === 'boden' || p.rolle === 'stuetze'));
+        if (!teile.length) return;
+        this.cameras.main.shake(380, 0.012);
+        sfx.play('explosion');
+        for (const b of teile) this.zerbrich(b);
     }
 
     // Erzeugt eine Gegner-Kugel. Wird vom Fernkämpfer aufgerufen.
@@ -1695,7 +1766,11 @@ export default class GameScene extends Phaser.Scene {
         bullet.damage = damage;  // Wir hängen den Schaden direkt an die Kugel
         bullet.id = ++this.bulletZaehler;
         bullet.speed = speed;
-        this.physics.add.collider(bullet, this.platforms, () => { this.fx.sparks(bullet.x, bullet.y, 3); bullet.destroy(); });
+        this.physics.add.collider(bullet, this.platforms, (b, platte) => {
+            if (platte.deckung && this.rechnet) this.treffeBroeckelig(platte, b.x, b.y);   // Deckung hält nicht ewig: auch Gegnerkugeln beschädigen sie
+            this.fx.sparks(bullet.x, bullet.y, 3);
+            bullet.destroy();
+        });
         this.enemyBullets.push(bullet);
     }
 

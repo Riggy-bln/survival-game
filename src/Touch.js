@@ -197,8 +197,11 @@ export default class Touch {
 
         // Bewegung: links/rechts laufen, nach oben schieben (oder Sprungknopf) springt
         const lx = lebt ? this.links.x : 0, ly = lebt ? this.links.y : 0;
-        ein.links = lx < -0.35;
-        ein.rechts = lx > 0.35;
+        // Überwiegend seitlich = laufen; überwiegend hoch/runter = klettern oder springen (so löst ein leicht schräger Daumen auf der Leiter nichts aus)
+        ein.links = lx < -0.35 && Math.abs(lx) > Math.abs(ly) * 0.7;
+        ein.rechts = lx > 0.35 && Math.abs(lx) > Math.abs(ly) * 0.7;
+        ein.hoch = ly < -0.55 && Math.abs(ly) > Math.abs(lx) * 0.7;
+        ein.runter = ly > 0.55 && Math.abs(ly) > Math.abs(lx) * 0.7;
         const sprung = lebt && ly < -0.65;                      // nach oben schieben = springen (es gibt keinen Sprungknopf)
         ein.sprung = sprung;
         this.sprungTipp = sprung && !this.sprungVorher;

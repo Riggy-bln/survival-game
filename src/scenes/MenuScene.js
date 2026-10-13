@@ -3,7 +3,8 @@ import { sfx } from '../Sound.js';
 // Der Startbildschirm mit Menü. Man wählt mit den Pfeiltasten (oder W/S) und Enter, oder mit der Maus.
 //   Hauptmenü:  Ein Spieler  |  Mehrspieler
 //   Mehrspieler: Online (Freunde einladen)  |  Lokal (2 Spieler an einem Computer)  |  Zurück
-// Die Mehrspieler-Einträge sind noch "demnächst": Das Menü steht, die Funktion kommt Schritt für Schritt (siehe PLAN).
+//   Online:      Raum erstellen  |  Raum beitreten  |  Zurück
+// "Lokal" ist noch "demnächst": Das Menü steht, die Funktionen kommen Schritt für Schritt (siehe PLAN-Mehrspieler.md).
 // Der gewählte Modus steht danach in this.registry ('modus'), damit GameScene ihn lesen kann.
 export default class MenuScene extends Phaser.Scene {
     constructor() {
@@ -47,13 +48,21 @@ export default class MenuScene extends Phaser.Scene {
             ]
             : [
                 { text: 'Online (Freunde einladen)', info: 'Über das Internet mit Freunden: Raum erstellen, Code weitergeben.',
-                  demnaechst: true, aktion: meldung('Online-Mehrspieler ist noch in Planung.') },
+                  aktion: () => this.zeigeMenue('online') },
                 { text: 'Lokal (2 Spieler an einem Computer)', info: 'Zu zweit an einer Tastatur.',
                   demnaechst: true, aktion: meldung('Lokaler Mehrspieler ist noch in Planung.') },
                 { text: 'Zurück', info: '', aktion: () => this.zeigeMenue('haupt') },
             ];
+        if (name === 'online') {
+            eintraege.length = 0;
+            eintraege.push(
+                { text: 'Raum erstellen', info: 'Du bist der Gastgeber und bekommst einen Code für deine Freunde.', aktion: () => this.scene.start('LobbyScene', { rolle: 'host' }) },
+                { text: 'Raum beitreten', info: 'Gib den Code deines Freundes ein.', aktion: () => this.scene.start('LobbyScene', { rolle: 'gast' }) },
+                { text: 'Zurück', info: '', aktion: () => this.zeigeMenue('mehrspieler') },
+            );
+        }
         this.eintraege = eintraege;
-        this.untertitel.setText(name === 'haupt' ? '' : 'MEHRSPIELER');
+        this.untertitel.setText(name === 'haupt' ? '' : (name === 'online' ? 'ONLINE' : 'MEHRSPIELER'));
 
         const y0 = name === 'haupt' ? 255 : 245, abstand = 64;
         eintraege.forEach((e, i) => {
@@ -101,6 +110,6 @@ export default class MenuScene extends Phaser.Scene {
         if (J(k.DOWN) || J(k.S)) this.waehle((this.auswahl + 1) % n);
         if (J(k.UP) || J(k.W)) this.waehle((this.auswahl + n - 1) % n);
         if (J(k.ENTER) || J(k.SPACE)) this.bestaetige();
-        if (J(k.ESC) && this.menue !== 'haupt') this.zeigeMenue('haupt');
+        if (J(k.ESC) && this.menue !== 'haupt') this.zeigeMenue(this.menue === 'online' ? 'mehrspieler' : 'haupt');
     }
 }

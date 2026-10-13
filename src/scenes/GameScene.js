@@ -553,7 +553,7 @@ export default class GameScene extends Phaser.Scene {
     // Zeigt den Endbildschirm (Sieg oder Niederlage) und hält das Spiel an.
     // Titel und Farbe werden übergeben, damit eine Funktion für beide Fälle reicht.
     // untertitel ist optional (Standard: leer), zum Beispiel "Level 01 abgeschlossen".
-    showEndScreen(titel, farbe, untertitel = '') {
+    showEndScreen(titel, farbe, untertitel = '', statistikText = null, fussText = 'Drücke Enter für einen Neustart') {
         this.gameOver = true;
         sfx.play(titel === 'BESIEGT' ? 'lose' : 'win');
         this.physics.pause();                 // Physik anhalten: alles friert ein
@@ -569,8 +569,9 @@ export default class GameScene extends Phaser.Scene {
         // damit 5 Sekunden als "05" erscheinen und nicht als "5".
         const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
         const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
-        const statistik = `Zeit: ${zeit}     Gegner besiegt: ${this.kills} / ${this.totalEnemies}     ` +
-                          `Leben: ${this.player.health} / ${this.player.maxHealth}`;
+        const statistik = statistikText ?? (`Zeit: ${zeit}     Gegner besiegt: ${this.kills} / ${this.totalEnemies}     ` +
+                          `Leben: ${this.player.health} / ${this.player.maxHealth}`);
+        this.endeZeit = zeit;
 
         // Alle Texte: am Bildschirm festgehalten (ScrollFactor 0) und über dem Schleier (Depth 31).
         const zeige = (y, text, groesse, farbeText) => {
@@ -580,7 +581,19 @@ export default class GameScene extends Phaser.Scene {
         zeige(180, titel, '72px', farbe);
         if (untertitel) zeige(240, untertitel, '28px', '#ffffff');
         zeige(310, statistik, '20px', '#cfd8dc');
-        zeige(380, 'Drücke Enter für einen Neustart', '24px', '#ffffff');
+        zeige(380, fussText, '24px', '#ffffff');
+    }
+
+    // Online: Der Sieg gehört dem ganzen Team, sobald EIN Spieler den Hubschrauber erreicht hat (auch wenn die anderen
+    // gerade nicht mehr leben). Alle Geräte zeigen dasselbe Ende.
+    zeigeTeamSieg(nr) {
+        if (this.gameOver) return;
+        const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
+        const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
+        const anzahl = this.mp ? this.mp.netz.liste().length : 1;
+        this.showEndScreen('EVAKUIERT!', '#66ff99', `Level 01 abgeschlossen: Spieler ${nr} hat den Hubschrauber erreicht`,
+            `Zeit: ${zeit}     Team: ${anzahl} Spieler`,
+            this.mp && this.mp.netz.rolle === 'host' ? 'Enter: neues Spiel für alle      Esc zweimal: Menü' : 'Der Gastgeber startet das nächste Spiel      Esc zweimal: Menü');
     }
 
     // Erzeugt eine feste Fläche und merkt sie sich in der Liste.
@@ -733,6 +746,11 @@ export default class GameScene extends Phaser.Scene {
     update() {
         // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
         if (this.gameOver) {
+            if (this.mp) {                                    // Online: Enter startet (nur der Gastgeber) für alle neu, Esc zweimal verlässt
+                if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) this.mp.escDruecken();
+                if (Phaser.Input.Keyboard.JustDown(this.restartKey)) this.mp.neustartWunsch();
+                return;
+            }
             // JustDown ist nur im Moment des Tastendrucks wahr, nicht dauerhaft.
             if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
                 this.scene.restart();  // create() läuft komplett neu: alles startet frisch
@@ -874,8 +892,12 @@ export default class GameScene extends Phaser.Scene {
         this.updateBossBar();
         // Gewonnen ist nur, wer die Zone berührt UND die Kreatur besiegt hat.
         if (amZiel && this.evacOpen) {
-            this.showEndScreen('EVAKUIERT!', '#66ff99', 'Level 01 abgeschlossen: Verlassene Militärzone');
-            return;
+            if (this.mp) {
+                if (this.mp.meldeSieg()) return;              // Online: meldet den Sieg dem ganzen Team (der Gastgeber zeigt ihn sofort)
+            } else {
+                this.showEndScreen('EVAKUIERT!', '#66ff99', 'Level 01 abgeschlossen: Verlassene Militärzone');
+                return;
+            }
         }
 
         // --- Treffer prüfen ---

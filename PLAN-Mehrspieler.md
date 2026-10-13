@@ -24,3 +24,9 @@ Das Spiel soll zusammen mit Freunden spielbar sein (Koop gegen die Gegner und de
 ## Aufteilung der Verantwortung (Entwurf)
 - Jedes Gerät: eigene Figur (Bewegung, Munition, Inventar, Leben) – damit die Steuerung ohne Verzögerung bleibt.
 - Gastgeber: Gegner, Boss, Kugeln, Granaten, Fässer, zerstörbare Wände, Schadensberechnung gegen alle Spieler, Sieg und Niederlage.
+
+## Spielregeln (festgelegt)
+- **Sieg:** Sobald EIN Spieler den Hubschrauber erreicht (und der Boss besiegt ist), gewinnt das ganze Team. Das gilt auch, wenn die anderen
+  gerade nicht mehr leben. (Umgesetzt.)
+- **Neustart:** Nur der Gastgeber startet das Spiel für alle neu. (Umgesetzt.)
+- **Tod:** Ein toter Spieler scheidet nicht das Spiel aus. Die Lebenden spielen weiter. Niederlage erst, wenn alle tot sind. (Noch offen, kommt mit den Gegnern.)

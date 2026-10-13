@@ -19,6 +19,7 @@ export default class Mehrspieler {
         this.naechsteSendung = 0;
         this.escBis = 0;
         this.verlassen = false;
+        this.siegGemeldet = false;
 
         netz.on('nachricht', (von, daten) => this.empfange(von, daten))
             .on('getrennt', (nr) => this.getrennt(nr))
@@ -114,7 +115,37 @@ export default class Mehrspieler {
         });
     }
 
+    // Dieser Spieler steht im Ziel: Der Sieg gilt für das ganze Team. Der Gastgeber verteilt ihn an alle (auch zurück an den
+    // Absender). Gibt true zurück, wenn der Siegbildschirm hier schon angezeigt wurde.
+    meldeSieg() {
+        if (this.siegGemeldet) return this.scene.gameOver;
+        this.siegGemeldet = true;
+        const nachricht = { t: 'sieg', nr: this.netz.meineNr };
+        this.netz.sende(nachricht);
+        if (this.netz.rolle === 'host') {
+            this.scene.zeigeTeamSieg(this.netz.meineNr);
+            return true;
+        }
+        return false;                // Gast: Der Siegbildschirm kommt, sobald der Gastgeber antwortet
+    }
+
+    // Enter auf dem Endbildschirm: Nur der Gastgeber startet das Spiel für alle neu.
+    neustartWunsch() {
+        if (this.netz.rolle !== 'host') {
+            this.scene.showMessage('Nur der Gastgeber kann neu starten.');
+            return;
+        }
+        this.netz.sende({ t: 'neustart' });
+        this.scene.scene.restart();
+    }
+
     empfange(von, daten) {
+        if (daten.t === 'sieg') {
+            if (this.netz.rolle === 'host') this.netz.sende(daten);    // an alle Gäste weitergeben (auch an den Absender)
+            this.scene.zeigeTeamSieg(daten.nr);
+            return;
+        }
+        if (daten.t === 'neustart') { this.scene.scene.restart(); return; }
         if (daten.t !== 'z') return;
         const nr = daten.n ?? von;                    // Der Gastgeber trägt bei weitergeleiteten Zuständen die Nummer des Absenders ein.
         if (nr === this.netz.meineNr) return;

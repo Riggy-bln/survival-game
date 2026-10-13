@@ -160,28 +160,56 @@ const schacht = (links, rechts) => {
 const leiter = (links, rechts, anzahl = 5) => {
     for (let i = 1; i <= anzahl; i++) schwebend(i % 2 === 1 ? links : rechts - 170, BODEN + 95 * i, 170, HOLZ);
 };
-// sanfterHuegel: ein Hügel mit weichen Hängen und flacher Kuppe. Er besteht aus vielen 16 Pixel breiten
-// Stufenblöcken (unsichtbar, nur zum Laufen); die Stufenhilfe (Stufen.js) lässt Spieler und Gegner hinaufgehen.
+// ---- EINE Blockgröße für das ganze Gelände: BLOCK = 16 Pixel ----
+// Alle Hänge, Hügel, Klippen und Treppen bestehen aus Stufen von 16 Pixel Breite und 16 Pixel Höhe (oder einem
+// Vielfachen davon). Das ist grob genug für den Pixel-Look und fein genug, damit Hänge nicht wie Treppenhäuser wirken.
+// Die Erdtextur selbst ist in halbe Blöcke (8 Pixel) unterteilt.
+const BLOCK = 16;
+
+// Baut aus einer Liste von Höhen (eine pro Block-Spalte) das Gelände: gleich hohe Nachbarn werden zu einem
+// unsichtbaren Stufenblock verschmolzen (nur zum Laufen). Die Optik malt buildHuegel (Effects.js).
+const gelaendeAusWerten = (links, werte, fels) => {
+    const n = werte.length;
+    let start = 0;
+    for (let i = 1; i <= n; i++) {
+        if (i === n || werte[i] !== werte[start]) {
+            const h = werte[start];
+            if (h > 0) platforms.push({ x: links + (start + i) * BLOCK / 2, y: BODEN - h / 2, w: (i - start) * BLOCK, h, color: fels ? FELS : ERDE, kollision: true });
+            start = i;
+        }
+    }
+    huegelformen.push({ links, breite: n * BLOCK, schritt: BLOCK, werte, fels });
+};
+
+// gelaende: ein Gelände nach einer Linie. "punkte" = Liste von [x-Abstand ab links, Höhe]; dazwischen wird
+// geradlinig verbunden und auf ganze Blöcke gerundet. Steigungen über 0,9 (zu steil zum Hinaufgehen) vermeiden!
+// Beispiel: [[0,0],[200,176],[280,176]] = Rampe auf 176 und dann flach. material: 'erde' (mit Gras) oder 'fels'.
+const gelaende = (links, punkte, material = 'erde') => {
+    const n = Math.round(punkte[punkte.length - 1][0] / BLOCK);
+    const werte = [];
+    for (let i = 0; i < n; i++) {
+        const dx = (i + 0.5) * BLOCK;
+        let h = punkte[punkte.length - 1][1];
+        for (let k = 0; k < punkte.length - 1; k++) {
+            const [x1, h1] = punkte[k], [x2, h2] = punkte[k + 1];
+            if (dx >= x1 && dx <= x2) { h = h1 + (h2 - h1) * (dx - x1) / ((x2 - x1) || 1); break; }
+        }
+        werte.push(Math.round(h / BLOCK) * BLOCK);
+    }
+    gelaendeAusWerten(links, werte, material === 'fels');
+};
+
+// sanfterHuegel: ein Hügel mit weichen Hängen und flacher Kuppe (Höhe bitte ein Vielfaches von 16).
 // Angabe: linke Kante, Breite, Höhe der Kuppe, Anteil der flachen Kuppe an der Breite (0 bis 1).
 const sanfterHuegel = (links, breite, hoehe, plateau = 0.3) => {
-    const SCHRITT = 16;
-    const n = Math.round(breite / SCHRITT);
+    const n = Math.round(breite / BLOCK);
     const werte = [];
     for (let i = 0; i < n; i++) {
         const u = (i + 0.5) / n, rand = (1 - plateau) / 2;
         const v = u < rand ? u / rand : (u > 1 - rand ? (1 - u) / rand : 1);
-        const glatt = v * v * (3 - 2 * v);                          // weiche S-Kurve (Smoothstep)
-        werte.push(Math.round(hoehe * glatt / 4) * 4);              // auf 4 Pixel gerundet: kleine Stufen
+        werte.push(Math.round(hoehe * v * v * (3 - 2 * v) / BLOCK) * BLOCK);   // weiche S-Kurve, auf ganze Blöcke gerundet
     }
-    let start = 0;                                                   // gleich hohe Nachbarn zu einem Block verschmelzen
-    for (let i = 1; i <= n; i++) {
-        if (i === n || werte[i] !== werte[start]) {
-            const h = werte[start];
-            if (h > 0) platforms.push({ x: links + (start + i) * SCHRITT / 2, y: BODEN - h / 2, w: (i - start) * SCHRITT, h, color: ERDE, kollision: true });
-            start = i;
-        }
-    }
-    huegelformen.push({ links, breite: n * SCHRITT, schritt: SCHRITT, werte });
+    gelaendeAusWerten(links, werte, false);
 };
 
 // =====================================================================
@@ -226,13 +254,14 @@ granate(1850, BODEN - 140);                     // im Versteck der Ruine
 // =====================================================================
 signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nein Höhleneingang\nführt unter die Erde' });
 // ---- Der Höhleneingang: ein Graben mit Stufen führt zu einem Felsüberhang ----
-// Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 2940) zwei Stufen hinab
-// (je 77 Pixel) und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
+// Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 2940) über 14 Stufen (je 16 mal 16 Pixel)
+// hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
 // Über dem Eingang ragt eine Felsstufe auf; vom Rand der Oberfläche führt eine Sprungstrecke von
 // 200 Pixeln über den Graben (möglich bis ca. 280).
-erde(TUNNEL_LINKS, TUNNEL_LINKS + 100, TUNNEL_BODEN - 153, TUNNEL_BODEN);  // Stufe 1 (Oberkante 837, 77 unter der Oberfläche)
-erde(TUNNEL_LINKS + 100, EINGANG, TUNNEL_BODEN - 77, TUNNEL_BODEN);        // Stufe 2 (Oberkante 913)
-huegel(EINGANG + 10, 60, 100, FELS);                                       // Felsstufe über dem Eingang (x 2950 bis 3050)
+for (let i = 0; i < 14; i++) {                                              // 14 Treppenstufen, je 16 breit und 16 hoch
+    erde(TUNNEL_LINKS + i * BLOCK, TUNNEL_LINKS + (i + 1) * BLOCK, 776 + i * BLOCK, TUNNEL_BODEN + 60);
+}
+huegel(EINGANG + 16, 64, 96, FELS);                                        // Felsstufe über dem Eingang (x 2956 bis 3052)
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
 hoehlen.push({ links: EINGANG, rechts: TUNNEL_RECHTS - SCHACHT, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
 lampen.push(EINGANG + 70);
@@ -256,15 +285,14 @@ decor.push({ x: 2776, y: BODEN + 22, w: 8, h: 22, color: 0x4a331d });
 decor.push({ x: EINGANG - 16, y: BODEN + 6, w: 32, h: 8, color: 0x6b4a2a });
 decor.push({ x: EINGANG - 10, y: BODEN + 20, w: 8, h: 18, color: 0x4a331d });
 // Warnschild im Graben und Geröll auf den Stufen
-decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 14, w: 4, h: 28, color: 0x555555 });            // Pfosten
-decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 48, w: 92, h: 40, color: 0x2b2b2b });           // Tafel
-decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 66, w: 92, h: 4, color: 0xc9a227 });            // Warnstreifen
-decor.push({ x: 2790, y: TUNNEL_BODEN - 153 - 30, w: 92, h: 4, color: 0xc9a227 });
-signs.push({ x: 2790, y: TUNNEL_BODEN - 153 - 48, text: 'EINSTURZ-\nGEFAHR' });
-decor.push({ x: 2760, y: TUNNEL_BODEN - 153 - 4, w: 14, h: 8, color: 0x6f695d });
-decor.push({ x: 2778, y: TUNNEL_BODEN - 153 - 3, w: 8, h: 6, color: 0x8c8474 });
-decor.push({ x: 2900, y: TUNNEL_BODEN - 77 - 4, w: 12, h: 8, color: 0x6f695d });
-decor.push({ x: 2920, y: TUNNEL_BODEN - 77 - 3, w: 8, h: 6, color: 0x8c8474 });
+decor.push({ x: 2796, y: 816, w: 4, h: 16, color: 0x555555 });                                 // Pfosten (steht auf Stufe 4)
+decor.push({ x: 2796, y: 789, w: 92, h: 40, color: 0x2b2b2b });                                // Tafel
+decor.push({ x: 2796, y: 771, w: 92, h: 4, color: 0xc9a227 });                                 // Warnstreifen
+decor.push({ x: 2796, y: 807, w: 92, h: 4, color: 0xc9a227 });
+signs.push({ x: 2796, y: 789, text: 'EINSTURZ-\nGEFAHR' });
+decor.push({ x: 2780, y: 804, w: 14, h: 8, color: 0x6f695d });                                 // Geröll auf den Stufen
+decor.push({ x: 2828, y: 852, w: 8, h: 6, color: 0x8c8474 });
+decor.push({ x: 2908, y: 932, w: 12, h: 8, color: 0x6f695d });
 hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });   // rechter Schacht
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
@@ -301,16 +329,14 @@ waffe(4690, TUNNEL_BODEN - 50);                                // das Sturmgeweh
 // Der Graben liegt zwischen zwei Terrassen. Schützen oben, Nahkämpfer unten.
 // =====================================================================
 signs.push({ x: 3100, y: BODEN - 140, text: 'Gefahr voraus:\nSchützen auf den Terrassen' });
-huegel(3050, 90, 140);                           // linke Terrasse, untere Stufe (x 3050 bis 3190)
-huegel(3190, 180, 140);                          // linke Terrasse, obere Stufe  (x 3190 bis 3330)
-huegel(3530, 180, 140);                          // rechte Terrasse, obere Stufe (x 3530 bis 3670)
-huegel(3670, 90, 140);                           // rechte Terrasse, untere Stufe (x 3670 bis 3810)
+gelaende(3050, [[0, 0], [200, 176], [280, 176]]);          // linke Terrasse: Rampe auf 176, oben flach (x 3050 bis 3330)
+gelaende(3520, [[0, 176], [90, 176], [300, 0]]);           // rechte Terrasse: flach oben, dann Rampe hinab (x 3520 bis 3820)
 schwebend(3380, BODEN - 200, 100, GRAU);                 // Brücke über dem Graben
 munition(3430, BODEN - 200);                             // Belohnung auf der Brücke
-fernkaempfer(3270, 3215, 3305, 3, BODEN - 180);          // Schütze links oben (Oberkante 320)
-fernkaempfer(3600, 3555, 3645, 3, BODEN - 180);          // Schütze rechts oben
-fernkaempfer(3740, 3695, 3785, 3, BODEN - 90);          // Schütze rechts unten (Oberkante 410)
-nahkaempfer(3430, 3350, 3510, 4);                // Nahkämpfer im Graben
+fernkaempfer(3290, 3262, 3314, 3, BODEN - 176);          // Schütze links oben
+fernkaempfer(3565, 3536, 3594, 3, BODEN - 176);          // Schütze rechts oben
+fernkaempfer(3860, 3836, 3884, 3);                       // Schütze am Boden hinter der Terrasse
+nahkaempfer(3430, 3362, 3498, 4);                // Nahkämpfer im Graben
 huegel(3900, 110, 30, GRAU);                     // hohe Mauer als Deckung
 
 // =====================================================================
@@ -383,25 +409,18 @@ signs.push({ x: 7250, y: BODEN - 110, text: 'Steinbruch:\nKlippen, eine Schlucht
 nahkaempfer(7330, 7270, 7380, 3);                                         // vor dem Schacht
 signs.push({ x: 7530, y: BODEN - 70, text: 'Förderschacht\nzur Mine' });
 schacht(MINE_L, MINE_L + 260);                                             // Förderschacht (x 7400 bis 7660)
-huegel(7700, 70, 150, FELS);                                               // Klippe, aufsteigend (je 70 höher)
-huegel(7850, 140, 150, FELS);
-huegel(8000, 210, 150, FELS);
-huegel(8150, 280, 250, FELS);                                              // Plateau (Oberkante 480), x 8150 bis 8400
-schwebend(CHASM_L, BODEN - 280, 100, HOLZ);                                // morsche Brücke über die Schlucht
-schwebend(CHASM_R - 100, BODEN - 280, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
-bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 280], [CHASM_R - 100, CHASM_R, BODEN - 280]] });   // Seile und Pfosten
-huegel(CHASM_R, 280, 250, FELS);                                           // Plateau auf der anderen Seite, x 8640 bis 8890
-huegel(8890, 210, 150, FELS);                                              // Abstieg
-huegel(9040, 140, 150, FELS);
-huegel(9190, 70, 150, FELS);
-nahkaempfer(7925, 7870, 7980, 3, BODEN - 140);                             // auf der zweiten Stufe
-fernkaempfer(8075, 8030, 8120, 3, BODEN - 210);                            // auf der dritten Stufe
-fernkaempfer(8300, 8190, 8380, 4, BODEN - 280);                            // Scharfschütze auf dem Plateau
-fernkaempfer(8780, 8680, 8860, 4, BODEN - 280);                            // Schütze auf dem Plateau dahinter
-nahkaempfer(8965, 8910, 9020, 3, BODEN - 210);                             // auf dem Abstieg
-nahkaempfer(9480, 9380, 9600, 4);                                          // am Boden vor dem Ausgangsschacht
-heilung(8180, BODEN - 280);                                                // Belohnung auf dem Plateau
-munition(8700, BODEN - 280);                                               // Beute hinter der Brücke
+gelaende(7700, [[0, 0], [150, 96], [260, 96], [500, 288], [700, 288]], 'fels');   // Klippe: Rampe, Absatz (96), Rampe, Plateau (288) bis x 8400
+schwebend(CHASM_L, BODEN - 288, 100, HOLZ);                                // morsche Brücke über die Schlucht
+schwebend(CHASM_R - 100, BODEN - 288, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
+bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 288], [CHASM_R - 100, CHASM_R, BODEN - 288]] });   // Seile und Pfosten
+gelaende(CHASM_R, [[0, 288], [200, 288], [420, 176], [530, 176], [760, 0]], 'fels');   // Plateau, Rampe, Absatz (176), Rampe hinab bis x 9400
+nahkaempfer(7905, 7866, 7944, 3, BODEN - 96);                              // auf dem Absatz der Klippe
+fernkaempfer(8310, 8235, 8380, 4, BODEN - 288);                            // Scharfschütze auf dem Plateau
+fernkaempfer(8750, 8665, 8820, 4, BODEN - 288);                            // Schütze auf dem Plateau dahinter
+nahkaempfer(9115, 9080, 9150, 3, BODEN - 176);                             // auf dem Absatz des Abstiegs
+nahkaempfer(9520, 9440, 9600, 4);                                          // am Boden vor dem Ausgangsschacht
+heilung(8225, BODEN - 288);                                                // Belohnung auf dem Plateau
+munition(8700, BODEN - 288);                                               // Beute hinter der Brücke
 schacht(SCHACHT2_L, MINE_R);                                               // Ausgangsschacht (x 9640 bis 9900)
 
 // =====================================================================
@@ -480,7 +499,7 @@ fernkaempfer(10850, 10780, 10920, 3);
 // =====================================================================
 signs.push({ x: 10990, y: BODEN - 90, text: 'Tal der Brücken:\nHügel, Schluchten\nund kaputte Brücken' });
 sanfterHuegel(11020, 440, 80, 0.3);
-fernkaempfer(11240, 11195, 11285, 3, BODEN - 80);                         // Schütze auf der Kuppe von Hügel 1
+fernkaempfer(11245, 11200, 11290, 3, BODEN - 80);                         // Schütze auf der Kuppe von Hügel 1
 munition(11190, BODEN - 80);
 signs.push({ x: 11470, y: BODEN - 70, text: 'Vorsicht:\nBrücke beschädigt' });
 // Schlucht 1: Stahlbrücke mit 80 Pixel Lücke, darunter Absätze und Wasser
@@ -492,12 +511,12 @@ hoehlen.push({ links: 11520, rechts: 11800, oben: BODEN, unten: MINE_BODEN, art:
 nahkaempfer(11660, 11570, 11750, 4, MINE_BODEN);                           // unten im Wasser
 heilung(11580, MINE_BODEN);
 // Hügel 2 mit Hausresten
-sanfterHuegel(11860, 520, 140, 0.25);
-schwebend(12040, BODEN - 140 - 95, 160, BETON);                            // Reste der Decke eines Hauses (Oberkante 525)
-fernkaempfer(12120, 12075, 12165, 4, BODEN - 140);                         // Schütze auf der Kuppe
-heilung(12090, BODEN - 140);
-munition(12120, BODEN - 235);                                              // Beute auf der Deckenplatte
-granate(12170, BODEN - 235);
+sanfterHuegel(11860, 520, 144, 0.25);
+schwebend(12040, BODEN - 144 - 95, 160, BETON);                            // Reste der Decke eines Hauses
+fernkaempfer(12120, 12075, 12165, 4, BODEN - 144);                         // Schütze auf der Kuppe
+heilung(12090, BODEN - 144);
+munition(12120, BODEN - 239);                                              // Beute auf der Deckenplatte
+granate(12170, BODEN - 239);
 signs.push({ x: 12390, y: BODEN - 70, text: 'Autobahnbrücke:\neingestürzt' });
 // Schlucht 2: eingestürzte Autobahnbrücke aus Betonplatten, flache Schlucht mit Absatz rechts
 schwebend(12420, BODEN, 130, BETON);                                       // Platte 1, bündig mit dem Boden (x 12420 bis 12550)
@@ -510,10 +529,10 @@ fernkaempfer(12745, 12712, 12778, 3, BODEN + 95);                          // au
 granate(12480, 950);
 nahkaempfer(12850, 12820, 12880, 3);                                       // zwischen Schlucht und Hügel 3
 // Hügel 3
-sanfterHuegel(12900, 480, 60, 0.4);
-nahkaempfer(13140, 13065, 13215, 4, BODEN - 60);
-fernkaempfer(13190, 13090, 13200, 4, BODEN - 60);
-munition(13120, BODEN - 60);
+sanfterHuegel(12900, 480, 64, 0.4);
+nahkaempfer(13140, 13065, 13215, 4, BODEN - 64);
+fernkaempfer(13190, 13090, 13200, 4, BODEN - 64);
+munition(13120, BODEN - 64);
 
 // =====================================================================
 // ZONE H: Vor der Arena (x 13400 bis 13850). Hier rüstet man sich aus.
@@ -546,11 +565,11 @@ fass(3620, TUNNEL_BODEN);                    // im Tunnel zwischen den Kisten
 fass(4900); fass(5200);                      // Zone E, auf dem offenen Feld
 fass(6250);                                  // Zone G, vor dem Hochhaus
 fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
-fass(7330); fass(7900, BODEN - 140);         // Zone J, vor dem Schacht und auf der Klippe
+fass(7330); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf der Klippe
 fass(8900, MINE_BODEN);                      // in der Kaverne
 fass(10200);                                 // am Funkturm
 fass(14100); fass(14550);                    // in der Boss-Arena: den Boss damit locken
-fass(11240, BODEN - 80); fass(12140, BODEN - 140); fass(13160, BODEN - 60);   // im Tal der Brücken
+fass(11240, BODEN - 80); fass(12140, BODEN - 144); fass(13160, BODEN - 64);   // im Tal der Brücken
 
 export default {
     width: BREITE,   // Breite der Welt in Pixeln

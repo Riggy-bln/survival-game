@@ -280,12 +280,13 @@ export function decoratePlatforms(scene, platforms, boden) {
         } else {
             // --- Dicke Blöcke (Beton, Kisten): Ziegelmuster mit Fugen ---
             const fuge = variiere(grundfarbe, -45);
-            for (let ry = 0; ry < p.height; ry += 20) {
+            // Raster = die Blockgröße des Spiels: Steine sind 32 breit und 16 hoch, jede zweite Reihe versetzt
+            for (let ry = 0; ry < p.height; ry += 16) {
                 g.fillStyle(fuge).fillRect(l, t + ry, p.width, 2);
-                const versatz = (ry / 20) % 2 === 0 ? 0 : 20;
-                for (let x = l + versatz; x < l + p.width; x += 40) {
-                    if (x > l) g.fillStyle(fuge).fillRect(x, t + ry, 2, 20);
-                    if (rnd.frac() < 0.12) g.fillStyle(variiere(grundfarbe, rnd.between(-14, 14))).fillRect(x + 3, t + ry + 3, 34, 15);
+                const versatz = (ry / 16) % 2 === 0 ? 0 : 16;
+                for (let x = l + versatz; x < l + p.width; x += 32) {
+                    if (x > l) g.fillStyle(fuge).fillRect(x, t + ry, 2, 16);
+                    if (rnd.frac() < 0.12) g.fillStyle(variiere(grundfarbe, rnd.between(-14, 14))).fillRect(x + 3, t + ry + 3, 26, 11);
                 }
             }
             g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.width, 3);
@@ -578,8 +579,9 @@ export function buildCaves(scene, hoehlen, lampen) {
 // Malt einen Hügel in 8-Pixel-Spalten: oben Grasschicht (1 bis 3 Kacheln), darunter Erde, die nach unten
 // dunkler wird. Gleicher Stil wie der flache Boden. f = { links, breite, schritt, werte[] } (siehe Level01.js).
 function zeichneHuegel(r, rnd, f, boden) {
-    const GRAS_OBEN = [0x6aa032, 0x7ab83c, 0x5d9029];
-    const GRAS_MITTE = [0x4f7f27, 0x467022, 0x588a2c];
+    const fels = !!f.fels;   // Felshang statt Grashügel: graue Steinkacheln statt grüner Grasschicht
+    const GRAS_OBEN = fels ? [0x8c8474, 0x7d776a, 0x948c7c] : [0x6aa032, 0x7ab83c, 0x5d9029];
+    const GRAS_MITTE = fels ? [0x6f6a5e, 0x66605a, 0x757066] : [0x4f7f27, 0x467022, 0x588a2c];
     const S = 8, UNTEN = boden + 28;
     for (let x = f.links; x < f.links + f.breite; x += S) {
         const hoehe = f.werte[Math.min(f.werte.length - 1, Math.floor((x - f.links) / f.schritt))];
@@ -591,12 +593,12 @@ function zeichneHuegel(r, rnd, f, boden) {
             const hh = Math.min(S, UNTEN - top - ty);
             if (ty < grasTiefe) {
                 const letzte = ty + S >= grasTiefe;
-                const c = ty === 0 ? rnd.pick(GRAS_OBEN) : (letzte ? 0x3b5f1d : rnd.pick(GRAS_MITTE));
+                const c = ty === 0 ? rnd.pick(GRAS_OBEN) : (letzte ? (fels ? 0x4f4b46 : 0x3b5f1d) : rnd.pick(GRAS_MITTE));
                 r.rect(c, x, top + ty, S, hh);
-                if (ty === 0 && rnd.frac() < 0.6) r.rect(0x9bd14a, x, top, S, 2);
+                if (ty === 0 && rnd.frac() < 0.6) r.rect(fels ? 0xb4afa2 : 0x9bd14a, x, top, S, 2);
                 continue;
             }
-            let c = mische(0x7a5a3c, 0x4b3b2a, Math.min(1, (ty - grasTiefe) / 120));
+            let c = fels ? mische(0x6a645a, 0x3a3630, Math.min(1, (ty - grasTiefe) / 120)) : mische(0x7a5a3c, 0x4b3b2a, Math.min(1, (ty - grasTiefe) / 120));
             if (ty === grasTiefe) c = variiere(c, -14);                     // Schatten unter dem Gras
             c = variiere(c, rnd.between(-8, 8));
             r.rect(c, x, top + ty, S, hh);
@@ -604,14 +606,14 @@ function zeichneHuegel(r, rnd, f, boden) {
                 r.rect(variiere(c, rnd.pick([-18, -12, 12, 18])), x + rnd.between(0, 5), top + ty + rnd.between(0, 5), 2, 2);
             }
         }
-        // Halme auf der Grasdecke
-        if (rnd.frac() < 0.8) {
+        // Halme auf der Grasdecke (nicht auf Fels)
+        if (!fels && rnd.frac() < 0.8) {
             const h = rnd.between(4, 10);
             r.rect(rnd.pick([0x6aa032, 0x7ab83c, 0x8bc84a, 0x5d9029]), x + rnd.between(0, 5), top - h, 2, h);
         }
     }
     // Steine im Hügel (Pixelblöcke mit Licht und Schatten)
-    for (let i = 0; i < f.breite / 60; i++) {
+    for (let i = 0; i < f.breite / (fels ? 30 : 60); i++) {
         const sx = f.links + rnd.between(8, f.breite - 8);
         const hoehe = f.werte[Math.min(f.werte.length - 1, Math.floor((sx - f.links) / f.schritt))];
         if (hoehe < 36) continue;
@@ -619,8 +621,8 @@ function zeichneHuegel(r, rnd, f, boden) {
         for (const [dx, dy, bw, c] of [[0, 0, 12, 0x7d776a], [-2, 4, 16, 0x7d776a], [0, 8, 12, 0x4f4a42]]) r.rect(c, sx + dx, sy + dy, bw, 4);
         r.rect(0xa49f90, sx, sy, 4, 4);
     }
-    // Blumen
-    for (let i = 0; i < f.breite / 90; i++) {
+    // Blumen (nicht auf Fels)
+    for (let i = 0; i < (fels ? 0 : f.breite / 90); i++) {
         const bx = Math.round((f.links + rnd.between(10, f.breite - 10)) / 2) * 2;
         const hoehe = f.werte[Math.min(f.werte.length - 1, Math.floor((bx - f.links) / f.schritt))];
         if (hoehe <= 0) continue;

@@ -257,6 +257,8 @@ export default class GameScene extends Phaser.Scene {
         this.mp = this.online ? new Mehrspieler(this, netz) : null;   // Netzwerk-Anteil des Mehrspielermodus
         // Wiederbeleben und Zuschauerkamera
         this.kameraZiel = this.add.rectangle(0, 0, 4, 4, 0x000000, 0).setVisible(false);
+        this.teamHud = this.add.graphics().setScrollFactor(0).setDepth(20);   // Lebensbalken der Mitspieler
+        this.teamTexte = new Map();
         this.belebenHinweis = this.add.text(this.scale.width / 2, this.scale.height - 90, '', {
             fontSize: '22px', color: '#ffffff', backgroundColor: '#000000aa', padding: { x: 12, y: 6 },
         }).setOrigin(0.5).setScrollFactor(0).setDepth(25).setVisible(false);
@@ -865,6 +867,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Jedes Bild im Online-Modus: Zuschauerkamera, Wiederbeleben halten, Niederlage prüfen.
     mpUpdate() {
+        this.zeichneTeamHud();
         const dt = this.game.loop.delta / 1000;
         if (this.player.tot) {
             const k = [...this.mp.fern.values()].find((r) => !r.tot);        // einem lebenden Mitspieler zuschauen
@@ -880,6 +883,26 @@ export default class GameScene extends Phaser.Scene {
         if (this.istHost && !this.gameOver && this.player.tot && [...this.mp.fern.values()].every((r) => r.tot)) {
             this.mp.meldeNiederlage();
             this.zeigeNiederlage();
+        }
+    }
+
+    // Kleine Lebensbalken der Mitspieler unter der eigenen Anzeige (links oben).
+    zeichneTeamHud() {
+        const g = this.teamHud;
+        g.clear();
+        let y = 150;
+        for (const r of this.mp.fern.values()) {
+            let t = this.teamTexte.get(r.nr);
+            if (!t) {
+                t = this.add.text(22, y, '', { fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(21);
+                this.teamTexte.set(r.nr, t);
+            }
+            const farbe = SPIELERFARBEN[(r.nr - 1) % 4];
+            const anteil = r.tot ? 0 : Phaser.Math.Clamp((r.h ?? 100) / 100, 0, 1);
+            g.fillStyle(0x000000, 0.6).fillRect(20, y + 16, 124, 10);
+            g.fillStyle(r.tot ? 0x444444 : (anteil <= 0.3 ? 0xcc3333 : farbe)).fillRect(22, y + 18, 120 * anteil, 6);
+            t.setPosition(22, y).setText(r.tot ? `Spieler ${r.nr}  AM BODEN` : `Spieler ${r.nr}`);
+            y += 34;
         }
     }
 

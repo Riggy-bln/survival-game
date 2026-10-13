@@ -19,7 +19,8 @@ Das Spiel soll zusammen mit Freunden spielbar sein (Koop gegen die Gegner und de
 - Schritt 1 (Menü): erledigt.
 - Schritt 4 (Verbindung / Lobby): erledigt (Raumcode, Spielerliste, Ping).
 - Schritt "Mitspieler sehen": erledigt. Alle Spieler laufen im selben Level (noch ohne Gegner im Online-Modus) und sehen einander.
-- Nächste Schritte: Gegner und Boss vom Gastgeber rechnen lassen und synchronisieren; Schüsse, Schaden, Gegenstände, Granaten, Fässer, Wände synchronisieren; Regeln (Wiederbeleben, Ziel).
+- Gegner/Boss, Schüsse, Schaden, Granaten, Fässer, Wände, Gegenstände, Gefallene + Wiederbeleben (mit Animation), Niederlage, Team-Lebensbalken: erledigt.
+- Offen: TURN-Server für schwierige Netzwerke, lokaler Koop, Namen wählen.
 
 ## Aufteilung der Verantwortung (Entwurf)
 - Jedes Gerät: eigene Figur (Bewegung, Munition, Inventar, Leben) – damit die Steuerung ohne Verzögerung bleibt.
@@ -29,4 +30,4 @@ Das Spiel soll zusammen mit Freunden spielbar sein (Koop gegen die Gegner und de
 - **Sieg:** Sobald EIN Spieler den Hubschrauber erreicht (und der Boss besiegt ist), gewinnt das ganze Team. Das gilt auch, wenn die anderen
   gerade nicht mehr leben. (Umgesetzt.)
 - **Neustart:** Nur der Gastgeber startet das Spiel für alle neu. (Umgesetzt.)
-- **Tod:** Ein toter Spieler scheidet nicht das Spiel aus. Die Lebenden spielen weiter. Niederlage erst, wenn alle tot sind. (Noch offen, kommt mit den Gegnern.)
+- **Tod:** Ein toter Spieler scheidet nicht das Spiel aus. Die Lebenden spielen weiter. Niederlage erst, wenn alle tot sind. (Umgesetzt, inkl. Wiederbeleben.)

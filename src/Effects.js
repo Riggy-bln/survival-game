@@ -96,209 +96,111 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
     return scene.add.image(x0, y0, schluessel).setOrigin(0, 0).setDepth(1);
 }
 
-// Eine Welle als Funktion der Welt-X-Position. Weil sie nur von x abhängt (nicht vom Bildausschnitt),
-// setzen sich die Erdschichten über Abschnittsgrenzen hinweg nahtlos fort.
-const welle = (x, hoehe, tempo, phase) => hoehe * Math.sin(x * tempo + phase);
-
-// ---- Pixel-Helfer: alles in der Erde wird aus quadratischen "Pixeln" gebaut, nicht aus Rundungen ----
-
-// Eine Ellipse aus Pixelquadraten der Größe "p". farbeFn bekommt einen Lichtwert (-1 = oben links,
-// +1 = unten rechts) und liefert die Farbe: so entstehen Glanz und Schatten. "umriss" malt den Rand dunkel.
-function pixelEllipse(r, cx, cy, breite, hoehe, p, farbeFn, alpha = 1, umriss = null) {
-    const a = breite / 2, b = hoehe / 2;
-    const innen = (x, y) => ((x + p / 2 - cx) / a) ** 2 + ((y + p / 2 - cy) / b) ** 2 <= 1;
-    const x0 = Math.round((cx - a) / p) * p, y0 = Math.round((cy - b) / p) * p;
-    for (let y = y0; y < cy + b; y += p) {
-        for (let x = x0; x < cx + a; x += p) {
-            if (!innen(x, y)) continue;
-            const rand = !innen(x - p, y) || !innen(x + p, y) || !innen(x, y - p) || !innen(x, y + p);
-            const licht = ((x + p / 2 - cx) / a + (y + p / 2 - cy) / b) / 2 * 1.6;   // etwa -1 bis +1
-            r.rect(umriss !== null && rand ? umriss : farbeFn(licht), x, y, p, p, alpha);
-        }
-    }
-}
-
-// Eine Linie aus Pixelquadraten der Größe "p" (statt einer glatten Linie).
-function pixelLinie(r, c, x1, y1, x2, y2, p, alpha = 1) {
-    const n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / p));
-    for (let i = 0; i <= n; i++) {
-        r.rect(c, Math.round((x1 + (x2 - x1) * i / n) / p) * p, Math.round((y1 + (y2 - y1) * i / n) / p) * p, p, p, alpha);
-    }
-}
-
-// Ein Grashalm aus 2-Pixel-Stufen: wächst nach oben und neigt sich dabei um "neigung" Pixel.
-function pixelHalm(r, c, x, yBasis, hoehe, neigung, p) {
-    for (let k = 0; k < hoehe; k += p) {
-        const dx = Math.round(neigung * (k / hoehe) / p) * p;
-        r.rect(c, x + dx, yBasis - k - p, k < hoehe * 0.35 ? p * 2 : p, p);   // unten dicker, oben spitz
-    }
-}
-
-// Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief gemalt wird.
-// Statt eines Kachelrasters gibt es geschwungene Schichten (Gras, Humus, Mutterboden, Lehm,
-// dunkler Untergrund, Fels), darüber weiche Flecken, Körnung, runde Felsen, Wurzeln und Risse.
+// Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief detailliert wird.
 function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke) {
-    const SPALTE = 16;  // Schichten bestehen aus 16 Pixel breiten Blöcken: Die Kanten laufen in groben Stufen
-    const stufe = (y) => Math.round(y / SPALTE) * SPALTE;   // rundet eine Tiefe auf ein Vielfaches von 16
-    // Die Grasschicht bleibt feiner: 8 oder 16 Pixel dick
-    const grasTiefe = (x) => Math.max(8, Math.round(gras(Math.floor((x - l) / SPALTE) * SPALTE + l + SPALTE / 2) / 8) * 8);
+    const S = 8;  // Größe einer Kachel ("Pixel") in der Erde
+    const hellOben = oberflaeche ? 0x7a5a3c : 0x66564a;
+    const GRAS_OBEN = [0x6aa032, 0x7ab83c, 0x5d9029];
+    const GRAS_MITTE = [0x4f7f27, 0x467022, 0x588a2c];
 
-    // Untergrenze jeder Schicht (Tiefe unter der Oberkante) als Funktion von x
-    const gras  = (x) => 7 + welle(x, 3, 0.06, 0) + welle(x, 2, 0.17, 1.3);
-    const humus = (x) => gras(x) + 13 + welle(x, 5, 0.031, 0.5) + welle(x, 3, 0.11, 2);
-    const boden = (x) => 54 + welle(x, 10, 0.017, 2) + welle(x, 6, 0.043, 0);
-    const lehm  = (x) => boden(x) + 38 + welle(x, 9, 0.013, 4) + welle(x, 5, 0.05, 1);
-    const tief  = (x) => lehm(x) + 70 + welle(x, 18, 0.009, 1) + welle(x, 8, 0.037, 3);
-
-    // Schichten von oben nach unten: [Untergrenze(x), Farbe]. Die letzte reicht bis ganz nach unten.
-    const schichten = oberflaeche
-        ? [[gras, 0x46602a], [humus, 0x2f241b], [boden, 0x54402d], [lehm, 0x78603f], [tief, 0x40342a], [() => 9999, 0x4b4a46]]
-        : [[() => 6, 0x6a5e50], [(x) => 46 + welle(x, 8, 0.02, 1), 0x4a4038], [(x) => 130 + welle(x, 14, 0.012, 2), 0x41372f],
-           [(x) => 250 + welle(x, 20, 0.009, 4), 0x39322c], [() => 9999, 0x34312e]];
-
-    for (let x = l; x < l + w; x += SPALTE) {
-        const bw = Math.min(SPALTE, l + w - x);
-        let y0 = 0;
-        schichten.forEach(([grenze, c], k) => {
-            // Grenze in der Blockmitte berechnen und auf 8 Pixel runden: gibt Treppenstufen statt Wellen.
-            // Das Gras ist immer mindestens einen Block dick.
-            const y1 = Math.min(tiefe, k === 0 && oberflaeche ? grasTiefe(x) : stufe(grenze(x + SPALTE / 2)));
-            if (y1 > y0) {
-                // Die Farbe schwankt sanft mit x, damit keine Fläche gleichmäßig aussieht
-                r.rect(variiere(c, Math.round(welle(x, 4, 0.09, k * 1.7) + welle(x, 3, 0.23, k))), x, t + y0, bw, y1 - y0);
-                if (k > 0) r.rect(0x000000, x, t + y0, bw, 4, 0.3);          // dunkle Schichtkante
-                y0 = y1;
+    // --- Erde Spalte für Spalte, Kachel für Kachel ---
+    for (let x = l; x < l + w; x += S) {
+        const bw = Math.min(S, l + w - x);
+        // Wie dick die Grasschicht in dieser Spalte ist: 1, 2 oder 3 Kacheln (unregelmäßig)
+        const q = rnd.frac();
+        const grasTiefe = oberflaeche ? (q < 0.25 ? S : q < 0.8 ? 2 * S : 3 * S) : 0;
+        for (let ty = 0; ty < tiefe; ty += S) {
+            const hoehe = Math.min(S, tiefe - ty);
+            if (ty < grasTiefe) {
+                const letzte = ty + S >= grasTiefe;
+                const c = ty === 0 ? rnd.pick(GRAS_OBEN) : (letzte ? 0x3b5f1d : rnd.pick(GRAS_MITTE));
+                r.rect(c, x, t + ty, bw, hoehe);
+                if (ty === 0 && rnd.frac() < 0.6) r.rect(0x9bd14a, x, t, bw, 2);        // Lichtkante
+                if (rnd.frac() < 0.35) r.rect(variiere(c, rnd.between(-16, 16)), x + rnd.between(0, 5), t + ty + rnd.between(0, 5), 2, 2);
+                continue;
             }
-        });
+            // Erdkachel: mit der Tiefe vom warmen Braun zur Grundfarbe der Plattform
+            let c = mische(hellOben, grund, Math.min(1, ty / tiefe));
+            if (Math.floor((ty + 18 * Math.sin(x * 0.02)) / 40) % 2 === 1) c = variiere(c, -7);   // Schichtband
+            if (oberflaeche && ty === grasTiefe) c = variiere(c, -14);                             // Schatten unter dem Gras
+            c = variiere(c, rnd.between(-8, 8));
+            r.rect(c, x, t + ty, bw, hoehe);
+            // Körnung: ein bis zwei winzige hellere/dunklere Punkte pro Kachel
+            const punkte = rnd.between(0, 2);
+            for (let k = 0; k < punkte; k++) {
+                r.rect(variiere(c, rnd.pick([-18, -12, 12, 18])), x + rnd.between(0, 5), t + ty + rnd.between(0, 5), 2, 2);
+            }
+        }
     }
 
-    // Weiche Flecken: grobe Pixelblöcke (8 Pixel) mit geringer Deckkraft
-    for (let i = 0; i < w * tiefe / 9000; i++) {
-        const ex = l + rnd.between(0, w), ey = t + rnd.between(14, Math.max(15, tiefe - 4));
-        const c = rnd.frac() < 0.5 ? 0x000000 : (oberflaeche ? 0xc8a070 : 0x9a8f80);
-        pixelEllipse(r, ex, ey, rnd.between(30, 90), rnd.between(10, 26), 8, () => c, c === 0 ? 0.12 : 0.08);
+    // --- Steine aus Pixelblöcken (mit Glanz oben links und Schatten unten) ---
+    const formen = [[2, 3, 2], [3, 4, 4, 2], [2, 4, 3], [4, 5, 4], [1, 2]];
+    for (let i = 0; i < w / 40; i++) {
+        const sx = l + rnd.between(8, Math.max(9, w - 24)), sy = t + rnd.between(30, Math.max(31, tiefe - 14));
+        const form = rnd.pick(formen);
+        const grau = variiere(0x7d776a, rnd.between(-12, 12));
+        form.forEach((n, j) => {
+            const breite = n * 4;
+            r.rect(j === form.length - 1 ? 0x4f4a42 : grau, sx - breite / 2, sy + j * 4, breite, 4);
+        });
+        r.rect(0xa49f90, sx - form[0] * 2, sy, 4, 4);
     }
-    // Feine, wellige Schichtlinien
-    for (let d = 48; d < tiefe; d += rnd.between(32, 48)) {
-        for (let x = l; x < l + w; x += SPALTE) {
-            r.rect(0x000000, x, t + stufe(d + welle(x + 8, 5, 0.05, d)), SPALTE, 2, 0.15);
-        }
+    // Kies: kleine helle und dunkle Punkte
+    for (let i = 0; i < w / 10; i++) {
+        r.rect(rnd.pick([0x93897a, 0x2d241a, 0x8a7d66]), l + rnd.between(0, Math.max(0, w - 3)), t + rnd.between(26, tiefe - 2), 3, 2);
     }
-    // Körnung: winzige helle und dunkle Punkte, frei verteilt (nicht auf einem Raster)
-    for (let i = 0; i < w * tiefe / 200; i++) {
-        r.rect(rnd.pick([0x1c140e, 0x1c140e, 0xb09872, 0x6a5a48]), l + rnd.between(0, Math.max(0, w - 3)),
-            t + rnd.between(12, Math.max(13, tiefe - 2)), rnd.between(2, 3), rnd.between(1, 2), 0.5);
-    }
-    // Kiesel: ein oder zwei einzelne Pixel
-    for (let i = 0; i < w / 14; i++) {
-        const px = l + rnd.between(0, w), py = t + rnd.between(22, Math.max(23, tiefe - 3));
-        r.rect(rnd.pick([0x7d776a, 0x66605a, 0x8c8474]), px, py, 4, 4);
-        if (rnd.frac() < 0.4) r.rect(0xb0aca0, px, py, 2, 2);
-        if (rnd.frac() < 0.3) r.rect(0x7d776a, px + 4, py + 2, 4, 2);
-    }
-    // Felsbrocken aus Pixelblöcken: Umriss dunkel, Licht oben links, Schatten unten rechts
-    for (let i = 0; i < w / 85; i++) {
-        const bx = l + rnd.between(14, Math.max(15, w - 14)), by = t + rnd.between(36, Math.max(37, tiefe - 16));
-        const bw = rnd.between(3, 7) * 4, bh = Math.max(8, Math.round(bw * rnd.between(55, 80) / 100 / 4) * 4);
-        const grau = variiere(0x77716a, rnd.between(-12, 12));
-        pixelEllipse(r, bx, by, bw, bh, 4, (licht) => licht < -0.45 ? 0xb4afa2 : licht > 0.5 ? 0x4f4b46 : grau, 1, 0x26221e);
-    }
-    // Risse: dunkle Pixelzickzack-Linien, manchmal mit Abzweig
-    for (let i = 0; i < w / 110; i++) {
-        let cx = l + rnd.between(6, Math.max(7, w - 6)), cy = t + rnd.between(30, Math.max(31, tiefe - 40));
-        for (let k = 0; k < rnd.between(4, 8); k++) {
-            const nx = cx + rnd.pick([-6, -4, 4, 6]), ny = cy + rnd.between(4, 8);
-            pixelLinie(r, 0x14100c, cx, cy, nx, ny, 2, 0.8);
-            if (rnd.frac() < 0.25) pixelLinie(r, 0x14100c, nx, ny, nx + rnd.pick([-10, 10]), ny + rnd.between(2, 6), 2, 0.7);
-            cx = nx; cy = ny;
-        }
+    // Risse: kleine dunkle Zickzack-Linien
+    for (let i = 0; i < w / 120; i++) {
+        let cx = l + rnd.between(6, Math.max(7, w - 6)), cy = t + rnd.between(28, Math.max(29, tiefe - 30));
+        for (let k = 0; k < 5; k++) { r.rect(0x2a2018, cx, cy, 2, 5); cx += rnd.pick([-3, 3]); cy += 5; }
     }
 
     if (oberflaeche) {
-        // Wurzeln: Pixelketten, die von der Grasdecke nach unten wachsen (unten dünner)
-        for (let i = 0; i < w / 70; i++) {
-            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + grasTiefe(rx);
-            const laenge = rnd.between(6, 12);
-            for (let k = 0; k < laenge; k++) {
-                const nx = rx + rnd.pick([-4, -2, 0, 0, 2, 4]), ny = ry + rnd.between(4, 8);
-                pixelLinie(r, 0x241a11, rx, ry, nx, ny, k < 3 ? 4 : 2, 0.95);
-                if (rnd.frac() < 0.25) pixelLinie(r, 0x241a11, nx, ny, nx + rnd.pick([-8, 8]), ny + rnd.between(2, 6), 2, 0.8);
-                rx = nx; ry = ny;
+        // Wurzeln wachsen aus der Grasdecke nach unten
+        for (let i = 0; i < w / 90; i++) {
+            let rx = l + rnd.between(6, Math.max(7, w - 6)), ry = t + 20;
+            for (let k = 0; k < 7; k++) {
+                r.rect(0x2a1f15, rx, ry, 2, 5);
+                ry += 5; rx += rnd.pick([-3, 0, 0, 3]);
+                if (k === 3 && rnd.frac() < 0.6) r.rect(0x2a1f15, rx + 3, ry, 6, 2);     // Seitenwurzel
             }
         }
-        // Funde aus dem Krieg als Pixelbilder: Knochen, Patronenhülsen, Stacheldraht, Metallplatten
-        for (let i = 0; i < w / 230; i++) {
-            const fx = l + rnd.between(14, Math.max(15, w - 24)), fy = t + rnd.between(40, Math.max(41, tiefe - 12));
-            const art = rnd.between(0, 3);
-            if (art === 0) {            // Knochen
-                r.rect(0xcfc7b0, fx, fy, 16, 4);
-                r.rect(0xcfc7b0, fx - 2, fy - 2, 4, 8); r.rect(0xcfc7b0, fx + 14, fy - 2, 4, 8);
-                r.rect(0x8f8872, fx, fy + 2, 16, 2, 0.6);
-            } else if (art === 1) {     // Patronenhülsen
-                for (let k = 0; k < 3; k++) { r.rect(0xc9a227, fx + k * 6, fy + k * 2, 4, 8); r.rect(0xf0d060, fx + k * 6, fy + k * 2, 2, 8); }
-            } else if (art === 2) {     // Stacheldraht
-                for (let k = 0; k < 8; k++) r.rect(0x8d8f93, fx + k * 4, fy + (k % 2) * 4, 4, 2);
-                r.rect(0x8d8f93, fx + 8, fy - 2, 2, 8);
-            } else {                    // verrostete Platte
-                r.rect(0x8a4a22, fx, fy, 16, 4); r.rect(0x8a4a22, fx + 4, fy + 4, 12, 4);
-                r.rect(0x5e3016, fx + 4, fy + 6, 12, 2); r.rect(0xb0642e, fx, fy, 6, 2);
-            }
-        }
-
-        // --- Gras oben: Pixel-Halme, hinten dunkel und kurz, vorn hell und länger ---
-        for (let x = l; x < l + w; x += rnd.pick([4, 4, 6])) {                         // hintere Reihe
-            pixelHalm(r, rnd.pick([0x384e20, 0x435c26]), x, t + 3, rnd.between(2, 4) * 2, rnd.pick([-2, 0, 2]), 2);
-        }
-        for (let x = l; x < l + w; x += rnd.pick([2, 4, 4, 6])) {                      // vordere Reihe
-            const h = rnd.between(4, rnd.frac() < 0.1 ? 11 : 8) * 2;
-            const c = rnd.frac() < 0.07 ? 0x9a8f50 : rnd.pick([0x4f6b2a, 0x5f7f32, 0x75963d, 0x8fae4a]);
-            pixelHalm(r, c, x, t + 3, h, rnd.pick([-4, -2, 0, 2, 4]), 2);
-        }
-        // Franse unter der Grasdecke: kleine Pixel-Zapfen hängen in die Erde
-        for (let x = l; x < l + w; x += 4) {
-            r.rect(0x2f4a1c, x, t + grasTiefe(x), 4, rnd.pick([2, 4, 4, 6]));
-        }
-        // Blumen: vier Blütenpixel um eine Mitte
+        // Funde aus dem Krieg: Knochen, Metallschrott, Patronenhülsen
         for (let i = 0; i < w / 260; i++) {
-            const bx = Math.round((l + rnd.between(10, Math.max(11, w - 10))) / 2) * 2, hh = rnd.between(5, 8) * 2;
-            r.rect(0x4f6b2a, bx, t - hh, 2, hh + 3);
-            const bl = rnd.pick([0xe6e0d0, 0xd9b43a, 0xb04a4a]);
-            r.rect(bl, bx - 4, t - hh - 2, 4, 4); r.rect(bl, bx + 2, t - hh - 2, 4, 4);
-            r.rect(bl, bx - 1, t - hh - 5, 4, 4); r.rect(bl, bx - 1, t - hh + 1, 4, 4);
-            r.rect(0xf2c230, bx - 1, t - hh - 2, 4, 4);
+            const fx = l + rnd.between(10, Math.max(11, w - 20)), fy = t + rnd.between(40, Math.max(41, tiefe - 10));
+            const art = rnd.between(0, 2);
+            if (art === 0) { r.rect(0xd8d0bc, fx, fy, 12, 3); r.rect(0xd8d0bc, fx - 2, fy - 1, 3, 5); r.rect(0xd8d0bc, fx + 11, fy - 1, 3, 5); }
+            else if (art === 1) { r.rect(0x8a4a22, fx, fy, 10, 5); r.rect(0x5e3016, fx, fy + 4, 10, 1); }
+            else { for (let k = 0; k < 3; k++) r.rect(0xc9a227, fx + k * 5, fy + (k % 2) * 2, 2, 5); }
         }
-        // trockene Büschel (gestapelte Pixelreihen) und kleine Steine auf der Oberfläche
-        for (let i = 0; i < w / 120; i++) {
-            const x = Math.round((l + rnd.between(0, w)) / 2) * 2;
-            for (let k = 0; k < 5; k++) r.rect(k % 2 ? 0xa89a52 : 0x8a7c3a, x - (5 - k) * 2, t - k * 2 - 2, (5 - k) * 4, 2);
+        // --- Halme, Blumen und Büschel auf der Grasdecke ---
+        for (let x = l; x < l + w; x += rnd.between(2, 5)) {
+            const h = rnd.between(4, 10);
+            const gruen = rnd.pick([0x6aa032, 0x7ab83c, 0x8bc84a, 0x5d9029]);
+            r.rect(gruen, x, t - h, 2, h);
+            if (rnd.frac() < 0.04) {                                               // Blume (Pixelkreuz)
+                const bl = rnd.pick([0xe8d44a, 0xd9534f, 0xf0f0f0, 0xb06ad9]);
+                r.rect(bl, x - 2, t - h - 2, 6, 2); r.rect(bl, x, t - h - 4, 2, 6);
+                r.rect(0xffe066, x, t - h - 2, 2, 2);
+            }
         }
-        for (let i = 0; i < w / 200; i++) {
-            const x = l + rnd.between(4, Math.max(5, w - 12)), n = rnd.between(2, 3) * 4;
-            pixelEllipse(r, x, t - 2, n * 2, n, 4, (licht) => licht < -0.4 ? 0xb4afa2 : licht > 0.5 ? 0x4f4b46 : 0x77716a, 1, 0x26221e);
+        for (let i = 0; i < w / 120; i++) {                                         // trockene Büschel
+            const x = l + rnd.between(0, w);
+            r.tri(0xa89a52, x - 6, t, x + 6, t, x, t - 12);
+            r.tri(0x8a7c3a, x - 2, t, x + 8, t, x + 3, t - 9);
         }
+        for (let i = 0; i < w / 200; i++) r.rect(0x7d776a, l + rnd.between(0, w - 8), t - 4, 8, 5);   // Steinchen auf dem Gras
     } else {
-        // Untergrund: Geröll aus Pixeln auf dem Boden, Tropfsteine an Decken
-        for (let i = 0; i < w / 25; i++) {
-            const gx = l + rnd.between(0, w), n = rnd.pick([4, 4, 8]);
-            r.rect(rnd.pick([0x7d776a, 0x66605a, 0x8c8474]), gx, t - n / 2, n, n / 2 + 2);
-        }
-        if (istDecke) {
-            for (let x = l + 6; x < l + w - 6; x += rnd.between(14, 30)) {
-                const h = rnd.between(2, 5) * 4;
-                for (let k = 0; k < h; k += 4) {            // Zapfen aus Pixelstufen: wird nach unten schmaler
-                    const breite = Math.max(2, 10 - Math.floor(k * 10 / h / 2) * 2);
-                    r.rect(0x40372c, x - breite / 2, t + tiefe - 1 + k, breite, 4);
-                    r.rect(0x5a4e40, x - breite / 2, t + tiefe - 1 + k, 2, 4, 0.8);
-                }
+        // Untergrund: heller Rand oben, Kiesel auf dem Boden
+        r.rect(0x8a7a64, l, t, w, 2);
+        for (let i = 0; i < w / 30; i++) r.rect(0x8c8474, l + rnd.between(0, Math.max(0, w - 4)), t - 3, rnd.between(2, 5), 3);
+        if (istDecke) {                                                             // Tropfsteine an der Decke
+            for (let x = l + 6; x < l + w - 6; x += rnd.between(14, 32)) {
+                const h = rnd.between(6, 20);
+                r.tri(0x40372c, x - 5, t + tiefe, x + 5, t + tiefe, x, t + tiefe + h);
             }
         }
     }
-
-    // Tiefe: nach unten wird es dunkler (weiche Streifen mit steigender Deckkraft)
-    for (let yy = 0; yy < tiefe; yy += 8) r.rect(0x000000, l, t + yy, w, 8, 0.30 * yy / tiefe);
-    // Kantenschatten an den Seiten: gibt dem Block Rundung
-    r.rect(0x000000, l, t + 8, 3, tiefe - 8, 0.25);
-    r.rect(0x000000, l + w - 3, t + 8, 3, tiefe - 8, 0.25);
 }
 
 // Gibt allen Plattformen ihr Aussehen. Es gibt drei Arten:
@@ -361,6 +263,141 @@ export function decoratePlatforms(scene, platforms, boden) {
             g.fillStyle(variiere(grundfarbe, 25)).fillRect(l, t, p.width, 3);
         }
     }
+}
+
+// ---- Hintergrund der Höhlen: Die Wand hinter dem Spieler, statt einer schwarzen Fläche ----
+
+// Malt eine Höhlenwand. h = { links, rechts, oben, unten, art, licht } ; lampen = x-Positionen der Deckenlampen.
+// art 'tunnel' = dunkler Fels, 'offen' = Graben/Schacht mit Erdwand und Himmelslicht, 'lager' = Betonraum.
+function zeichneHoehle(r, rnd, h, lampen) {
+    const l = h.links, t = h.oben, w = h.rechts - h.links, hh = h.unten - h.oben;
+    const farben = {
+        tunnel: { basis: 0x251f1a, hell: 0x332b24, dunkel: 0x15110e },
+        offen:  { basis: 0x3d3024, hell: 0x4d3d2d, dunkel: 0x2a2018 },
+        lager:  { basis: 0x2b3034, hell: 0x383e43, dunkel: 0x1b1f22 },
+    }[h.art];
+    const S = 8;
+
+    // --- 1. Wand aus 8-Pixel-Kacheln, oben dunkler, unten etwas heller ---
+    for (let y = 0; y < hh; y += S) {
+        for (let x = 0; x < w; x += S) {
+            const c = variiere(mische(farben.dunkel, farben.basis, Math.min(1, 0.5 + y / hh * 0.6)), rnd.between(-5, 5));
+            r.rect(c, l + x, t + y, Math.min(S, w - x), Math.min(S, hh - y));
+        }
+    }
+    // --- 2. Gesteinsschichten: waagerechte helle/dunkle Streifen mit Unterbrechungen ---
+    for (let y = 16; y < hh - 8; y += rnd.between(20, 34)) {
+        for (let x = 0; x < w; x += rnd.between(30, 90)) {
+            const len = rnd.between(24, 80);
+            r.rect(rnd.frac() < 0.5 ? farben.hell : farben.dunkel, l + x, t + y, Math.min(len, w - x), rnd.pick([2, 4]), 0.7);
+        }
+    }
+    // --- 3. Risse (Pixelstufen) und einzelne helle Steine in der Wand ---
+    for (let i = 0; i < w / 90; i++) {
+        let cx = l + rnd.between(4, Math.max(5, w - 4)), cy = t + rnd.between(10, Math.max(11, hh - 60));
+        for (let k = 0; k < rnd.between(3, 6); k++) {
+            r.rect(0x0c0907, cx, cy, 2, 6, 0.8);
+            cx += rnd.pick([-3, 3]); cy += 5;
+        }
+    }
+    for (let i = 0; i < w / 40; i++) {
+        const bw = rnd.pick([8, 12, 16]);
+        r.rect(farben.hell, l + rnd.between(0, Math.max(0, w - bw)), t + rnd.between(8, Math.max(9, hh - 20)), bw, 8, 0.6);
+    }
+
+    if (h.art === 'tunnel') {
+        // --- 4. Felszähne an der Decke und Felsspitzen am Boden (Silhouetten im Hintergrund) ---
+        for (let x = 0; x < w; x += rnd.between(30, 70)) {
+            const sp = rnd.between(2, 5) * 4;
+            for (let k = 0; k < sp; k += 4) r.rect(0x1c1713, l + x - (10 - k / 2) / 2, t + k, 10 - k / 2, 4);
+        }
+        for (let x = 20; x < w; x += rnd.between(80, 170)) {
+            const sp = rnd.between(2, 4) * 4;
+            for (let k = 0; k < sp; k += 4) r.rect(0x1c1713, l + x - (12 - k * 1.5) / 2, t + hh - k - 4, 12 - k * 1.5, 4);
+        }
+        // --- 5. Feuchtes Moos (grünliche Flecken unten) ---
+        for (let i = 0; i < w / 60; i++) {
+            const mx = l + rnd.between(0, w - 16), my = t + hh - rnd.between(10, 40);
+            for (let k = 0; k < rnd.between(2, 5); k++) r.rect(0x2d4026, mx + k * 8, my + (k % 2) * 8, 8, 8, 0.6);
+        }
+        // --- 6. Leuchtende Kristalle ---
+        for (let i = 0; i < w / 260; i++) {
+            const kx = l + rnd.between(20, Math.max(21, w - 20)), ky = t + rnd.between(30, hh - 20);
+            const kc = rnd.pick([0x6fd3ff, 0xb48cff]);
+            r.rect(kc, kx - 10, ky - 10, 22, 26, 0.10);              // Schein
+            r.rect(kc, kx, ky, 4, 10); r.rect(kc, kx + 4, ky + 4, 4, 6); r.rect(0xffffff, kx, ky, 2, 4, 0.8);
+        }
+    }
+    if (h.art === 'tunnel' || h.art === 'lager') {
+        // --- 7. Rohre an der Decke, mit Gelenken, Rost und Verschraubung ---
+        r.rect(0x4a3b30, l, t + 12, w, 8); r.rect(0x6b5646, l, t + 12, w, 2); r.rect(0x2c2119, l, t + 18, w, 2);
+        for (let x = rnd.between(40, 100); x < w; x += rnd.between(110, 170)) {
+            r.rect(0x33271e, l + x, t + 9, 8, 14); r.rect(0x8a6a4a, l + x + 2, t + 11, 2, 2);
+            r.rect(0x6b3a22, l + x + 3, t + 22, 2, rnd.between(4, 12), 0.8);   // Rostspur / Tropfen
+        }
+        // Kabel: hängen in Stufen durch
+        for (let x = 0; x < w - 160; x += 160) {
+            for (let k = 0; k <= 160; k += 8) {
+                const sag = Math.round(Math.sin(k / 160 * Math.PI) * 3) * 4;
+                r.rect(0x0e0e0e, l + x + k, t + 26 + sag, 8, 3, 0.9);
+            }
+        }
+    }
+    if (h.art === 'lager') {
+        // Regale an der Wand und Warnstreifen am Boden
+        for (let x = 30; x < w - 60; x += rnd.between(110, 170)) {
+            r.rect(0x1b1f22, l + x, t + 40, 64, 6);
+            r.rect(0x1b1f22, l + x, t + 82, 64, 6);
+            r.rect(0x1b1f22, l + x, t + 40, 4, 100); r.rect(0x1b1f22, l + x + 60, t + 40, 4, 100);
+            r.rect(rnd.pick([0x4a4130, 0x3a4a3a]), l + x + 8, t + 26, 20, 14); r.rect(rnd.pick([0x4a4130, 0x3a4a3a]), l + x + 34, t + 68, 22, 14);
+        }
+        for (let x = 0; x < w; x += 24) {
+            r.rect(0xc9a227, l + x, t + hh - 10, 12, 6, 0.8); r.rect(0x1a1a1a, l + x + 12, t + hh - 10, 12, 6, 0.8);
+        }
+    }
+    if (h.art === 'offen') {
+        // Himmelslicht fällt in senkrechten Streifen in den Graben
+        for (let x = 0; x < w; x += 32) {
+            r.rect(0xffe9b0, l + x + rnd.between(0, 10), t, rnd.pick([16, 24]), hh, 0.06);
+        }
+        // Wurzeln hängen von oben herab
+        for (let i = 0; i < w / 40; i++) {
+            const rx = l + rnd.between(2, Math.max(3, w - 4));
+            for (let k = 0; k < rnd.between(4, 12); k++) r.rect(0x241a11, rx + (k % 3 === 0 ? 2 : 0), t + k * 4, 2, 4);
+        }
+    }
+
+    // --- 8. Lichtkegel unter den Lampen (abgestuft, sehr durchsichtig) und Lichtfleck am Boden ---
+    for (const lx of lampen) {
+        if (lx < h.links + 10 || lx > h.rechts - 10) continue;
+        const cx = lx;
+        for (let k = 0, y = 20; y < hh - 4; k++, y += 8) {
+            r.rect(0xffd866, cx - (12 + k * 5), t + y, 24 + k * 10, 8, 0.045);
+        }
+        r.rect(0xffd866, cx - 70, t + hh - 6, 140, 6, 0.10);
+        r.rect(0xffd866, cx - 36, t + hh - 6, 72, 6, 0.12);
+    }
+    // --- 9. Pfützen auf dem Boden ---
+    for (let i = 0; i < w / 150; i++) {
+        const px = l + rnd.between(0, Math.max(0, w - 60)), len = rnd.between(30, 64);
+        r.rect(0x5f7f90, px, t + hh - 5, len, 5, 0.45); r.rect(0x9fc6d6, px + 4, t + hh - 5, len / 2, 2, 0.5);
+    }
+    // --- 10. Schatten an der Decke und an den Seiten, Tageslicht vom Eingang her ---
+    for (let y = 0; y < hh * 0.4; y += 8) r.rect(0x000000, l, t + y, w, 8, 0.4 * (1 - y / (hh * 0.4)));
+    if (h.licht === 'links') {
+        for (let x = 0; x < 360; x += 16) r.rect(0xffe9b0, l + x, t, 16, hh, 0.16 * (1 - x / 360));
+    }
+}
+
+// Backt die Hintergründe aller Höhlen einmal in Bilder und legt sie hinter Spielwelt und Dekoration.
+export function buildCaves(scene, hoehlen, lampen) {
+    hoehlen.forEach((h, i) => {
+        const key = `hoehle_${i}`;
+        const bild = backe(scene, key, h.links, h.oben, h.rechts - h.links, h.unten - h.oben, (r) => {
+            zeichneHoehle(r, new Phaser.Math.RandomDataGenerator([key]), h, lampen);
+        });
+        bild.setDepth(-5);
+    });
 }
 
 // Dunkle Ränder wie bei einem alten Film: die Mitte bleibt hell, die Ecken werden dunkel.

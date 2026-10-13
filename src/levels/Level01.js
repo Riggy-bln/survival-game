@@ -25,6 +25,8 @@ const decor = [];
 const enemies = [];
 const rangedEnemies = [];
 const pickups = [];
+const hoehlen = [];   // Hintergründe von Höhlen und Gräben (werden als Bilder gemalt)
+const lampen = [];    // x-Positionen der Deckenlampen (für Lichtkegel)
 const signs = [];
 
 // ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
@@ -152,9 +154,9 @@ signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nein Höhleneingang\nf�
 erde(TUNNEL_LINKS, TUNNEL_LINKS + 100, TUNNEL_BODEN - 153, TUNNEL_BODEN);  // Stufe 1 (Oberkante 837, 77 unter der Oberfläche)
 erde(TUNNEL_LINKS + 100, EINGANG, TUNNEL_BODEN - 77, TUNNEL_BODEN);        // Stufe 2 (Oberkante 913)
 huegel(EINGANG + 10, 60, 100, FELS);                                       // Felsstufe über dem Eingang (x 2950 bis 3050)
-dunkel(TUNNEL_LINKS, EINGANG, BODEN, TUNNEL_BODEN, 0x1d2226);              // Graben (Himmel scheint hinein)
-dunkel(EINGANG, EINGANG + 70, BODEN + DECKE, TUNNEL_BODEN, 0x1a1e21);      // Mund der Höhle: Dunkelheit nimmt zu
-dunkel(EINGANG + 70, TUNNEL_LINKS + SCHACHT + 200, BODEN + DECKE, TUNNEL_BODEN, 0x161a1d);
+hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
+hoehlen.push({ links: EINGANG, rechts: TUNNEL_RECHTS - SCHACHT, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
+lampen.push(EINGANG + 70);
 // Holzstützen und Deckenbalken im Eingangsbereich
 decor.push({ x: (EINGANG + 3500) / 2, y: BODEN + DECKE + 5, w: 3500 - EINGANG, h: 10, color: 0x5a3d22 });    // Balken
 for (const sx of [EINGANG + 8, 3110, 3290, 3440]) {
@@ -184,11 +186,11 @@ decor.push({ x: 2760, y: TUNNEL_BODEN - 153 - 4, w: 14, h: 8, color: 0x6f695d })
 decor.push({ x: 2778, y: TUNNEL_BODEN - 153 - 3, w: 8, h: 6, color: 0x8c8474 });
 decor.push({ x: 2900, y: TUNNEL_BODEN - 77 - 4, w: 12, h: 8, color: 0x6f695d });
 decor.push({ x: 2920, y: TUNNEL_BODEN - 77 - 3, w: 8, h: 6, color: 0x8c8474 });
-dunkel(TUNNEL_LINKS + SCHACHT, TUNNEL_RECHTS - SCHACHT, BODEN + DECKE, TUNNEL_BODEN);  // der Gang
-dunkel(TUNNEL_RECHTS - SCHACHT, TUNNEL_RECHTS, BODEN, TUNNEL_BODEN);                  // rechter Schacht
+hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });   // rechter Schacht
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     if (x > TUNNEL_RECHTS - SCHACHT - 20 && x < TUNNEL_RECHTS + 20) continue;           // über dem Schacht gibt es keine Decke
     decor.push({ x: x, y: BODEN + DECKE + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen
+    lampen.push(x);
 }
 treppe(TUNNEL_RECHTS - 150, 3, 50, 77);                // Stufen im rechten Schacht (x 4070 bis 4220)
 tunnelblock(3480, 40, 80);                             // Kiste A als Deckung (x 3480 bis 3560)
@@ -201,7 +203,7 @@ munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
 // ---- Die Waffenkammer am Ende des Tunnels (x 4220 bis 4780) ----
 // Wer den Ausgang nicht nimmt, sondern unter den Stufen weitergeht, findet ein verlassenes Lager:
 // ein SCHWERER WÄCHTER (8 Lebenspunkte), Heilung, Munition und das STURMGEWEHR.
-dunkel(TUNNEL_RECHTS, VERLIES_ENDE, BODEN + DECKE, TUNNEL_BODEN);                     // Raum der Kammer
+hoehlen.push({ links: TUNNEL_RECHTS, rechts: VERLIES_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'lager' });     // Raum der Kammer
 signs.push({ x: 4330, y: TUNNEL_BODEN - 120, text: 'Lager 7\n"Aufgegeben. Sie kamen von unten."' });
 decor.push({ x: 4290, y: TUNNEL_BODEN - 70, w: 44, h: 32, color: 0x1d5a3a });           // Terminal (Bildschirm)
 decor.push({ x: 4290, y: TUNNEL_BODEN - 45, w: 8, h: 18, color: 0x333333 });            // Terminal (Ständer)
@@ -325,4 +327,6 @@ export default {
     rangedEnemies,
     boss: { x: 8250, y: BODEN - 60, left: 7980, right: 8650, hp: 50 },
     pickups,
+    hoehlen,
+    lampen,
 };

@@ -7,7 +7,7 @@ import Boss from '../entities/Boss.js';
 import Pickup from '../entities/Pickup.js';
 import Grenade from '../entities/Grenade.js';
 import { sfx } from '../Sound.js';
-import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers } from '../Effects.js';
+import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
@@ -57,6 +57,7 @@ export default class GameScene extends Phaser.Scene {
             this.addPlatform(p.x, p.y, p.w, p.h, p.color ?? 0x6b5b4a);
         }
 
+        buildCaves(this, level.hoehlen, level.lampen);  // Höhlenwände (statt schwarzer Flächen)
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
         this.fx = new Effects(this);                       // Partikel
         buildEmbers(this);                                 // Glut und Asche in der Luft

@@ -33,6 +33,7 @@ const hoehlen = [];   // Hintergründe von Höhlen und Gräben (werden als Bilde
 const lampen = [];    // x-Positionen der Deckenlampen (für Lichtkegel)
 const signs = [];
 const faesser = [];   // explosive Fässer
+const tuerme = [];      // Wachtürme (die Grafik malt die Szene; die Kollision stecken in den Bauteilen)
 const leitern = [];     // Leitern zum Klettern (für Spieler; Gegner benutzen sie nicht)
 const schachtkoepfe = [];   // Förderschächte mit Fördergerüst (für die Zeichnung)
 const geruest = [];   // Holzabsätze in Schächten (für Stützstreben und Ketten in der Zeichnung)
@@ -471,7 +472,7 @@ const sprossenleiter = (x, oben, unten, seite = 1, art = 'holz', ausX = 22) => l
 // stürzen alle "boden"-Teile derselben Gruppe ein. deckung = auch Gegnerkugeln beschädigen es.
 const bauteil = (links, rechts, oben, unten, art, hp, extra = {}) =>
     platforms.push({ x: (links + rechts) / 2, y: (oben + unten) / 2, w: rechts - links, h: unten - oben, brechbar: true, hp, art,
-        color: { holz: 0x7a5a2e, sand: 0xb59f6a, beton: 0x7d8185, kiste: 0x7a6540 }[art], ...extra });
+        color: { holz: 0x7a5a2e, turm: 0x7a5a2e, sand: 0xb59f6a, beton: 0x7d8185, kiste: 0x7a6540 }[art], ...extra });
 
 // deckung: Sandsäcke oder Kisten auf dem Boden (Standard: Boden an dieser Stelle). Sie halten ein paar Treffer aus, dann sind sie weg.
 const deckung = (links, art, breite, hoehe, boden = bodenBei(links + breite / 2)) =>
@@ -484,9 +485,10 @@ const wachturm = (x, hoehe, ladeSeite = 1) => {
     const gruppe = `turm${x}`;
     const bl = bodenBei(x - 52), br = bodenBei(x + 52);
     const oben = Math.min(bl, br) - hoehe;
-    bauteil(x - 63, x - 41, oben + 20, bl, 'holz', 5, { gruppe, rolle: 'stuetze' });
-    bauteil(x + 41, x + 63, oben + 20, br, 'holz', 5, { gruppe, rolle: 'stuetze' });
-    bauteil(x - 70, x + 70, oben, oben + 20, 'holz', 9999, { gruppe, rolle: 'boden' });
+    bauteil(x - 63, x - 41, oben + 20, bl, 'turm', 5, { gruppe, rolle: 'stuetze' });
+    bauteil(x + 41, x + 63, oben + 20, br, 'turm', 5, { gruppe, rolle: 'stuetze' });
+    bauteil(x - 70, x + 70, oben, oben + 20, 'turm', 9999, { gruppe, rolle: 'boden' });
+    tuerme.push({ gruppe, x, oben, bl, br, ladeSeite });
     bauteil(Math.min(x - ladeSeite * 70, x - ladeSeite * 30), Math.max(x - ladeSeite * 70, x - ladeSeite * 30), oben - 28, oben, 'sand', 4, { deckung: true });      // Sandsäcke an der Seite ohne Leiter
     const lx = x + ladeSeite * 92;
     sprossenleiter(lx, oben, bodenBei(lx), -ladeSeite, 'holz', 30);
@@ -561,7 +563,7 @@ const abstieg = [[2740, 2804, 792],    // erste Kante, 32 unter der Oberfläche
 // sein, sonst stößt der Kopf des Spielers (48 hoch) an die Deckenkante. Hier ist das ab x 2868 der Fall (888).
 for (const [von, bis, oben] of abstieg) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
-hoehlen.push({ links: EINGANG, rechts: TUNNEL_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
+hoehlen.push({ links: EINGANG, rechts: TUNNEL_ENDE, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', offen: ['links', 'rechts'] });  // Mund und Gang
 lampen.push(EINGANG + 70);
 // Holzstützen und Deckenbalken im Eingangsbereich
 for (const sx of [EINGANG + 8, 3110, 3290, 3440]) {
@@ -727,7 +729,7 @@ granate(6700, BODEN - 300);                     // im Hochhaus (Etage 4)
 // Das Feld bekommt einen Berg aus Erde mit einem Tunnel auf Bodenhöhe: Wer durch den Tunnel läuft, trifft einen Wächter; auf dem
 // Kamm sitzt ein Schütze. (Danach ebenes Feld bis zum Einsturzloch, ZONE Q.)
 erdberg(4940, [[0, 224], [64, 224], [192, 352], [256, 352], [320, 224]], 160);
-hoehlen.push({ links: 4940, rechts: 5260, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+hoehlen.push({ links: 4940, rechts: 5260, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true, offen: ['links', 'rechts'] });
 [5000, 5100, 5200].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
 raueDecke(4940, 5260, BODEN - 160, 1, 51, [[4940, 4990], ...[5000, 5100, 5200].map(x => [x - 24, x + 24])]);   // unregelmäßige Tunneldecke aus Erdblöcken
 nahkaempfer(5090, 5020, 5170, 3);                            // im Tunnel
@@ -759,14 +761,14 @@ signs.push({ x: 6015, y: BODEN - 110, text: 'Wall jump:\nrun into a high wall\na
 // Westberg (Erde): ein holpriger Hang steigt von 224 auf 416, hohl mit Bodentunnel
 erdberg(6090, [[0, 224], [64, 224], [100, 256], [130, 256], [290, 416], [350, 416]], 160);
 sprossenleiter(6068, BODEN - 224, BODEN, 1, 'holz', 28);                       // Leiter an der Westwand zum ersten Absatz
-hoehlen.push({ links: 6090, rechts: 6442, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+hoehlen.push({ links: 6090, rechts: 6442, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true, offen: ['links'] });
 [6180, 6300, 6410].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
 raueDecke(6090, 6442, BODEN - 160, 1, 52, [[6090, 6140], ...[6180, 6300, 6410].map(x => [x - 24, x + 24])]);
 skelett(6410, 6396, 6424, 4, BODEN - 416);                                     // Schütze oben auf dem Westberg
 // Ostberg (Erde): Plateau (256), Kamm (352), wieder 256; hohl mit Bodentunnel (der Weg ins Innere des Berges)
 erdberg(6900, [[0, 256], [64, 256], [160, 352], [224, 352], [320, 256], [416, 256]], 160);
 sprossenleiter(7338, BODEN - 256, BODEN, -1, 'holz', 28);                      // Leiter an der Ostwand
-hoehlen.push({ links: 6900, rechts: 7316, oben: BODEN - 160, unten: BODEN, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 6900, rechts: 7316, oben: BODEN - 160, unten: BODEN, art: 'tunnel', eigeneLampen: true, offen: ['rechts'] });
 [6990, 7120, 7250].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
 raueDecke(6900, 7316, BODEN - 160, 1, 53, [[6900, 6940], ...[6990, 7120, 7250].map(x => [x - 24, x + 24])]);
 hoehlen.push({ links: 6380, rechts: 6920, oben: BODEN - 660, unten: BODEN, art: 'gebaeude', etagen: [100, 200, 300, 400, 500, 600] });   // Rückwand des Hochhauses
@@ -932,7 +934,7 @@ munition(10540, BODEN - 630);
 fernkaempfer(10520, 10430, 10570, 5, BODEN - 630);                         // Scharfschütze auf dem Deck
 nahkaempfer(10200, 10120, 10300, 4);                                       // am Fuß des Turms
 erdberg(10608, [[0, 224], [64, 224], [192, 352], [256, 352], [352, 224]], 160);   // Berg hinter dem Turm, mit Tunnel
-hoehlen.push({ links: 10608, rechts: 10960, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+hoehlen.push({ links: 10608, rechts: 10960, oben: BODEN - 160, unten: BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true, offen: ['links', 'rechts'] });
 [10680, 10780, 10880].forEach(x => { decor.push({ x, y: BODEN - 152, w: 10, h: 8, color: 0xc9a94e }); lampen.push({ x, y: BODEN - 140 }); });
 raueDecke(10608, 10960, BODEN - 160, 1, 54, [[10608, 10650], ...[10680, 10780, 10880].map(x => [x - 24, x + 24])]);
 nahkaempfer(10770, 10700, 10850, 4);                                       // im Tunnel
@@ -1014,7 +1016,7 @@ schwebend(ST_SCH, BODEN, 90, HOLZ);
 schwebend(ST_R - 90, BODEN, 90, HOLZ);
 leiter(ST_SCH, ST_R, 2);
 hoehlen.push({ links: ST_L, rechts: ST_EIN, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });
-hoehlen.push({ links: ST_EIN, rechts: 14150, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+hoehlen.push({ links: ST_EIN, rechts: 14150, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true, offen: ['links'] });
 hoehlen.push({ links: 14150, rechts: 14420, oben: BODEN + DECKE, unten: TUNNEL_BODEN + 100, art: 'tunnel', eigeneLampen: true });
 hoehlen.push({ links: 14420, rechts: ST_SCH, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', eigeneLampen: true });
 hoehlen.push({ links: ST_SCH, rechts: ST_R, oben: BODEN, unten: TUNNEL_BODEN, art: 'schacht', eigeneLampen: true });
@@ -1175,6 +1177,7 @@ export default {
     geruest,
     schachtkoepfe,
     leitern,
+    tuerme,
     huegelformen,
     hoehlen,
     lampen,

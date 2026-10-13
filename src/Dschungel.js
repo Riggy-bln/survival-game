@@ -30,6 +30,19 @@ export function buildDschungelHimmel(scene) {
         const [ta, ca] = farben[k], [tb, cb] = farben[k + 1];
         g.fillStyle(lerpFarbe(ca, cb, Math.max(0, Math.min(1, (t - ta) / (tb - ta))))).fillRect(0, (H / streifen) * i, B, H / streifen + 1);
     }
+    // Übergänge zwischen den Farbstreifen verpixeln: Pixelzellen der vorigen Farbe ragen unregelmäßig in den nächsten Streifen
+    const rh = new Phaser.Math.RandomDataGenerator(['himmelpixel']), sh = H / streifen, Z = 6;
+    for (let i = 1; i < streifen; i++) {
+        const t = (i - 1) / (streifen - 1);
+        let k = 0; while (k < farben.length - 2 && t > farben[k + 1][0]) k++;
+        const [ta, ca] = farben[k], [tb, cb] = farben[k + 1];
+        g.fillStyle(lerpFarbe(ca, cb, Math.max(0, Math.min(1, (t - ta) / (tb - ta)))));
+        const y0 = sh * i;
+        for (let zeile = 0; zeile < 3; zeile++) {
+            const p = [0.6, 0.3, 0.1][zeile];
+            for (let x = 0; x < B; x += Z) if (rh.frac() < p) g.fillRect(x, y0 + zeile * Z, Z, Z);
+        }
+    }
     // blasse, vom Rauch verdeckte Sonne
     scene.add.circle(900, H * 0.5, 120, 0xffd890, 0.14).setScrollFactor(0.03).setDepth(-29);
     scene.add.circle(900, H * 0.5, 86, 0xffe6a8, 0.5).setScrollFactor(0.03).setDepth(-29);

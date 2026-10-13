@@ -294,6 +294,7 @@ function zeichneBauteil(g, art, l, t, w, h, p) {
 function zeichneBroeckelig(scene, p) {
     const g = scene.add.graphics().setDepth(1.2);
     const l = p.x - p.width / 2, t = p.y - p.height / 2, w = p.width, h = p.height;
+    if (p.art === 'turm') return g;                                    // Türme malt die Szene als Ganzes (siehe baueTuerme)
     if (p.art) { zeichneBauteil(g, p.art, l, t, w, h, p); return g; }
     for (let y = 0; y < h; y += 8) {
         for (let x = 0; x < w; x += 8) {
@@ -686,11 +687,50 @@ function zeichneHoehle(r, rnd, h, lampen) {
 }
 
 // Backt die Hintergründe aller Höhlen einmal in Bilder und legt sie hinter Spielwelt und Dekoration.
+// Welche Ränder eines Höhlenhintergrunds grenzen an die freie Landschaft (und nicht an Erde)? Nur dort werden sie verpixelt.
+function offeneSeiten(h) {
+    if (h.offen) return h.offen;
+    if (h.art === 'gebaeude' || h.art === 'turm') return ['links', 'rechts', 'oben'];
+    if (h.art === 'offen') return ['oben'];
+    if (h.art === 'schacht') return h.oben <= 770 ? ['oben'] : [];     // ein Schacht von der Oberfläche ist oben offen
+    return [];
+}
+
+// Ein Malwerkzeug, das nur Pixel zeichnet, die "innen" liegen: Zu den offenen Rändern hin werden es in 4-Pixel-Zellen immer weniger
+// (Zufallsmuster), sodass kein gerader Strich zwischen Höhle und Landschaft bleibt, sondern ein unregelmäßiger, verpixelter Übergang.
+function verpixelterRand(r, h, offen) {
+    if (!offen.length) return r;
+    const BAND = 36, Z = 4;
+    const hash = (x, y) => { let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + 1274126177) | 0; n = Math.imul(n ^ (n >> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+    const abstand = (x, y) => {
+        let d = Infinity;
+        if (offen.includes('links')) d = Math.min(d, x - h.links);
+        if (offen.includes('rechts')) d = Math.min(d, h.rechts - x);
+        if (offen.includes('oben')) d = Math.min(d, y - h.oben);
+        if (offen.includes('unten')) d = Math.min(d, h.unten - y);
+        return d;
+    };
+    const rect = (c, x, y, w, hh, a = 1) => {
+        // ganz im inneren Bereich: normal zeichnen
+        const innen = (!offen.includes('links') || x >= h.links + BAND) && (!offen.includes('rechts') || x + w <= h.rechts - BAND) &&
+            (!offen.includes('oben') || y >= h.oben + BAND) && (!offen.includes('unten') || y + hh <= h.unten - BAND);
+        if (innen) { r.rect(c, x, y, w, hh, a); return; }
+        for (let cy = y; cy < y + hh; cy += Z) {
+            for (let cx = x; cx < x + w; cx += Z) {
+                const d = abstand(cx + Z / 2, cy + Z / 2);
+                if (d >= BAND || hash(Math.floor(cx / Z), Math.floor(cy / Z)) < Math.max(0, d) / BAND) r.rect(c, cx, cy, Math.min(Z, x + w - cx), Math.min(Z, y + hh - cy), a);
+            }
+        }
+    };
+    return { rect, tri: r.tri, ell: r.ell, line: r.line };
+}
+
 export function buildCaves(scene, hoehlen, lampen) {
     hoehlen.forEach((h, i) => {
         const key = `hoehle_${i}`;
+        const offen = offeneSeiten(h);
         const bild = backe(scene, key, h.links, h.oben, h.rechts - h.links, h.unten - h.oben, (r) => {
-            zeichneHoehle(r, new Phaser.Math.RandomDataGenerator([key]), h, lampen);
+            zeichneHoehle(verpixelterRand(r, h, offen), new Phaser.Math.RandomDataGenerator([key]), h, lampen);
         });
         bild.setDepth(-5);
     });

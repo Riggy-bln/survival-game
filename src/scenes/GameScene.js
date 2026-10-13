@@ -292,6 +292,7 @@ export default class GameScene extends Phaser.Scene {
         // Leitern
         this.leitern = level.leitern ?? [];
         this.baueLeitern();
+        this.baueTuerme();
         // Checkpoint (Fahne auf dem Gipfel) und Seilbahn
         this.checkpoint = null;
         this.respawnZeit = 0;
@@ -1776,8 +1777,66 @@ export default class GameScene extends Phaser.Scene {
 
     // Fällt eine Stütze eines Turms oder Laufstegs aus, stürzt alles dieser Gruppe ein: die Böden (und mit ihnen, was darauf steht)
     // und die übrigen Stützen.
+    // Malt die Wachtürme als Ganzes: schiefe Bambus-/Holzbeine mit Querstreben, Lianen, Bretterboden, Geländer, Strohdach und Wimpel.
+    // Die Kollision liegt in den (unsichtbaren) Bauteilen der Gruppe; stürzt der Turm ein, kippt diese Grafik mit.
+    baueTuerme() {
+        this.turmGrafiken = {};
+        for (const t of level.tuerme ?? []) {
+            const rnd = new Phaser.Math.RandomDataGenerator(['turm' + t.gruppe]);
+            const g = this.add.graphics().setDepth(2.4);
+            const { x, oben } = t;
+            const holz = [0x5a3f22, 0x6e4e2a, 0x7f5c33], gras = [0x6d8a2c, 0x8aa63a, 0xa8b84a];
+            const bein = (sx, ex, unten) => {                  // ein Bein aus zwei Stämmen, leicht nach außen geneigt
+                for (let d = 0; d < 2; d++) {
+                    const ox = d * 9 + (sx < x ? 0 : 3);
+                    const n = Math.max(1, Math.floor((unten - oben) / 8));
+                    for (let i = 0; i < n; i++) {
+                        const f = i / n, px = sx + ox + (ex - sx) * f + rnd.between(-1, 1);
+                        g.fillStyle(holz[(i + d) % 3]).fillRect(px, oben + 14 + i * 8, 7, 9);
+                    }
+                }
+            };
+            bein(x - 58, x - 66, t.bl); bein(x + 49, x + 57, t.br);
+            // Querstreben (X) zwischen den Beinen, Stufe für Stufe
+            const hoehe = Math.min(t.bl, t.br) - oben - 20;
+            for (let y = oben + 40; y < oben + 20 + hoehe - 30; y += 56) {
+                for (let i = 0; i < 12; i++) {
+                    const f = i / 11;
+                    g.fillStyle(holz[0]).fillRect(x - 56 + f * 112, y + f * 40, 5, 5);
+                    g.fillStyle(holz[1]).fillRect(x + 56 - f * 112, y + f * 40, 5, 5);
+                }
+            }
+            // Lianen
+            for (let k = 0; k < 3; k++) {
+                let lx = x + rnd.between(-60, 60), ly = oben + 18;
+                const len = rnd.between(50, 120);
+                for (let i = 0; i < len; i += 4) { lx += rnd.between(-1, 1) * 2; g.fillStyle(gras[rnd.between(0, 1)]).fillRect(lx, ly + i, 3, 4); }
+            }
+            // Boden: Bretter mit Lücken
+            for (let px = x - 72; px < x + 72; px += 12) g.fillStyle(holz[rnd.between(0, 2)]).fillRect(px, oben, 11, 8).fillStyle(0x3a2916).fillRect(px, oben + 8, 11, 4);
+            g.fillStyle(0x2c1e10).fillRect(x - 72, oben + 12, 144, 4);
+            // Geländer und Dachpfosten
+            g.fillStyle(holz[0]).fillRect(x - 70, oben - 56, 6, 56).fillRect(x + 64, oben - 56, 6, 56);
+            g.fillStyle(holz[1]).fillRect(x - 70, oben - 28, 140, 4).fillRect(x - 70, oben - 14, 140, 3);
+            // Strohdach aus gestaffelten Reihen, unten ausgefranst
+            for (let r = 0; r < 4; r++) {
+                const br = 100 - r * 24, y = oben - 82 - r * 8;
+                for (let px = x - br; px < x + br; px += 6) g.fillStyle(gras[(r + (px >> 3)) % 3]).fillRect(px, y, 6, 9 + (r === 0 ? rnd.between(0, 6) : 0));
+            }
+            // Wimpel
+            g.fillStyle(0x4a3220).fillRect(x + 2, oben - 140, 3, 36);
+            g.fillStyle(0xb02a1a).fillRect(x + 5, oben - 140, 18, 8).fillRect(x + 5, oben - 132, 12, 4);
+            this.turmGrafiken[t.gruppe] = g;
+        }
+    }
+
     pruefeEinsturz(wand) {
         if (wand.rolle !== 'stuetze' || !wand.gruppe) return;
+        const bild = this.turmGrafiken && this.turmGrafiken[wand.gruppe];
+        if (bild) {
+            delete this.turmGrafiken[wand.gruppe];
+            this.tweens.add({ targets: bild, y: 260, angle: 6, alpha: 0, duration: 700, ease: 'Quad.easeIn', onComplete: () => bild.destroy() });
+        }
         const teile = this.platforms.filter(p => p.brechbar && p.gruppe === wand.gruppe && (p.rolle === 'boden' || p.rolle === 'stuetze'));
         if (!teile.length) return;
         this.cameras.main.shake(380, 0.012);

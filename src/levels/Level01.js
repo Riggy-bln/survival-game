@@ -167,6 +167,18 @@ const leiter = (links, rechts, anzahl = 5) => {
 // Die Erdtextur selbst bleibt fein (8-Pixel-Kacheln).
 const BLOCK = 32;
 
+// Ein kleiner, wiederholbarer Zufallsgenerator (mulberry32): gleicher Startwert = gleiche Zahlenfolge.
+// So sieht das Gelände bei jedem Start gleich aus, auch ohne Phaser.
+const zufall = (seed) => {
+    let a = seed | 0;
+    return () => {
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+};
+
 // Baut aus einer Liste von Höhen (eine pro Block-Spalte) das Gelände: gleich hohe Nachbarn werden zu einem
 // unsichtbaren Stufenblock verschmolzen (nur zum Laufen). Die Optik malt buildHuegel (Effects.js).
 const gelaendeAusWerten = (links, werte, fels) => {
@@ -182,37 +194,55 @@ const gelaendeAusWerten = (links, werte, fels) => {
     huegelformen.push({ links, breite: n * BLOCK, schritt: BLOCK, werte, fels });
 };
 
-// gelaende: ein Gelände nach einer Linie. "punkte" = Liste von [x-Abstand ab links, Höhe]; dazwischen wird
-// geradlinig verbunden und auf ganze Blöcke (32) gerundet. Steigungen über 0,9 (zu steil) vermeiden!
-// Breite und Höhen am besten als Vielfache von 32 angeben.
-// Beispiel: [[0,0],[200,176],[280,176]] = Rampe auf 176 und dann flach. material: 'erde' (mit Gras) oder 'fels'.
-const gelaende = (links, punkte, material = 'erde') => {
-    const n = Math.round(punkte[punkte.length - 1][0] / BLOCK);
-    const werte = [];
-    for (let i = 0; i < n; i++) {
-        const dx = (i + 0.5) * BLOCK;
-        let h = punkte[punkte.length - 1][1];
-        for (let k = 0; k < punkte.length - 1; k++) {
-            const [x1, h1] = punkte[k], [x2, h2] = punkte[k + 1];
-            if (dx >= x1 && dx <= x2) { h = h1 + (h2 - h1) * (dx - x1) / ((x2 - x1) || 1); break; }
-        }
-        werte.push(Math.round(h / BLOCK) * BLOCK);
-    }
-    gelaendeAusWerten(links, werte, material === 'fels');
+// Macht aus glatten Höhen ein natürliches Gelände: Auf den Hängen kommen Zufallsabweichungen dazu (Buckel, Dellen,
+// unterschiedlich lange Absätze), Kuppen und Plateaus bleiben exakt eben (dort stehen Gegner). Benachbarte Spalten
+// unterscheiden sich höchstens um einen Block, damit man alles hinaufgehen kann. "rau" = Stärke (1 = normal).
+const aufrauen = (glatt, flach, seed, rau = 1) => {
+    const zu = zufall(seed);
+    const w = glatt.map((h, i) => flach[i] ? h : Math.max(0, Math.round((h + (zu() - 0.5) * 2 * BLOCK * 0.95 * rau) / BLOCK) * BLOCK));
+    for (let i = 1; i < w.length; i++) if (!flach[i]) w[i] = Math.max(w[i - 1] - BLOCK, Math.min(w[i - 1] + BLOCK, w[i]));
+    for (let i = w.length - 2; i >= 0; i--) if (!flach[i]) w[i] = Math.max(w[i + 1] - BLOCK, Math.min(w[i + 1] + BLOCK, w[i]));
+    return w;
 };
 
-// sanfterHuegel: ein Hügel mit weichen Hängen und flacher Kuppe (Höhe bitte ein Vielfaches von 32).
+// gelaende: ein Gelände nach einer Linie. "punkte" = Liste von [x-Abstand ab links, Höhe]; dazwischen wird
+// geradlinig verbunden, aufgeraut und auf ganze Blöcke (32) gerundet. Steigungen über 0,9 vermeiden!
+// Waagerechte Strecken (gleiche Höhe an beiden Punkten) bleiben eben. material: 'erde' (mit Gras) oder 'fels'.
+const gelaende = (links, punkte, material = 'erde', rau = 1) => {
+    const n = Math.round(punkte[punkte.length - 1][0] / BLOCK);
+    const glatt = [], flach = [];
+    for (let i = 0; i < n; i++) {
+        const dx = (i + 0.5) * BLOCK;
+        let h = punkte[punkte.length - 1][1], eben = true;
+        for (let k = 0; k < punkte.length - 1; k++) {
+            const [x1, h1] = punkte[k], [x2, h2] = punkte[k + 1];
+            if (dx >= x1 && dx <= x2) { h = h1 + (h2 - h1) * (dx - x1) / ((x2 - x1) || 1); eben = h1 === h2; break; }
+        }
+        glatt.push(eben ? h : h); flach.push(eben);
+        if (eben) glatt[i] = Math.round(h / BLOCK) * BLOCK;
+    }
+    gelaendeAusWerten(links, aufrauen(glatt, flach, links, rau), material === 'fels');
+};
+
+// sanfterHuegel: ein Hügel mit weichen, unregelmäßigen Hängen und flacher Kuppe (Höhe: Vielfaches von 32).
 // Angabe: linke Kante, Breite, Höhe der Kuppe, Anteil der flachen Kuppe an der Breite (0 bis 1).
 const sanfterHuegel = (links, breite, hoehe, plateau = 0.3) => {
     const n = Math.round(breite / BLOCK);
-    const werte = [];
+    const glatt = [], flach = [];
     for (let i = 0; i < n; i++) {
         const u = (i + 0.5) / n, rand = (1 - plateau) / 2;
         const v = u < rand ? u / rand : (u > 1 - rand ? (1 - u) / rand : 1);
-        werte.push(Math.round(hoehe * v * v * (3 - 2 * v) / BLOCK) * BLOCK);   // weiche S-Kurve, auf ganze Blöcke gerundet
+        const h = hoehe * v * v * (3 - 2 * v);                       // weiche S-Kurve (Smoothstep)
+        const eben = v >= 0.97;                                       // die Kuppe bleibt eben
+        glatt.push(eben ? hoehe : h); flach.push(eben);
     }
-    gelaendeAusWerten(links, werte, false);
+    gelaendeAusWerten(links, aufrauen(glatt, flach, links), false);
 };
+
+// felsnase: ein Felsbrocken (2 Blöcke hoch), der aus einer Schluchtwand ragt. richtung 1 = ragt nach rechts
+// (Wand links), -1 = ragt nach links (Wand rechts). Macht senkrechte Wände unregelmäßig.
+const felsnase = (wandX, y, breite, richtung = 1) =>
+    platforms.push({ x: wandX + richtung * breite / 2, y: y + 32, w: breite, h: 64, color: FELS });
 
 // =====================================================================
 // ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
@@ -260,10 +290,17 @@ signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nein Höhleneingang\nf�
 // hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
 // Über dem Eingang ragt eine Felsstufe auf; vom Rand der Oberfläche führt eine Sprungstrecke von
 // 200 Pixeln über den Graben (möglich bis ca. 280).
-// Eine rostige Metalltreppe führt hinab: 7 Trittstufen (je 32 hoch und 32 breit), unter denen es offen bleibt.
-for (let i = 0; i < 7; i++) platforms.push({ x: TUNNEL_LINKS + i * BLOCK + 20, y: 792 + i * BLOCK + 6, w: 40, h: 12, color: METALL });
-treppen.push({ art: 'metall', links: TUNNEL_LINKS, anzahl: 7, breite: BLOCK, oben0: 792, hoehe: BLOCK });
-huegel(EINGANG + 16, 64, 96, FELS);                                        // Felsstufe über dem Eingang (x 2956 bis 3052)
+// Ein natürlicher, felsiger Abstieg: unterschiedlich breite und hohe Absätze, eine Plattform zum Verschnaufen,
+// eine Kante, an der man hinunterspringt, und Felsbrocken. Statt gleichmäßiger Stufen wirkt es wie gewachsener Fels.
+//             von    bis   Oberkante  (Höhe ab Tunnelboden 990)
+const abstieg = [[2740, 2804, 776],    // erste Kante, 16 unter der Oberfläche
+                 [2804, 2836, 808],    // kleiner Absatz
+                 [2836, 2932, 840],    // breite Plattform
+                 [2932, 2964, 904],    // Kante: 64 tief, hier springt man hinunter
+                 [2964, 3028, 936],    // Geröllhalde
+                 [3028, 3060, 968]];   // letzte Stufe
+for (const [von, bis, oben] of abstieg) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
+gelaendeAusWerten(2944, [32, 64, 32], true);                              // Felsbrocken auf der Decke über dem Eingang (x 2944 bis 3040)
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
 hoehlen.push({ links: EINGANG, rechts: TUNNEL_RECHTS - SCHACHT, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
 lampen.push(EINGANG + 70);
@@ -288,14 +325,19 @@ decor.push({ x: EINGANG - 16, y: BODEN + 6, w: 32, h: 8, color: 0x6b4a2a });
 decor.push({ x: EINGANG - 10, y: BODEN + 20, w: 8, h: 18, color: 0x4a331d });
 // Warnschild im Graben und Geröll auf den Stufen
 // Schienen mit Grubenwagen am Fuß der Treppe (Dekoration): zeigt, dass hier einmal Erz gefördert wurde
-decor.push({ x: 3100, y: TUNNEL_BODEN - 3, w: 300, h: 4, color: 0x77746e });                  // Schienen
-for (let sx = 2960; sx < 3250; sx += 26) decor.push({ x: sx, y: TUNNEL_BODEN - 1, w: 6, h: 8, color: 0x5a3d22 });   // Schwellen
-decor.push({ x: 3150, y: TUNNEL_BODEN - 26, w: 50, h: 24, color: 0x6b3a22 });                 // Wagenkasten
-decor.push({ x: 3150, y: TUNNEL_BODEN - 40, w: 56, h: 5, color: 0x4a2a18 });                  // Rand des Wagens
-decor.push({ x: 3138, y: TUNNEL_BODEN - 8, w: 11, h: 11, color: 0x222222 });                  // Räder
-decor.push({ x: 3164, y: TUNNEL_BODEN - 8, w: 11, h: 11, color: 0x222222 });
-decor.push({ x: 3140, y: TUNNEL_BODEN - 44, w: 16, h: 8, color: 0x8c8474 });                  // Gesteinsbrocken im Wagen
-decor.push({ x: 3162, y: TUNNEL_BODEN - 46, w: 12, h: 10, color: 0x77716a });
+decor.push({ x: 3200, y: TUNNEL_BODEN - 3, w: 300, h: 4, color: 0x77746e });                  // Schienen
+for (let sx = 3060; sx < 3350; sx += 26) decor.push({ x: sx, y: TUNNEL_BODEN - 1, w: 6, h: 8, color: 0x5a3d22 });   // Schwellen
+decor.push({ x: 3250, y: TUNNEL_BODEN - 26, w: 50, h: 24, color: 0x6b3a22 });                 // Wagenkasten
+decor.push({ x: 3250, y: TUNNEL_BODEN - 40, w: 56, h: 5, color: 0x4a2a18 });                  // Rand des Wagens
+decor.push({ x: 3238, y: TUNNEL_BODEN - 8, w: 11, h: 11, color: 0x222222 });                  // Räder
+decor.push({ x: 3264, y: TUNNEL_BODEN - 8, w: 11, h: 11, color: 0x222222 });
+decor.push({ x: 3240, y: TUNNEL_BODEN - 44, w: 16, h: 8, color: 0x8c8474 });                  // Gesteinsbrocken im Wagen
+decor.push({ x: 3262, y: TUNNEL_BODEN - 46, w: 12, h: 10, color: 0x77716a });
+// Felsbrocken und Geröll auf dem Abstieg (Dekoration)
+for (const [bx, by, bw, bh] of [[2820, 808, 22, 14], [2880, 840, 30, 18], [2990, 936, 26, 16], [3040, 968, 18, 12], [2760, 776, 20, 12]]) {
+    decor.push({ x: bx, y: by - bh / 2, w: bw, h: bh, color: 0x77716a });
+    decor.push({ x: bx - bw / 4, y: by - bh * 0.8, w: bw / 2, h: bh / 2, color: 0x948c7c });
+}
 signs.push({ x: 2860, y: 800, text: 'EINSTURZ-\nGEFAHR' });
 hoehlen.push({ links: TUNNEL_RECHTS - SCHACHT, rechts: TUNNEL_RECHTS, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });   // rechter Schacht
 for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
@@ -416,6 +458,8 @@ schacht(MINE_L, MINE_L + 260);                                             // F�
 gelaende(7696, [[0, 0], [160, 96], [256, 96], [512, 288], [704, 288]], 'fels');   // Klippe: Rampe, Absatz (96), Rampe, Plateau (288) bis x 8400
 schwebend(CHASM_L, BODEN - 288, 100, HOLZ);                                // morsche Brücke über die Schlucht
 schwebend(CHASM_R - 100, BODEN - 288, 100, HOLZ);                          // (in der Mitte fehlen 40 Pixel)
+felsnase(CHASM_L, 880, 64, 1); felsnase(CHASM_L, 1040, 96, 1);      // Felsnasen in der Schluchtwand links
+felsnase(CHASM_R, 820, 96, -1); felsnase(CHASM_R, 910, 64, -1);        // und rechts
 bruecken.push({ art: 'seil', stuecke: [[CHASM_L, CHASM_L + 100, BODEN - 288], [CHASM_R - 100, CHASM_R, BODEN - 288]] });   // Seile und Pfosten
 gelaende(CHASM_R, [[0, 288], [192, 288], [416, 160], [512, 160], [768, 0]], 'fels');   // Plateau, Rampe, Absatz (160), Rampe hinab bis x 9408
 nahkaempfer(7905, 7874, 7934, 3, BODEN - 96);                              // auf dem Absatz der Klippe

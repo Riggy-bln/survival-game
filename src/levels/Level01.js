@@ -38,7 +38,7 @@ const BREITE = 15400;           // Breite der Welt
 const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
-const EINGANG = TUNNEL_LINKS + 200;   // hier beginnt die Felsdecke: der Höhleneingang (x 2940)
+const EINGANG = TUNNEL_LINKS + 260;   // hier beginnt die Felsdecke: der Höhleneingang (x 3000)
 const VERLIES_ENDE = 4780;      // Ende der Waffenkammer: der Tunnel geht HINTER dem Ausgang noch weiter
 const DECKE = 60;               // Dicke der Tunneldecke (Oberfläche bis Unterkante der Decke)
 const TUNNEL_BODEN = 990;       // y der Oberkante des Tunnelbodens (230 unter der Oberfläche)
@@ -300,8 +300,8 @@ granate(1850, BODEN - 140);                     // im Versteck der Ruine
 // =====================================================================
 signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\nein Höhleneingang\nführt unter die Erde' });
 // ---- Der Höhleneingang: ein Graben mit Stufen führt zu einem Felsüberhang ----
-// Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 2940) über 14 Stufen (je 16 mal 16 Pixel)
-// hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
+// Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 3000) über einen felsigen Abstieg
+// hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 3000) beginnt.
 // Über dem Eingang ragt eine Felsstufe auf; vom Rand der Oberfläche führt eine Sprungstrecke von
 // 200 Pixeln über den Graben (möglich bis ca. 280).
 // Ein natürlicher, felsiger Abstieg: unterschiedlich breite und hohe Absätze, eine Plattform zum Verschnaufen,
@@ -309,12 +309,14 @@ signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\nein Höhleneingang\nf�
 //             von    bis   Oberkante  (Höhe ab Tunnelboden 990)
 const abstieg = [[2740, 2804, 776],    // erste Kante, 16 unter der Oberfläche
                  [2804, 2836, 808],    // kleiner Absatz
-                 [2836, 2932, 840],    // breite Plattform
-                 [2932, 2964, 904],    // Kante: 64 tief, hier springt man hinunter
-                 [2964, 3028, 936],    // Geröllhalde
-                 [3028, 3060, 968]];   // letzte Stufe
+                 [2836, 2900, 840],    // Plattform zum Verschnaufen
+                 [2900, 2932, 904],    // schmaler Absatz: 64 tief, hier springt man hinunter (hinauf: springen)
+                 [2932, 3000, 936],    // Geröllhalde
+                 [3000, 3064, 968]];   // letzte Stufe, schon unter der Felsdecke
+// Wichtig: Direkt am Eingang (Decke ab x 3000, Unterkante 820) muss der Boden mindestens 868 tief liegen,
+// sonst stößt der Kopf des Spielers (48 hoch) an die Decke und er kommt nicht hinein.
 for (const [von, bis, oben] of abstieg) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
-gelaendeAusWerten(2944, [32, 64, 32], true);                              // Felsbrocken auf der Decke über dem Eingang (x 2944 bis 3040)
+gelaendeAusWerten(EINGANG + 4, [32, 64, 32], true);                       // Felsbrocken auf der Decke über dem Eingang
 hoehlen.push({ links: TUNNEL_LINKS, rechts: EINGANG, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });                 // Graben
 hoehlen.push({ links: EINGANG, rechts: TUNNEL_RECHTS - SCHACHT, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links' });  // Mund und Gang
 lampen.push(EINGANG + 70);
@@ -348,7 +350,7 @@ decor.push({ x: 3264, y: TUNNEL_BODEN - 8, w: 11, h: 11, color: 0x222222 });
 decor.push({ x: 3240, y: TUNNEL_BODEN - 44, w: 16, h: 8, color: 0x8c8474 });                  // Gesteinsbrocken im Wagen
 decor.push({ x: 3262, y: TUNNEL_BODEN - 46, w: 12, h: 10, color: 0x77716a });
 // Felsbrocken und Geröll auf dem Abstieg (Dekoration)
-for (const [bx, by, bw, bh] of [[2820, 808, 22, 14], [2880, 840, 30, 18], [2990, 936, 26, 16], [3040, 968, 18, 12], [2760, 776, 20, 12]]) {
+for (const [bx, by, bw, bh] of [[2820, 808, 22, 14], [2870, 840, 30, 18], [2970, 936, 26, 16], [3040, 968, 18, 12], [2760, 776, 20, 12]]) {
     decor.push({ x: bx, y: by - bh / 2, w: bw, h: bh, color: 0x77716a });
     decor.push({ x: bx - bw / 4, y: by - bh * 0.8, w: bw / 2, h: bh / 2, color: 0x948c7c });
 }

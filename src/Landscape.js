@@ -512,7 +512,7 @@ export function buildLandscape(scene, level) {
         return y;
     };
     // Bereiche mit wichtigen Bauwerken (Bunker, Hochhaus, Funkturm, Arena): hier nur kleine Pflanzen
-    const sperre = [[4250, 4900], [6300, 7300], [10150, 10700], [13850, 14850]];
+    const sperre = [[4250, 4900], [6300, 7300], [10150, 10700], [13850, 14850], [13440, 15640], [16050, 17050]];
     const gesperrt = (x) => sperre.some(([a, b]) => x >= a && x <= b);
     const bild = (key, x, y, tiefe, ursprungY = 1) => scene.add.image(x, y, key).setOrigin(0.5, ursprungY).setDepth(tiefe);
 

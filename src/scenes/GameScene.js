@@ -124,7 +124,10 @@ export default class GameScene extends Phaser.Scene {
 
         // --- Spieler ---
         // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
-        this.player = new Player(this, 200 + (this.meineNr - 1) * 48, BODEN - 200);  // startet in der Luft und landet (Mitspieler daneben)
+        // Testhilfe: Mit http://localhost:8001/?x=3330&y=1000 startet man an einer anderen Stelle des Levels.
+        const startParam = new URLSearchParams(window.location.search);
+        const startX = Number(startParam.get('x')) || 200, startY = Number(startParam.get('y')) || BODEN - 200;
+        this.player = new Player(this, startX + (this.meineNr - 1) * 48, startY);  // startet in der Luft und landet (Mitspieler daneben)
         this.physics.add.collider(this.player, this.platforms);
 
         // --- Gegner ---

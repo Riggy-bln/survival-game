@@ -36,7 +36,8 @@ const schachtkoepfe = [];   // Förderschächte mit Fördergerüst (für die Zei
 const geruest = [];   // Holzabsätze in Schächten (für Stützstreben und Ketten in der Zeichnung)
 
 // ---- Der Untergrund: Erde mit einem Tunnel (siehe ZONE T) ----
-const BREITE = 15400;           // Breite der Welt
+const ARENA = 2200;             // Verschiebung der Zonen H und I (und des Ziels) nach rechts: Platz für das Gebirge (ZONE R)
+const BREITE = 15400 + ARENA;   // Breite der Welt
 const TUNNEL_LINKS = 2740;      // linke Kante des Tunnels (linker Schacht beginnt hier)
 const TUNNEL_RECHTS = 4220;     // rechte Kante (rechter Schacht endet hier)
 const SCHACHT = 260;            // Breite eines Schachts
@@ -48,7 +49,7 @@ const DECKE = 64;               // Mindestdicke der Tunneldecke (Oberfläche bis
 const TUNNEL_BODEN = 1048;      // y der Oberkante des Tunnelbodens (288 unter der Oberfläche): der Gang ist 228 hoch
 
 // ---- Die tiefe Mine (zweite Ebene unter der Erde, siehe ZONE K) ----
-const V = 6000;                 // Verschiebung der Boss-Zonen H und I nach rechts (das Level ist länger geworden)
+const V = 6000 + ARENA;         // Verschiebung der Boss-Zonen H und I nach rechts (das Level ist länger geworden)
 const MINE_L = 7400;            // linke Kante des Förderschachts
 const MINE_R = 9900;            // rechte Kante des Ausgangsschachts
 const CHASM_L = 8400;           // Schlucht: linke Kante
@@ -521,10 +522,10 @@ for (let x = 3150; x < VERLIES_ENDE - 40; x += 250) {
     decor.push({ x: x, y: deckeBei(x) + 8, w: 10, h: 8, color: 0xc9a94e });          // Deckenlampen (an der echten Decke)
     lampen.push(x);
 }
-tunnelblock(3520, 40, 80);                             // Kiste A als Deckung (x 3520 bis 3600)
+tunnelblock(3500, 40, 80);                             // Kiste A als Deckung (x 3500 bis 3580)
 tunnelblock(3720, 60, 80);                             // Kiste B als Deckung (x 3720 bis 3800)
 // (Hier am Eingang des Gangs öffnet sich jetzt der Wartungsschacht zur Tiefen Galerie, siehe ZONE S.)
-fernkaempfer(3640, 3590, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
+fernkaempfer(3655, 3612, 3690, 3, TUNNEL_BODEN);       // Schütze zwischen den Kisten
 nahkaempfer(3880, 3830, 3940, 4, TUNNEL_BODEN);        // Nahkämpfer vor dem Ausgang
 munition(3760, TUNNEL_BODEN - 60);                     // Beute auf Kiste B
 
@@ -694,16 +695,16 @@ munition(5110, KAT_B);
 nahkaempfer(5200, 5150, 5260, 4, KAT_B);
 fernkaempfer(5240, 5225, 5275, 3, KAT_B);
 // Gang zur Halle
-kiste(5640, 50, 80, KAT_B);
-munition(5680, KAT_B - 50);
-fernkaempfer(5735, 5715, 5760, 3, KAT_B);
+kiste(5620, 50, 80, KAT_B);
+munition(5660, KAT_B - 50);
+fernkaempfer(5745, 5722, 5768, 3, KAT_B);
 // Halle
 nahkaempfer(5880, 5820, 5990, 8, KAT_B);                     // der schwere Wächter
 munition(5835, KAT_B - 100);
 heilung(5965, KAT_B - 200);
 granate(5850, KAT_B - 300);
 granate(5880, KAT_B - 300);
-fernkaempfer(5870, 5820, 5900, 4, KAT_B - 300);             // Schütze ganz oben
+fernkaempfer(5850, 5820, 5880, 4, KAT_B - 300);             // Schütze ganz oben
 fass(5990, KAT_B);
 // Sicherheitsraum im Osten
 kiste(6480, 44, 60, KAT_B);
@@ -847,15 +848,92 @@ fernkaempfer(13190, 13090, 13200, 4, BODEN - 64);
 munition(13120, BODEN - 64);
 
 // =====================================================================
+// ZONE R: Das Gebirge (x 13440 bis 15640). Hier gibt es die größten Höhenunterschiede des Levels: Über der Erde führt
+// der Weg in Terrassen und kleinen Klippen (je 96 hoch) bis zum Gipfel (544 hoch) und auf der anderen Seite wieder
+// hinab. Wer lieber unten bleibt, nimmt den Stollen: Eine Felstreppe führt in einen Tunnel unter dem Berg
+// (Pit-Halle mit Brücke, Lager mit Vorräten), und ein Schacht bringt einen ins Tal vor der Arena zurück.
+// =====================================================================
+signs.push({ x: 13400, y: BODEN - 130, text: 'Das Gebirge:\nüber den Gipfel oder\ndurch den Stollen' });
+const ST_L = 13440, ST_EIN = 13640, ST_SCH = 15200, ST_R = 15460;      // Graben, Tunnelbeginn, Ausgangsschacht (links/rechts)
+const stollen = hoehlenform(ST_EIN, ST_R, BODEN + DECKE, TUNNEL_BODEN, 41,
+    [[ST_EIN, 13950], [ST_SCH - 40, ST_R], [14150, 14420]], 2, 1,
+    [[ST_EIN, 13990], [14040, 14150], [14150, 14420], [14470, 14600], [14620, 15200], [ST_SCH - 60, ST_R]]);
+aushoehlen(ST_L, ST_EIN, BODEN, TUNNEL_BODEN);                           // der offene Graben vor dem Tunnel
+aushoehlen(ST_SCH, ST_R, BODEN, TUNNEL_BODEN);                           // der Ausgangsschacht
+aushoehlen(14150, 14420, TUNNEL_BODEN, TUNNEL_BODEN + 100);              // die Grube in der Mitte
+// Die Felstreppe in den Tunnel (genau wie am ersten Höhleneingang): 8 Absätze, unterschiedlich breit
+for (const [von, bis, oben] of [[13440, 13504, 792], [13504, 13536, 824], [13536, 13568, 856], [13568, 13632, 888],
+    [13632, 13696, 920], [13696, 13760, 952], [13760, 13792, 984], [13792, 13856, 1016]]) erde(von, bis, oben, TUNNEL_BODEN + 60, FELS);
+// Die Rampe aus der Grube heraus (Stufen zu 32 Pixeln) und die Brücke darüber
+erde(14344, 14376, TUNNEL_BODEN + 68, TUNNEL_BODEN + 132, FELS);
+erde(14376, 14408, TUNNEL_BODEN + 36, TUNNEL_BODEN + 132, FELS);
+erde(14408, 14420, TUNNEL_BODEN + 4, TUNNEL_BODEN + 132, FELS);
+schwebend(14150, TUNNEL_BODEN - 20, 110, HOLZ);                          // Steg am Rand der Grube (man springt von hier hinüber oder hinunter)
+bruecken.push({ art: 'seil', stuecke: [[14150, 14260, TUNNEL_BODEN - 20]] });
+// Schacht nach oben: Bretter am Rand und zwei Absätze
+schwebend(ST_SCH, BODEN, 90, HOLZ);
+schwebend(ST_R - 90, BODEN, 90, HOLZ);
+leiter(ST_SCH, ST_R, 2);
+hoehlen.push({ links: ST_L, rechts: ST_EIN, oben: BODEN, unten: TUNNEL_BODEN, art: 'offen' });
+hoehlen.push({ links: ST_EIN, rechts: 14150, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', licht: 'links', eigeneLampen: true });
+hoehlen.push({ links: 14150, rechts: 14420, oben: BODEN + DECKE, unten: TUNNEL_BODEN + 100, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 14420, rechts: ST_SCH, oben: BODEN + DECKE, unten: TUNNEL_BODEN, art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: ST_SCH, rechts: ST_R, oben: BODEN, unten: TUNNEL_BODEN, art: 'schacht', eigeneLampen: true });
+[13720, 13960, 14230, 14380, 14560, 14780, 15020].forEach(x => hoehlenlampe(stollen, x));
+for (const sx of [ST_EIN + 8, 13900, 14500, 14950]) {                    // Holzstützen
+    decor.push({ x: sx, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 10, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x6b4a2a });
+    decor.push({ x: sx + 4, y: (BODEN + DECKE + TUNNEL_BODEN) / 2, w: 3, h: TUNNEL_BODEN - BODEN - DECKE, color: 0x4a331d });
+}
+signs.push({ x: 13500, y: 806, text: 'STOLLEN 2\nBetreten auf eigene Gefahr' });
+// Inhalt des Stollens
+tunnelblock(14040, 40, 80);                                              // Deckung im ersten Gang
+munition(14080, TUNNEL_BODEN - 40);
+nahkaempfer(13930, 13880, 13990, 4, TUNNEL_BODEN);
+fass(14134, TUNNEL_BODEN);
+nahkaempfer(14260, 14190, 14320, 8, TUNNEL_BODEN + 100);                // der schwere Wächter in der Grube
+heilung(14200, TUNNEL_BODEN + 100);                                      // Beute in der Grube
+granate(14240, TUNNEL_BODEN + 100);
+munition(14260, TUNNEL_BODEN + 100);
+tunnelblock(14430, 60, 60);                                              // Deckung vor dem Schützen
+fernkaempfer(14545, 14510, 14580, 4, TUNNEL_BODEN);
+fass(14610, TUNNEL_BODEN);
+nahkaempfer(14690, 14640, 14760, 4, TUNNEL_BODEN);
+tunnelblock(14800, 40, 80);
+munition(14840, TUNNEL_BODEN - 40);
+fernkaempfer(14945, 14905, 14985, 4, TUNNEL_BODEN);
+heilung(15010, TUNNEL_BODEN);
+granate(15050, TUNNEL_BODEN);
+nahkaempfer(15110, 15060, 15160, 6, TUNNEL_BODEN);                       // der Wächter vor dem Schacht
+
+// Die Gipfelroute über der Erde
+gelaende(13640, [[0, 0], [160, 96], [256, 96], [384, 224], [480, 224], [484, 320], [608, 320], [736, 448], [832, 448],
+    [836, 544], [1000, 544], [1004, 352], [1100, 352], [1228, 160], [1324, 160], [1484, 0], [1560, 0]], 'fels');
+nahkaempfer(13850, 13824, 13872, 3, BODEN - 96);
+fernkaempfer(14072, 14040, 14104, 3, BODEN - 224);
+nahkaempfer(14186, 14146, 14226, 4, BODEN - 320);
+fernkaempfer(14424, 14392, 14456, 4, BODEN - 448);
+fernkaempfer(14590, 14545, 14630, 6, BODEN - 544);                       // Scharfschütze am Gipfel
+heilung(14510, BODEN - 544);
+munition(14535, BODEN - 544);
+granate(14560, BODEN - 544);
+fass(14610, BODEN - 544);
+nahkaempfer(14692, 14660, 14724, 4, BODEN - 352);
+fernkaempfer(14916, 14884, 14948, 3, BODEN - 160);
+signs.push({ x: 14500, y: BODEN - 640, text: 'Gipfel' });
+// Das Tal hinter dem Gebirge
+nahkaempfer(15540, 15500, 15600, 4);
+stacheldraht(15500);
+
+// =====================================================================
 // ZONE H: Vor der Arena (x 13400 bis 13850). Hier rüstet man sich aus.
 // =====================================================================
-signs.push({ x: 13500, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
-gelaende(13440, [[0, 0], [96, 64], [288, 64], [384, 0]]);       // Anhöhe vor der Arena
-schrotflinte(13845);                              // Alternative zum Gewehr für den Bosskampf (unten am Hang)
-granate(13560, BODEN - 64);                       // vor dem Boss: Granaten aufsparen
-heilung(13620, BODEN - 64);
-munition(13670, BODEN - 64);
-munition(13715, BODEN - 64);
+signs.push({ x: 13500 + ARENA, y: BODEN - 100, text: 'Etwas Großes wartet voraus...' });
+gelaende(13440 + ARENA, [[0, 0], [96, 64], [288, 64], [384, 0]]);       // Anhöhe vor der Arena
+schrotflinte(13845 + ARENA);                              // Alternative zum Gewehr für den Bosskampf (unten am Hang)
+granate(13560 + ARENA, BODEN - 64);                       // vor dem Boss: Granaten aufsparen
+heilung(13620 + ARENA, BODEN - 64);
+munition(13670 + ARENA, BODEN - 64);
+munition(13715 + ARENA, BODEN - 64);
 
 // =====================================================================
 // ZONE I: Arena der starken Kreatur (x 13900 bis 14700).
@@ -863,10 +941,10 @@ munition(13715, BODEN - 64);
 // sie kann darunter durchlaufen.
 // =====================================================================
 // Die Plattformen sind Reste einer eingestürzten Hochstraße: Fahrbahnstücke mit Asphalt, Leitplanken und Säulen darunter.
-schwebend(14040, BODEN - 120, 140);
-schwebend(14230, BODEN - 170, 140);
-schwebend(14420, BODEN - 120, 140);
-bruecken.push({ art: 'autobahn', stuecke: [[14040, 14180, BODEN - 120], [14230, 14370, BODEN - 170], [14420, 14560, BODEN - 120]] });
+schwebend(14040 + ARENA, BODEN - 120, 140);
+schwebend(14230 + ARENA, BODEN - 170, 140);
+schwebend(14420 + ARENA, BODEN - 120, 140);
+bruecken.push({ art: 'autobahn', stuecke: [[14040 + ARENA, 14180 + ARENA, BODEN - 120], [14230 + ARENA, 14370 + ARENA, BODEN - 170], [14420 + ARENA, 14560 + ARENA, BODEN - 120]] });
 
 // =====================================================================
 // Explosive Fässer: stehen bei Gegnergruppen. Ein Schuss oder eine Granate lässt sie explodieren,
@@ -883,7 +961,7 @@ fass(6590, BODEN - 300);                     // im Hochhaus (Etage 3)
 fass(7330); fass(7930, BODEN - 96);          // Zone J, vor dem Schacht und auf der Klippe
 fass(8900, MINE_BODEN);                      // in der Kaverne
 fass(10200);                                 // am Funkturm
-fass(14100); fass(14550);                    // in der Boss-Arena: den Boss damit locken
+fass(14100 + ARENA); fass(14550 + ARENA);                    // in der Boss-Arena: den Boss damit locken
 fass(11240, BODEN - 96); fass(12140, BODEN - 128); fass(13160, BODEN - 64);   // im Tal der Brücken
 
 // Landeplatz des Hubschraubers (Dekoration): eine betonierte Fläche mit einem gelben H und Randlichtern

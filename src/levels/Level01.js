@@ -102,19 +102,19 @@ const granate = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'gren
 const waffe = (x, oben = BODEN) => pickups.push({ x, y: oben - 10, type: 'rifle' });   // das Sturmgewehr
 
 // Dekoration (ohne Physik)
-const stacheldraht = (x) => {
-    decor.push({ x: x, y: BODEN - 15, w: 6, h: 30, color: 0x555555 });
-    decor.push({ x: x + 60, y: BODEN - 15, w: 6, h: 30, color: 0x555555 });
-    decor.push({ x: x + 30, y: BODEN - 22, w: 60, h: 3, color: 0x999999 });
-    decor.push({ x: x + 30, y: BODEN - 10, w: 60, h: 3, color: 0x999999 });
+const stacheldraht = (x, oben = BODEN) => {      // oben = y der Standfläche
+    decor.push({ x: x, y: oben - 15, w: 6, h: 30, color: 0x555555 });
+    decor.push({ x: x + 60, y: oben - 15, w: 6, h: 30, color: 0x555555 });
+    decor.push({ x: x + 30, y: oben - 22, w: 60, h: 3, color: 0x999999 });
+    decor.push({ x: x + 30, y: oben - 10, w: 60, h: 3, color: 0x999999 });
 };
-const versorgungspunkt = (x) => {
-    decor.push({ x: x, y: BODEN - 20, w: 70, h: 40, color: 0x5b4a2e });        // Kiste
-    decor.push({ x: x, y: BODEN - 20, w: 24, h: 6, color: 0xdd3333 });         // rotes Kreuz
-    decor.push({ x: x, y: BODEN - 20, w: 6, h: 24, color: 0xdd3333 });
-    decor.push({ x: x, y: BODEN - 60, w: 6, h: 40, color: 0x555555 });         // Fahnenmast
-    decor.push({ x: x + 16, y: BODEN - 72, w: 26, h: 14, color: 0xdd3333 });   // Fahne
-    signs.push({ x: x, y: BODEN - 105, text: 'Versorgungspunkt' });
+const versorgungspunkt = (x, oben = BODEN) => {  // oben = y der Standfläche
+    decor.push({ x: x, y: oben - 20, w: 70, h: 40, color: 0x5b4a2e });        // Kiste
+    decor.push({ x: x, y: oben - 20, w: 24, h: 6, color: 0xdd3333 });         // rotes Kreuz
+    decor.push({ x: x, y: oben - 20, w: 6, h: 24, color: 0xdd3333 });
+    decor.push({ x: x, y: oben - 60, w: 6, h: 40, color: 0x555555 });         // Fahnenmast
+    decor.push({ x: x + 16, y: oben - 72, w: 26, h: 14, color: 0xdd3333 });   // Fahne
+    signs.push({ x: x, y: oben - 105, text: 'Versorgungspunkt' });
 };
 
 // Tunnelblock: ein fester Block, der auf dem TUNNELBODEN steht (Kisten, Stufen).
@@ -239,6 +239,16 @@ const sanfterHuegel = (links, breite, hoehe, plateau = 0.3) => {
     gelaendeAusWerten(links, aufrauen(glatt, flach, links), false);
 };
 
+// bodenBei: Die Höhe der Oberfläche (y) an der Stelle x, nachdem das Gelände dort gebaut wurde.
+// Damit setzt man Gegenstände, Schilder und Deko genau auf den Boden eines Hügels.
+const bodenBei = (x) => {
+    for (const f of huegelformen) {
+        const i = Math.floor((x - f.links) / f.schritt);
+        if (i >= 0 && i < f.werte.length) return BODEN - f.werte[i];
+    }
+    return BODEN;
+};
+
 // felsnase: ein Felsbrocken (2 Blöcke hoch), der aus einer Schluchtwand ragt. richtung 1 = ragt nach rechts
 // (Wand links), -1 = ragt nach links (Wand rechts). Macht senkrechte Wände unregelmäßig.
 const felsnase = (wandX, y, breite, richtung = 1) =>
@@ -247,15 +257,18 @@ const felsnase = (wandX, y, breite, richtung = 1) =>
 // =====================================================================
 // ZONE A: Einstieg (x 0 bis 1400). Ruhig, mit niedrigen Hindernissen zum Üben.
 // =====================================================================
+// Der Einstieg ist kein flacher Boden mehr, sondern ein Auf und Ab: Startfläche, ein Hügel mit Sandsack-Deckung,
+// eine Senke mit Wrack und Mauer, dann ein zweiter Hügel mit dem ersten Gegner. (Plateaus bleiben eben.)
+gelaende(0, [[0, 0], [224, 0], [352, 96], [576, 96], [704, 0], [960, 0], [1088, 96], [1312, 96], [1440, 0]]);
 signs.push({ x: 150, y: BODEN - 80, text: 'A / D: Laufen\nLeertaste: Springen\nR: Nachladen\nH: Verbandskasten benutzen' });
 munition(180);                                   // früh: Einsammeln üben
-huegel(250, 30, 100, SAND);                      // Sandsäcke, niedrig
-huegel(350, 60, 100, SAND);                      // Sandsäcke, höher
-stacheldraht(470);                               // nur Dekoration
-huegel(600, 100, 30, GRAU);                      // zerstörte Mauer (100)
+stacheldraht(40);                                // nur Dekoration, am Start
+huegel(392, 126, 96, SAND);                      // Sandsäcke auf dem ersten Hügel (30 über der Kuppe)
+huegel(488, 156, 64, SAND);                      // Sandsäcke, höher (60 über der Kuppe)
+huegel(716, 100, 30, GRAU);                      // zerstörte Mauer (100) in der Senke
 huegel(760, 60, 220, OLIV);                      // ausgebranntes Fahrzeug
-signs.push({ x: 1000, y: BODEN - 120, text: 'Maus: Zielen\nLinke Taste: Schießen' });
-nahkaempfer(1150, 1050, 1350, 3);                // der erste Gegner
+signs.push({ x: 1000, y: BODEN - 130, text: 'Maus: Zielen\nLinke Taste: Schießen' });
+nahkaempfer(1200, 1104, 1296, 3, BODEN - 96);    // der erste Gegner, oben auf dem zweiten Hügel
 
 // =====================================================================
 // ZONE B: Ruine mit zwei Etagen (x 1450 bis 2300).
@@ -268,14 +281,15 @@ schwebend(2010, BODEN - 240, 110);                       // kleines Versteck dar
 fernkaempfer(1780, 1660, 1900, 3, BODEN - 140);          // Schütze auf dem Deck
 nahkaempfer(1800, 1650, 1930, 4);                // Nahkämpfer darunter
 heilung(2065, BODEN - 240);                              // versteckte Heilung im Versteck
-nahkaempfer(2200, 2080, 2330, 3);
+nahkaempfer(2190, 2080, 2276, 3);
 
 // =====================================================================
 // ZONE C: Versorgungspunkt 1 (x 2450 bis 2750). Ruhig, ein Atemzug.
 // =====================================================================
-versorgungspunkt(2600);
-heilung(2560);
-munition(2640);
+gelaende(2304, [[0, 0], [96, 64], [320, 64], [416, 0]]);      // sanfte Anhöhe für den Versorgungspunkt
+versorgungspunkt(2570, BODEN - 64);
+heilung(2530, BODEN - 64);
+munition(2610, BODEN - 64);
 granate(1850, BODEN - 140);                     // im Versteck der Ruine
 
 // =====================================================================
@@ -284,7 +298,7 @@ granate(1850, BODEN - 140);                     // im Versteck der Ruine
 // drei Gegnern und Beute. Wer unten bleibt, umgeht die Schützen auf den Terrassen.
 // Aus dem Tunnel kommt man über Stufen wieder hinauf (je Schacht 3 Stufen à 77 Pixel).
 // =====================================================================
-signs.push({ x: 2680, y: BODEN - 50, text: 'Alternative:\nein Höhleneingang\nführt unter die Erde' });
+signs.push({ x: 2700, y: BODEN - 70, text: 'Alternative:\nein Höhleneingang\nführt unter die Erde' });
 // ---- Der Höhleneingang: ein Graben mit Stufen führt zu einem Felsüberhang ----
 // Statt eines Lochs im Boden geht man in einem offenen Graben (x 2740 bis 2940) über 14 Stufen (je 16 mal 16 Pixel)
 // hinab und betritt dann den Tunnel, dessen Felsdecke am Eingang (x 2940) beginnt.
@@ -412,9 +426,10 @@ stacheldraht(5560);
 // =====================================================================
 // ZONE F: Versorgungspunkt 2 (x 5700 bis 6000).
 // =====================================================================
-versorgungspunkt(5850);
-heilung(5810);
-munition(5890);
+gelaende(5600, [[0, 0], [96, 64], [352, 64], [480, 0]]);       // Anhöhe für den zweiten Versorgungspunkt
+versorgungspunkt(5850, BODEN - 64);
+heilung(5810, BODEN - 64);
+munition(5890, BODEN - 64);
 
 // =====================================================================
 // ZONE G: Hochhaus-Ruine (x 6100 bis 7300). Das Gebäude hat sechs Etagen, jede 100 Pixel höher.
@@ -605,7 +620,7 @@ schwebend(14420, BODEN - 120, 140);
 // Explosive Fässer: stehen bei Gegnergruppen. Ein Schuss oder eine Granate lässt sie explodieren,
 // benachbarte Fässer folgen (Kettenreaktion). Auch der Spieler nimmt Schaden: Abstand halten!
 // =====================================================================
-fass(1250);                                  // Zone A, beim ersten Gegner
+fass(1240, BODEN - 96);                      // Zone A, beim ersten Gegner
 fass(1850, BODEN - 140);                     // Zone B, auf dem Deck beim Schützen
 fass(2150);
 fass(3440, BODEN);                           // Zone D, im Graben beim Nahkämpfer

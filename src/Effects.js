@@ -199,7 +199,7 @@ function zeichneSaum(r, saum, fels, rn) {
 
 // erdSchichten: Linsen aus Lehm, Kies und dunkler Erde sowie dünne Adern im Inneren großer Erdmassen. So ist die Erde nicht eine einzige braune Fläche.
 // l, t, w, h = der Bereich; innen(x, y) sagt, ob ein Punkt wirklich im Berg liegt (bei Hügeln mit gezackter Oberfläche).
-const LINSEN = [0x6e5a3c, 0x7a6544, 0x57524a, 0x4d4a44, 0x2e2218, 0x35281c, 0x6b3a22];
+const LINSEN = [0x66543d, 0x6e5a40, 0x544a3e, 0x4f4639, 0x4c3f2e, 0x6a4a30];
 function erdSchichten(r, rn, l, t, w, h, innen = () => true) {
     const n = Math.floor(w * h / 16000);
     for (let i = 0; i < n; i++) {
@@ -252,10 +252,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei 
                 continue;
             }
             // Erdkachel: mit der Tiefe vom warmen Braun zur Grundfarbe der Plattform
-            let c = mische(hellOben, grund, Math.min(1, ty / tiefe));
-            if (Math.floor((ty + 18 * Math.sin(x * 0.02)) / 40) % 2 === 1) c = variiere(c, -7);   // Schichtband
-            if (oberflaeche && ty === grasTiefe) c = variiere(c, -14);                             // Schatten unter dem Gras
-            if (ty > 100) c = mische(c, 0x1f1710, Math.min(0.55, (ty - 100) / 700));                // mit der Tiefe dunkler
+            let c = grund === 0x5e5a55 ? 0x5e5a55 : 0x5b4a35;                                      // überall dieselbe Grundfarbe: kein Verlauf, keine Bänder
             c = variiere(c, rnd.between(-8, 8));
             r.rect(c, x, t + ty, bw, hoehe);
             // Körnung: ein bis zwei winzige hellere/dunklere Punkte pro Kachel
@@ -975,10 +972,7 @@ function zeichneHuegel(r, rnd, f, boden) {
                 if (ty === 0 && rnd.frac() < 0.6) r.rect(fels ? 0xb4afa2 : 0x9bd14a, x, top, S, 2);
                 continue;
             }
-            let c = fels ? mische(0x6a645a, 0x3a3630, Math.min(1, (ty - grasTiefe) / 120)) : mische(0x7a5a3c, 0x4b3b2a, Math.min(1, (ty - grasTiefe) / 120));
-            if (ty > 120) c = mische(c, fels ? 0x24221f : 0x1f1710, Math.min(0.5, (ty - 120) / 500));       // mit der Tiefe dunkler
-            if (Math.floor((ty + 20 * Math.sin(x * 0.012 + f.links)) / 44) % 2 === 1) c = variiere(c, -7);   // Schichtbänder
-            if (ty === grasTiefe) c = variiere(c, -14);                     // Schatten unter dem Gras
+            let c = fels ? 0x5e5a55 : 0x5b4a35;                              // dieselbe Grundfarbe wie die Erdblöcke: kein Verlauf, keine Bänder
             c = variiere(c, rnd.between(-8, 8));
             r.rect(c, x, top + ty, S, hh);
             for (let k = 0; k < rnd.between(0, 2); k++) {

@@ -684,10 +684,10 @@ schwebend(SCH2_R - 90, GAL_B - 192, 90, HOLZ);                    // Absatz 2 (r
 geruest.push({ x0: SCH2_L, x1: SCH2_L + 90, oben: GAL_B - 96, wand: 'links' });
 geruest.push({ x0: SCH2_R - 90, x1: SCH2_R, oben: GAL_B - 192, wand: 'rechts' });
 erde(4088, 4144, GAL_O, GAL_O + BLOCK);                              // Türsturz vor der Waffenkammer
-hoehlen.push({ links: SCH2_L, rechts: SCH2_R, oben: TUNNEL_BODEN, unten: GAL_B, art: 'schacht', eigeneLampen: true });
-hoehlen.push({ links: 3024, rechts: SCH2_L, oben: GAL_O, unten: GAL_B, art: 'tunnel', eigeneLampen: true });
-hoehlen.push({ links: SCH2_R, rechts: 4088, oben: GAL_O, unten: GAL_B, art: 'tunnel', eigeneLampen: true });
-hoehlen.push({ links: 4088, rechts: 4368, oben: GAL_O, unten: GAL_B, art: 'lager', regale: false, eigeneLampen: true });
+hoehlen.push({ links: SCH2_L, rechts: SCH2_R, oben: TUNNEL_BODEN, unten: GAL_B, stil: 'feucht', art: 'schacht', eigeneLampen: true });
+hoehlen.push({ links: 3024, rechts: SCH2_L, oben: GAL_O, unten: GAL_B, stil: 'feucht', art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: SCH2_R, rechts: 4088, oben: GAL_O, unten: GAL_B, stil: 'feucht', art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 4088, rechts: 4368, oben: GAL_O, unten: GAL_B, stil: 'feucht', art: 'lager', regale: false, eigeneLampen: true });
 [3100, 3640, 3880, 4180, 4320].forEach(x => hoehlenlampe(galerie, x));
 signs.push({ x: 3380, y: TUNNEL_BODEN - 100, text: 'Maintenance shaft\n(leads down)' });
 signs.push({ x: 4180, y: GAL_B - 150, text: 'Armory 2\n"For close combat when\nthe ammo runs out."' });
@@ -833,13 +833,13 @@ aushoehlen(6100, 6360, BODEN, KAT_O);                        // Ausgangsschacht
 schacht(5320, 5580);                                         // Bretter am Rand und Absätze im Zickzack (alle 95 Pixel)
 schacht(6100, 6360);
 signs.push({ x: 5290, y: BODEN - 90, text: 'Sinkhole:\na way into the catacombs' });
-hoehlen.push({ links: 4990, rechts: 5320, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
-hoehlen.push({ links: 5320, rechts: 5580, oben: BODEN, unten: KAT_B, art: 'schacht', eigeneLampen: true });
-hoehlen.push({ links: 5580, rechts: 5780, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
-hoehlen.push({ links: 5780, rechts: 6020, oben: 928, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
-hoehlen.push({ links: 6020, rechts: 6100, oben: KAT_O, unten: KAT_B, art: 'tunnel', eigeneLampen: true });
-hoehlen.push({ links: 6100, rechts: 6360, oben: BODEN, unten: KAT_B, art: 'schacht', eigeneLampen: true });
-hoehlen.push({ links: 6360, rechts: 6560, oben: KAT_O, unten: KAT_B, art: 'lager', regale: false, eigeneLampen: true });
+hoehlen.push({ links: 4990, rechts: 5320, oben: KAT_O, unten: KAT_B, stil: 'gruft', art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 5320, rechts: 5580, oben: BODEN, unten: KAT_B, stil: 'gruft', art: 'schacht', eigeneLampen: true });
+hoehlen.push({ links: 5580, rechts: 5780, oben: KAT_O, unten: KAT_B, stil: 'gruft', art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 5780, rechts: 6020, oben: 928, unten: KAT_B, stil: 'gruft', art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 6020, rechts: 6100, oben: KAT_O, unten: KAT_B, stil: 'gruft', art: 'tunnel', eigeneLampen: true });
+hoehlen.push({ links: 6100, rechts: 6360, oben: BODEN, unten: KAT_B, stil: 'gruft', art: 'schacht', eigeneLampen: true });
+hoehlen.push({ links: 6360, rechts: 6560, oben: KAT_O, unten: KAT_B, stil: 'gruft', art: 'lager', regale: false, eigeneLampen: true });
 [5060, 5200, 5660, 6060, 6430, 6520].forEach(x => hoehlenlampe(katakomben, x));
 // die hohe Halle: Absätze im Zickzack nach oben
 schwebend(5790, KAT_B - 100, 90, HOLZ);                      // Absatz 1 (Oberkante 1230)
@@ -898,12 +898,12 @@ schachtkoepfe.push({ links: SCHACHT2_L, rechts: MINE_R });
 // Zugang: Förderschacht (links), die Schlucht (fällt direkt hinein) und der Ausgangsschacht (rechts).
 // Der Gang hat Deckung, die Kaverne hat drei Ebenen mit Beute auf dem obersten Steg.
 // =====================================================================
-hoehlen.push({ links: MINE_L, rechts: MINE_L + SCHACHT, oben: BODEN, unten: MINE_BODEN, art: 'schacht' });    // Förderschacht
-hoehlen.push({ links: MINE_L + SCHACHT, rechts: CHASM_L, oben: MINE_DECKE, unten: MINE_BODEN, art: 'tunnel' }); // Gang 1
-hoehlen.push({ links: CHASM_L, rechts: CHASM_R, oben: BODEN, unten: MINE_BODEN, art: 'schacht' });          // Schlucht
-hoehlen.push({ links: CHASM_R, rechts: KAV_R, oben: KAV_DECKE, unten: MINE_BODEN, art: 'tunnel' });         // Kaverne
-hoehlen.push({ links: KAV_R, rechts: SCHACHT2_L, oben: MINE_DECKE, unten: MINE_BODEN, art: 'tunnel' });     // Gang 2
-hoehlen.push({ links: SCHACHT2_L, rechts: MINE_R, oben: BODEN, unten: MINE_BODEN, art: 'schacht' });        // Ausgangsschacht
+hoehlen.push({ links: MINE_L, rechts: MINE_L + SCHACHT, oben: BODEN, unten: MINE_BODEN, stil: 'staubig', art: 'schacht' });    // Förderschacht
+hoehlen.push({ links: MINE_L + SCHACHT, rechts: CHASM_L, oben: MINE_DECKE, unten: MINE_BODEN, stil: 'staubig', art: 'tunnel' }); // Gang 1
+hoehlen.push({ links: CHASM_L, rechts: CHASM_R, oben: BODEN, unten: MINE_BODEN, stil: 'staubig', art: 'schacht' });          // Schlucht
+hoehlen.push({ links: CHASM_R, rechts: KAV_R, oben: KAV_DECKE, unten: MINE_BODEN, stil: 'staubig', art: 'tunnel' });         // Kaverne
+hoehlen.push({ links: KAV_R, rechts: SCHACHT2_L, oben: MINE_DECKE, unten: MINE_BODEN, stil: 'staubig', art: 'tunnel' });     // Gang 2
+hoehlen.push({ links: SCHACHT2_L, rechts: MINE_R, oben: BODEN, unten: MINE_BODEN, stil: 'staubig', art: 'schacht' });        // Ausgangsschacht
 [7780, 7990, 8210].forEach(x => lampe(x, MINE_DECKE));
 [8800, 9050].forEach(x => lampe(x, KAV_DECKE));
 lampe(9440, MINE_DECKE);

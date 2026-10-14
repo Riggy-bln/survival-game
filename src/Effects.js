@@ -197,6 +197,30 @@ function zeichneSaum(r, saum, fels, rn) {
     }
 }
 
+// erdSchichten: Linsen aus Lehm, Kies und dunkler Erde sowie dünne Adern im Inneren großer Erdmassen. So ist die Erde nicht eine einzige braune Fläche.
+// l, t, w, h = der Bereich; innen(x, y) sagt, ob ein Punkt wirklich im Berg liegt (bei Hügeln mit gezackter Oberfläche).
+const LINSEN = [0x6e5a3c, 0x7a6544, 0x57524a, 0x4d4a44, 0x2e2218, 0x35281c, 0x6b3a22];
+function erdSchichten(r, rn, l, t, w, h, innen = () => true) {
+    const n = Math.floor(w * h / 16000);
+    for (let i = 0; i < n; i++) {
+        const lw = rn.between(40, 130), lh = rn.pick([8, 8, 12, 16]), cx = l + rn.between(24, Math.max(25, w - 24)), cy = t + rn.between(56, Math.max(57, h - 24));
+        if (!innen(cx - lw / 2, cy) || !innen(cx + lw / 2, cy) || !innen(cx, cy + lh)) continue;
+        const c = rn.pick(LINSEN);
+        for (let k = 0; k < lh; k += 4) {                                          // Linse: in der Mitte breit, zu den Enden schmal
+            const f = 1 - Math.abs((k + 2) / lh * 2 - 1) * 0.6, bw = Math.round(lw * f / 4) * 4;
+            for (let x = 0; x < bw; x += 4) if (rn.frac() < 0.9) r.rect(c, Math.round((cx - bw / 2 + x) / 4) * 4, cy + k, 4, 4, 0.55);
+        }
+    }
+    for (let i = 0; i < Math.floor(w * h / 60000); i++) {                         // dünne helle oder dunkle Adern
+        let vx = l + rn.between(24, Math.max(25, w - 24)), vy = t + rn.between(60, Math.max(61, h - 60));
+        const c = rn.pick([0x8a7a64, 0x2a2018]), richtung = rn.pick([-1, 1]);
+        for (let k = 0; k < rn.between(8, 20); k++) {
+            if (!innen(vx, vy)) break;
+            r.rect(c, vx, vy, 4, 4, 0.45); vx += richtung * 4; vy += rn.pick([0, 0, 4]);
+        }
+    }
+}
+
 function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei = null, kanten = {}) {
     const u = t + tiefe;
     const rn = new Phaser.Math.RandomDataGenerator(['rand' + l + '_' + t]);
@@ -231,6 +255,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei 
             let c = mische(hellOben, grund, Math.min(1, ty / tiefe));
             if (Math.floor((ty + 18 * Math.sin(x * 0.02)) / 40) % 2 === 1) c = variiere(c, -7);   // Schichtband
             if (oberflaeche && ty === grasTiefe) c = variiere(c, -14);                             // Schatten unter dem Gras
+            if (ty > 100) c = mische(c, 0x1f1710, Math.min(0.55, (ty - 100) / 700));                // mit der Tiefe dunkler
             c = variiere(c, rnd.between(-8, 8));
             r.rect(c, x, t + ty, bw, hoehe);
             // Körnung: ein bis zwei winzige hellere/dunklere Punkte pro Kachel
@@ -242,6 +267,7 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei 
     }
 
     if (saum) zeichneSaum(r, saum, grund === 0x5e5a55, rn);
+    if (tiefe >= 120) erdSchichten(r, new Phaser.Math.RandomDataGenerator(['sch' + l + '_' + t]), l, t, w, tiefe);
 
     // --- Steine aus Pixelblöcken (mit Glanz oben links und Schatten unten) ---
     const formen = [[2, 3, 2], [3, 4, 4, 2], [2, 4, 3], [4, 5, 4], [1, 2]];
@@ -684,12 +710,20 @@ function zeichneHoehle(r, rnd, h, lampen) {
         schacht:{ basis: 0x33281e, hell: 0x41342a, dunkel: 0x1f1812 },
         lager:  { basis: 0x2b3034, hell: 0x383e43, dunkel: 0x1b1f22 },
     }[h.art];
+    // Jede Höhle kann einen eigenen Charakter haben: 'feucht' (blaugrau, tropfend), 'staubig' (warme Minenwände mit Holzstützen),
+    // 'gruft' (violettgrau mit Bögen, Kerzen und Knochen)
+    const STILE = {
+        feucht:  { basis: 0x1f2c32, hell: 0x2c3e46, dunkel: 0x131c20 },
+        staubig: { basis: 0x352a1d, hell: 0x47392a, dunkel: 0x21190f },
+        gruft:   { basis: 0x2b2327, hell: 0x3a2f35, dunkel: 0x191317 },
+    };
+    if (h.stil && STILE[h.stil]) Object.assign(farben, STILE[h.stil]);
     const S = 8;
 
     // --- 1. Wand aus 8-Pixel-Kacheln, oben dunkler, unten etwas heller ---
     for (let y = 0; y < hh; y += S) {
         for (let x = 0; x < w; x += S) {
-            const c = variiere(mische(farben.dunkel, farben.basis, Math.min(1, 0.5 + y / hh * 0.6)), rnd.between(-5, 5));
+            const c = variiere(mische(farben.dunkel, farben.basis, Math.min(1, 0.75 + y / hh * 0.4)), rnd.between(-5, 5));
             r.rect(c, l + x, t + y, Math.min(S, w - x), Math.min(S, hh - y));
         }
     }
@@ -737,17 +771,21 @@ function zeichneHoehle(r, rnd, h, lampen) {
         }
     }
     if (h.art === 'tunnel' || h.art === 'lager') {
-        // --- 7. Rohre an der Decke, mit Gelenken, Rost und Verschraubung ---
-        r.rect(0x4a3b30, l, t + 12, w, 8); r.rect(0x6b5646, l, t + 12, w, 2); r.rect(0x2c2119, l, t + 18, w, 2);
-        for (let x = rnd.between(40, 100); x < w; x += rnd.between(110, 170)) {
-            r.rect(0x33271e, l + x, t + 9, 8, 14); r.rect(0x8a6a4a, l + x + 2, t + 11, 2, 2);
-            r.rect(0x6b3a22, l + x + 3, t + 22, 2, rnd.between(4, 12), 0.8);   // Rostspur / Tropfen
+        // --- 7. Rohre an der Decke: einzelne Stücke mit Lücken (sie verschwinden in der Decke), Gelenken, Rost und Verschraubung ---
+        for (let x = rnd.between(0, 50); x < w; ) {
+            const len = rnd.between(80, 220), y = rnd.pick([12, 12, 16, 8]);
+            const bis = Math.min(len, w - x);
+            r.rect(0x4a3b30, l + x, t + y, bis, 8); r.rect(0x6b5646, l + x, t + y, bis, 2); r.rect(0x2c2119, l + x, t + y + 6, bis, 2);
+            r.rect(0x33271e, l + x + bis - 8, t + y - 8, 8, 24); r.rect(0x8a6a4a, l + x + bis - 6, t + y - 6, 2, 2);          // Flansch, der in die Decke führt
+            if (rnd.frac() < 0.5) r.rect(0x6b3a22, l + x + rnd.between(10, Math.max(11, bis - 10)), t + y + 8, 2, rnd.between(4, 14), 0.8);   // Rostspur / Tropfen
+            x += len + rnd.between(20, 60);
         }
-        // Kabel: hängen in Stufen durch
-        for (let x = 0; x < w - 160; x += 160) {
-            for (let k = 0; k <= 160; k += 8) {
-                const sag = Math.round(Math.sin(k / 160 * Math.PI) * 3) * 4;
-                r.rect(0x0e0e0e, l + x + k, t + 26 + sag, 8, 3, 0.9);
+        // Kabel: hängen in Stufen durch, nur stückweise
+        for (let x = rnd.between(0, 80); x < w - 120; x += rnd.between(180, 320)) {
+            const lang = rnd.between(100, 180);
+            for (let k = 0; k <= lang; k += 8) {
+                const sag = Math.round(Math.sin(k / lang * Math.PI) * 3) * 4;
+                r.rect(0x0e0e0e, l + x + k, t + 28 + sag, 8, 3, 0.9);
             }
         }
     }
@@ -775,6 +813,32 @@ function zeichneHoehle(r, rnd, h, lampen) {
         }
     }
 
+    // --- Stil-Extras ---
+    if (h.stil === 'feucht') {                                                  // Tropfspuren an der Wand, Feuchtigkeit
+        for (let i = 0; i < w / 50; i++) {
+            const dx = l + rnd.between(0, Math.max(0, w - 2)), len = rnd.between(20, 70), dy = t + rnd.between(14, Math.max(15, hh / 2));
+            r.rect(0x6fa0b8, dx, dy, 2, len, 0.22); r.rect(0xa8d4e4, dx, dy + len - 4, 2, 4, 0.4);
+        }
+    } else if (h.stil === 'staubig' && h.art !== 'schacht') {                                          // Holzstützen und Querbalken im Hintergrund
+        for (let x = rnd.between(30, 90); x < w - 20; x += rnd.between(170, 240)) {
+            r.rect(0x3a2c1e, l + x, t, 12, hh, 0.85); r.rect(0x4c3926, l + x, t, 4, hh, 0.7);
+            r.rect(0x3a2c1e, l + x - 40, t + 30, 92, 10, 0.85); r.rect(0x4c3926, l + x - 40, t + 30, 92, 3, 0.7);
+            for (let k = 0; k < 40; k += 4) r.rect(0x3a2c1e, l + x + 12 + k, t + 40 + k, 4, 4, 0.8);          // Strebe
+        }
+        for (let i = 0; i < w / 40; i++) r.rect(0xd9c08a, l + rnd.between(0, w), t + rnd.between(20, hh - 20), 2, 2, 0.25);   // Staubkörner
+    } else if (h.stil === 'gruft' && h.art !== 'schacht') {                                            // Bögen, Kerzen, Knochen
+        for (let x = rnd.between(20, 60); x < w - 160; x += rnd.between(230, 300)) {
+            const bw = rnd.between(130, 170);
+            r.rect(0x140f12, l + x, t + 30, 16, hh - 30, 0.7); r.rect(0x140f12, l + x + bw, t + 30, 16, hh - 30, 0.7);
+            for (let k = 0; k <= bw / 2; k += 8) { const ay = Math.round(Math.sqrt(Math.max(0, 1 - Math.pow(1 - k / (bw / 2), 2))) * 30); r.rect(0x140f12, l + x + k, t + 60 - ay, 16, 12, 0.7); r.rect(0x140f12, l + x + bw - k, t + 60 - ay, 16, 12, 0.7); }
+        }
+        for (let x = rnd.between(40, 120); x < w - 20; x += rnd.between(150, 260)) {
+            const ky = t + hh - 6;
+            r.rect(0xe8dcc0, l + x, ky - 12, 4, 12); r.rect(0xffd060, l + x, ky - 18, 4, 6); r.rect(0xffd060, l + x - 14, ky - 30, 32, 30, 0.07);
+            if (rnd.frac() < 0.6) { r.rect(0xd8d0bc, l + x + 24, ky - 8, 10, 8); r.rect(0x141414, l + x + 26, ky - 6, 2, 2); r.rect(0x141414, l + x + 30, ky - 6, 2, 2); r.rect(0xd8d0bc, l + x + 36, ky - 3, 12, 3); }
+        }
+    }
+
     // --- 8. Lichtkegel unter den Lampen (abgestuft, sehr durchsichtig) und Lichtfleck am Boden ---
     for (const lamp of lampen) {
         // Zahl = Lampe im Tunnel/Mine (gilt für alle Höhlen ohne "eigeneLampen"); Objekt {x, y} = Lampe in genau einer Höhle (nach Höhe)
@@ -784,13 +848,13 @@ function zeichneHoehle(r, rnd, h, lampen) {
         if (lx < h.links + 10 || lx > h.rechts - 10) continue;
         const cx = lx;
         for (let k = 0, y = 20; y < hh - 4; k++, y += 8) {
-            r.rect(0xffd866, cx - (12 + k * 5), t + y, 24 + k * 10, 8, 0.045);
+            r.rect(0xffd866, cx - (12 + k * 5), t + y, 24 + k * 10, 8, 0.07);
         }
-        r.rect(0xffd866, cx - 70, t + hh - 6, 140, 6, 0.10);
-        r.rect(0xffd866, cx - 36, t + hh - 6, 72, 6, 0.12);
+        r.rect(0xffd866, cx - 90, t + hh - 6, 180, 6, 0.12);
+        r.rect(0xffd866, cx - 46, t + hh - 6, 92, 6, 0.16);
     }
     // --- 9. Pfützen auf dem Boden ---
-    for (let i = 0; i < w / 150; i++) {
+    for (let i = 0; i < w / (h.stil === 'feucht' ? 60 : 150); i++) {
         const px = l + rnd.between(0, Math.max(0, w - 60)), len = rnd.between(30, 64);
         r.rect(0x5f7f90, px, t + hh - 5, len, 5, 0.45); r.rect(0x9fc6d6, px + 4, t + hh - 5, len / 2, 2, 0.5);
     }
@@ -809,7 +873,7 @@ function zeichneHoehle(r, rnd, h, lampen) {
         }
     }
     // --- 10. Schatten an der Decke und an den Seiten, Tageslicht vom Eingang her ---
-    for (let y = 0; y < hh * 0.4; y += 8) r.rect(0x000000, l, t + y, w, 8, 0.4 * (1 - y / (hh * 0.4)));
+    for (let y = 0; y < hh * 0.4; y += 8) r.rect(0x000000, l, t + y, w, 8, 0.22 * (1 - y / (hh * 0.4)));
     if (h.licht === 'links') {
         for (let x = 0; x < 360; x += 16) r.rect(0xffe9b0, l + x, t, 16, hh, 0.16 * (1 - x / 360));
     }
@@ -912,6 +976,8 @@ function zeichneHuegel(r, rnd, f, boden) {
                 continue;
             }
             let c = fels ? mische(0x6a645a, 0x3a3630, Math.min(1, (ty - grasTiefe) / 120)) : mische(0x7a5a3c, 0x4b3b2a, Math.min(1, (ty - grasTiefe) / 120));
+            if (ty > 120) c = mische(c, fels ? 0x24221f : 0x1f1710, Math.min(0.5, (ty - 120) / 500));       // mit der Tiefe dunkler
+            if (Math.floor((ty + 20 * Math.sin(x * 0.012 + f.links)) / 44) % 2 === 1) c = variiere(c, -7);   // Schichtbänder
             if (ty === grasTiefe) c = variiere(c, -14);                     // Schatten unter dem Gras
             c = variiere(c, rnd.between(-8, 8));
             r.rect(c, x, top + ty, S, hh);
@@ -926,6 +992,10 @@ function zeichneHuegel(r, rnd, f, boden) {
         }
     }
     zeichneSaum(r, saumH, fels, rk);
+    {   // Linsen und Adern im Inneren der Hügel (nur dort, wo wirklich Erde ist)
+        const innenH = (x, y) => { const i = Math.floor((x - f.links) / f.schritt); return i >= 0 && i < spalten && y > boden - f.werte[i] + 40 && y < UNTEN - 8; };
+        erdSchichten(r, rk, f.links, boden - Math.max(...f.werte), f.breite, Math.max(...f.werte) + 28, innenH);
+    }
     // Steine im Hügel (Pixelblöcke mit Licht und Schatten)
     for (let i = 0; i < f.breite / (fels ? 30 : 60); i++) {
         const sx = f.links + rnd.between(8, f.breite - 8);

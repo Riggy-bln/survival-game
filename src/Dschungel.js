@@ -43,19 +43,39 @@ export function buildDschungelHimmel(scene) {
             for (let x = 0; x < B; x += Z) if (rh.frac() < p) g.fillRect(x, y0 + zeile * Z, Z, Z);
         }
     }
-    // blasse, vom Rauch verdeckte Sonne
-    scene.add.circle(900, H * 0.5, 120, 0xffd890, 0.14).setScrollFactor(0.03).setDepth(-29);
-    scene.add.circle(900, H * 0.5, 86, 0xffe6a8, 0.5).setScrollFactor(0.03).setDepth(-29);
-    scene.add.circle(900, H * 0.5, 62, 0xfff3c8, 0.55).setScrollFactor(0.03).setDepth(-29);
+    // blasse, vom Rauch verdeckte Sonne: ein weicher Schein aus 4-Pixel-Zellen (einmal gebacken) und eine matte Scheibe
+    if (!scene.textures.exists('dschungel_sonne')) {
+        const sg = scene.add.graphics(), R = 150;
+        for (let y = -R; y < R; y += 4) for (let x = -R; x < R; x += 4) {
+            const d = Math.hypot(x + 2, y + 2) / R;
+            if (d >= 1) continue;
+            const schein = Math.pow(1 - d, 2.2) * 0.42, kern = d < 0.3 ? 0.5 * (1 - d / 0.3) + 0.12 : 0;
+            sg.fillStyle(d < 0.3 ? 0xfff0c0 : 0xffd890, Math.min(0.62, Math.round((schein + kern) * 40) / 40)).fillRect(R + x, R + y, 4, 4);
+        }
+        sg.generateTexture('dschungel_sonne', R * 2, R * 2);
+        sg.destroy();
+    }
+    scene.add.image(900, H * 0.5, 'dschungel_sonne').setScrollFactor(0.03).setDepth(-29);
 
-    // Rauchwolken: große, dunkle, durchsichtige Pixelhaufen, die langsam hin- und herziehen
+    // Rauchwolken: weiche, dunkle Haufen aus vielen übereinanderliegenden Pixelkreisen (je Wolke einmal gebacken), die langsam hin- und herziehen
     const rnd = new Phaser.Math.RandomDataGenerator(['rauchwolken']);
-    for (let i = 0; i < 7; i++) {
-        const w = rnd.between(240, 520), h = rnd.between(40, 80);
-        const wolke = scene.add.graphics().setScrollFactor(0.02 + i * 0.006).setDepth(-28);
-        const farbe = rnd.pick([0x1c2218, 0x2a2a20, 0x33281e]);
-        for (let k = 0; k < 9; k++) wolke.fillStyle(farbe, rnd.between(18, 34) / 100).fillRect(rnd.between(0, w * 0.5), rnd.between(0, h * 0.7), rnd.between(w * 0.3, w * 0.6), rnd.between(10, h * 0.5));
-        wolke.setPosition(rnd.between(-100, B), rnd.between(20, H * 0.55));
+    for (let i = 0; i < 9; i++) {
+        const w = rnd.between(320, 560), h = rnd.between(90, 170), key = 'dschungel_wolke_' + i;
+        if (!scene.textures.exists(key)) {
+            const wg = scene.add.graphics(), farbe = rnd.pick([0x141a12, 0x1f2018, 0x2a2018]);
+            const kugeln = rnd.between(10, 16);
+            for (let k = 0; k < kugeln; k++) {
+                const cx = rnd.between(w * 0.15, w * 0.85), cy = rnd.between(h * 0.3, h * 0.7), r = rnd.between(30, 70);
+                for (let y = -r; y < r; y += 8) for (let x = -r; x < r; x += 8) {
+                    const d = Math.hypot(x + 4, (y + 4) * 1.5) / r;
+                    if (d >= 1 || cx + x < 0 || cx + x > w - 8 || cy + y < 0 || cy + y > h - 8) continue;
+                    wg.fillStyle(farbe, Math.round((1 - d) * 0.16 * 100) / 100).fillRect(cx + x, cy + y, 8, 8);
+                }
+            }
+            wg.generateTexture(key, w, h);
+            wg.destroy();
+        }
+        const wolke = scene.add.image(rnd.between(-100, B), rnd.between(20, H * 0.55), key).setOrigin(0, 0).setScrollFactor(0.02 + i * 0.005).setDepth(-28);
         scene.tweens.add({ targets: wolke, x: wolke.x + rnd.pick([-1, 1]) * rnd.between(160, 380), duration: rnd.between(40000, 90000), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 

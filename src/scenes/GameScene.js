@@ -13,6 +13,7 @@ import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
 import { buildLandscape } from '../Landscape.js';
 import { buildDschungelHimmel, buildDschungelSchicht, buildBrandherde } from '../Dschungel.js';
+import { baueStimmung, baueLichtstrahlen, baueBodennebel, baueVordergrund, baueBodendetails } from '../Atmosphaere.js';
 import Mehrspieler, { SPIELERFARBEN } from '../Mehrspieler.js';
 import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves, buildHuegel, buildBerge } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
@@ -75,10 +76,16 @@ export default class GameScene extends Phaser.Scene {
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.14, 0x226444, 150, 105, 'j2', 8, 95, true, -25);
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.22, 0x194c34, 115, 85, 'j3', 9, 120, false, -24);
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.32, 0x103a28, 85, 65, 'j4', 8, 150, false, -23);        // nahe, dunkle Palmen
+        // Stimmung und Tiefe: Farbwechsel im Level, Lichtstrahlen, Bodennebel und Blätter im Vordergrund
+        this.stimmung = baueStimmung(this);
+        baueLichtstrahlen(this);
+        baueBodennebel(this, WORLD_WIDTH, BODEN);
+        this.vordergrund = baueVordergrund(this, WORLD_WIDTH, BODEN);
 
         // --- Dekoration: Ruinen im Hintergrund (ohne Physik) ---
         // (Die alten Rechtecke sind weg: Verfallene Gebäude und Pflanzen kommen aus Landscape.js.)
         buildLandscape(this, level);
+        baueBodendetails(this, level);                    // Krater, Pfützen, Stämme, Reifen, Bretter und Geröll auf ebenem Boden
 
         // --- Dekoration und Schilder aus der Level-Datei (ohne Physik) ---
         for (const d of level.decor) {
@@ -88,7 +95,8 @@ export default class GameScene extends Phaser.Scene {
         for (const sg of level.signs) {
             this.add.text(sg.x, sg.y, sg.text, {
                 fontSize: '16px', color: '#e6ded0', align: 'center', lineSpacing: 2,
-            }).setOrigin(0.5).setDepth(3);
+                stroke: '#0a0f0a', strokeThickness: 3,
+            }).setOrigin(0.5).setDepth(3).setShadow(2, 2, '#000000', 0, true, true);   // dunkle Kontur: lesbar vor jedem Hintergrund
         }
 
         // --- Boden und Plattformen ---
@@ -118,6 +126,7 @@ export default class GameScene extends Phaser.Scene {
 
         buildHuegel(this, level.huegelformen, BODEN);   // Erdoberfläche der sanften Hügel
         buildCaves(this, level.hoehlen, level.lampen);  // Höhlenwände (statt schwarzer Flächen)
+        this.add.rectangle(0, WORLD_HEIGHT - 4, WORLD_WIDTH, 900, 0x20180f).setOrigin(0, 0).setDepth(0.5);   // unter dem Weltende: dunkle Erde statt Dschungel
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
         this.fx = new Effects(this);                       // Partikel
         // Testhilfe (nur mit ?shot=1): nach 6 Sekunden ein Bild des Spiels an einen lokalen Testserver schicken
@@ -1886,6 +1895,7 @@ export default class GameScene extends Phaser.Scene {
 
     // update() läuft ca. 60-mal pro Sekunde.
     update() {
+        if (this.stimmung) { const m = this.cameras.main.midPoint; this.stimmung.update(m.x); this.vordergrund.update(m.y); }
         // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
         if (this.gameOver) {
             if (this.mp) {                                    // Online: Enter startet (nur der Gastgeber) für alle neu, Esc zweimal verlässt

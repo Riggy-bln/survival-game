@@ -1895,7 +1895,7 @@ export default class GameScene extends Phaser.Scene {
 
     // update() läuft ca. 60-mal pro Sekunde.
     update() {
-        if (this.stimmung) { const m = this.cameras.main.midPoint; this.stimmung.update(m.x); this.vordergrund.update(m.y); }
+        if (this.stimmung) { const k = this.cameras.main, m = k.midPoint; this.stimmung.update(m.x); this.vordergrund.update(m.y, this.player.x - k.scrollX, this.player.y - k.scrollY, k.scrollX); }
         // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
         if (this.gameOver) {
             if (this.mp) {                                    // Online: Enter startet (nur der Gastgeber) für alle neu, Esc zweimal verlässt

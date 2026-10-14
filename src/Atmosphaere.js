@@ -91,54 +91,186 @@ export function baueBodennebel(scene, weltBreite, boden) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Vordergrund: dunkle Blätter und Lianen, die oben ins Bild hängen. Sie bewegen sich schneller als die Welt (näher an der Kamera) und
-// verschwinden, sobald man unter der Erde ist.
+// Vordergrund: dunkle Pflanzen, die vor dem Bild vorbeiziehen (näher an der Kamera als alles andere, also schneller als die Welt):
+// Palmwedel und große Blätter in den oberen Ecken, hängende Lianen und Äste, Farne und hohes Gras am unteren Rand, ab und zu ein Baumstamm
+// am Bildrand. Sie bleiben am Rand, damit das Spielfeld frei bleibt, werden durchsichtiger, wenn sie vor dem Spieler vorbeiziehen, und
+// verschwinden unter der Erde. In der Arena gibt es kaum welche (freie Sicht), im dichten Dschungel viele.
 // ---------------------------------------------------------------------------------------------------------------------
-function wedel(g, x, y, laenge, richtung, farbe, rn) {
-    // ein breites Blatt: die Mittelachse biegt sich nach unten, die Breite wächst in der Mitte und läuft spitz zu; der Rand ist leicht gezackt
-    const bogen = rn.between(30, 80) / 100, steig = rn.between(-10, 70) / 100, breite = rn.between(12, 22);
-    const hell = farbe + 0x030a05;
-    for (let sx = 0; sx < laenge; sx += 4) {
-        const t = sx / laenge, mitteY = y + (t * steig + Math.pow(t, 2) * bogen) * laenge * 0.6;
-        const w = Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.05)), 0.7) * breite;
-        const px = Math.round((x + richtung * sx) / 4) * 4;
-        for (let dy = -w; dy < w; dy += 4) {
-            if (Math.abs(dy) > w * 0.55 && rn.frac() < 0.35) continue;                // ausgefranster Rand
-            g.fillStyle(Math.abs(dy) < 4 ? hell : farbe).fillRect(px, Math.round((mitteY + dy) / 4) * 4, 4, 4);
+const VG = { schatten: 0x050f09, basis: 0x0b2314, mitte: 0x12361f, licht: 0x1f5230, rand: 0x2f7a40, blume: 0xd9533a, gelb: 0xe8c040, holz: [0x140e09, 0x1f1610, 0x2c2016, 0x3a2c1c] };
+const rasterZelle = (g, x, y, farbe, a = 1) => g.fillStyle(farbe, a).fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4, 4, 4);
+
+// Ein Fiederwedel: gebogene Mittelrippe mit dichten Fiedern links und rechts, die nach unten hängen. Oben beleuchtet (heller), unten im Schatten.
+function fiederWedel(g, x0, y0, laenge, winkel, kruemmung, fiederLaenge, rn) {
+    let x = x0, y = y0, w = winkel;
+    for (let s = 0; s < laenge; s += 4) {
+        const t = s / laenge;
+        w += kruemmung / (laenge / 4);
+        x += Math.cos(w) * 4; y += Math.sin(w) * 4;
+        rasterZelle(g, x, y, VG.mitte);
+        if (s % 4 === 0 && t > 0.06) {
+            const L = fiederLaenge * Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.95 + 0.05)), 0.8) * (0.55 + 0.45 * (1 - t));
+            for (const seite of [-1, 1]) {
+                const dirx = Math.cos(w + seite * 1.15), diry = Math.sin(w + seite * 1.15) + 0.55;           // schräg nach außen, dazu hängend
+                const n = Math.hypot(dirx, diry);
+                for (let k = 4; k < L; k += 4) {
+                    const lx = x + dirx / n * k, ly = y + diry / n * k + k * k * 0.006;
+                    const hell = diry / n < 0.3 && seite === -1;                                         // die oben liegenden Fiedern fangen das Licht
+                    rasterZelle(g, lx, ly, k > L * 0.7 ? VG.schatten : (hell ? VG.licht : VG.basis));
+                }
+            }
         }
     }
 }
 
-export function baueVordergrund(scene, weltBreite, boden) {
-    backeTextur(scene, 'atmo_blatt', 360, 300, (g) => {
-        const rn = new Phaser.Math.RandomDataGenerator(['vordergrund']);
-        for (let i = 0; i < 7; i++) wedel(g, rn.between(0, 30), rn.between(-10, 30), rn.between(140, 340), 1, rn.pick([0x07160e, 0x0a2014, 0x0c2a18]), rn);
-    });
-    backeTextur(scene, 'atmo_blatt2', 360, 300, (g) => {
-        const rn = new Phaser.Math.RandomDataGenerator(['vordergrund2']);
-        for (let i = 0; i < 7; i++) wedel(g, 360 - rn.between(0, 30), rn.between(-10, 30), rn.between(140, 340), -1, rn.pick([0x07160e, 0x0a2014, 0x0c2a18]), rn);
-    });
-    backeTextur(scene, 'atmo_liane', 40, 260, (g) => {
-        const rn = new Phaser.Math.RandomDataGenerator(['lianen']);
-        let x = 16;
-        for (let y = 0; y < 240; y += 4) { x += rn.pick([-4, 0, 0, 4]); x = klemme(x, 4, 32); g.fillStyle(0x08180f).fillRect(x, y, 4, 4); if (y % 48 === 16) g.fillStyle(0x0c2a18).fillRect(x + 4, y, 8, 8); }
-    });
-    const rnd = new Phaser.Math.RandomDataGenerator(['vordergrundplatz']);
-    const teile = [];
-    for (let x = 300; x < weltBreite; x += rnd.between(700, 1300)) {
-        const art = rnd.between(0, 2);
-        const faktor = rnd.between(120, 150) / 100;                                 // >1: schneller als die Welt
-        const b = scene.add.image(x, 0, art === 0 ? 'atmo_blatt' : (art === 1 ? 'atmo_blatt2' : 'atmo_liane')).setOrigin(0, 0)
-            .setScrollFactor(faktor, 0).setDepth(19).setAlpha(0.92);
-        if (art === 2) b.setScale(rnd.between(10, 20) / 10);
-        // Die Ruhelage so wählen, dass es bei Kamerabewegung auf Höhe von x erscheint (Faktor beachten)
-        b.x = x * faktor - rnd.between(0, 400) * (faktor - 1);
-        teile.push(b);
+// Ein großes Blatt (wie Banane oder Monstera): Oval mit Mittelrippe, Seitenadern und eingeschnittenem Rand.
+function grossesBlatt(g, cx, cy, a, b, winkel, rn) {
+    const co = Math.cos(winkel), si = Math.sin(winkel);
+    for (let y = -b; y <= b; y += 4) for (let x = -a; x <= a; x += 4) {
+        const u = x * co + y * si, v = -x * si + y * co;
+        const d = Math.pow(u / a, 2) + Math.pow(v / b, 2);
+        if (d > 1) continue;
+        if (d > 0.62 && rn.frac() < 0.32) continue;                                                     // Einschnitte am Rand
+        let c = VG.basis;
+        if (v < -b * 0.2) c = VG.mitte; if (v < -b * 0.55) c = VG.licht;                                // oben heller
+        if (d > 0.85) c = VG.schatten;
+        if (Math.abs(v) < 4) c = VG.rand;                                                                // Mittelrippe
+        else if (Math.abs((u + Math.abs(v) * 1.2) % 28) < 4 && d < 0.8) c = c === VG.schatten ? c : VG.mitte;   // Seitenadern
+        rasterZelle(g, cx + x, cy + y, c);
     }
+}
+
+function vgLiane(g, laenge, rn, breite = 48) {
+    let x = breite / 2;
+    for (let y = 0; y < laenge; y += 4) {
+        x += rn.pick([-4, 0, 0, 0, 4]); x = klemme(x, 8, breite - 16);
+        rasterZelle(g, x, y, VG.schatten); if (y % 8 === 0) rasterZelle(g, x + 4, y, VG.basis);
+        if (y > 24 && y % 40 === 16) {                                                                  // Blätter abwechselnd links und rechts
+            const seite = (y / 40) % 2 === 0 ? 1 : -1;
+            for (let k = 1; k <= 3; k++) for (let j = 0; j < 3 - (k === 3 ? 1 : 0); j++) rasterZelle(g, x + seite * (4 + k * 4), y + j * 4 - (k === 2 ? 4 : 0), j === 0 ? VG.licht : VG.mitte);
+        }
+    }
+    if (rn.frac() < 0.5) { rasterZelle(g, x, laenge, VG.blume); rasterZelle(g, x + 4, laenge, VG.blume); rasterZelle(g, x, laenge + 4, VG.gelb); }   // Blüte am Ende
+}
+
+function vgAst(g, w, h, rn) {
+    let y = h * 0.35;
+    for (let x = 0; x < w; x += 4) {
+        y += rn.pick([-2, 0, 0, 0, 2]); y = klemme(y, 18, h * 0.5);
+        const dicke = Math.round((22 - x / w * 12) / 4) * 4;
+        for (let k = 0; k < dicke; k += 4) rasterZelle(g, x, y + k, k === 0 ? VG.holz[2] : (k >= dicke - 4 ? VG.holz[0] : VG.holz[1]));
+        if (rn.frac() < 0.12) rasterZelle(g, x, y - 4, VG.holz[3]);
+        if (x > 60 && x % 56 === 0) fiederWedel(g, x, y + dicke, rn.between(70, 120), Math.PI * 0.5 + rn.pick([-0.5, 0.5]), rn.pick([-0.6, 0.6]), rn.between(22, 34), rn);   // Wedel hängen vom Ast
+    }
+}
+
+function vgStamm(g, w, h, rn) {
+    for (let y = 0; y < h; y += 4) {
+        const wackel = Math.round(Math.sin(y * 0.012) * 8 / 4) * 4;
+        for (let x = 12; x < w - 12; x += 4) {
+            const t = (x - 12) / (w - 24);
+            let c = t < 0.2 ? VG.holz[3] : (t < 0.45 ? VG.holz[2] : (t < 0.8 ? VG.holz[1] : VG.holz[0]));
+            if (rn.frac() < 0.08) c = VG.holz[(rn.between(0, 3))];
+            rasterZelle(g, x + wackel, y, c);
+        }
+        if (y % 96 === 40) for (let k = 0; k < 24; k += 4) rasterZelle(g, 12 + k + wackel, y + 4, VG.schatten);   // Astloch / Narbe
+    }
+    for (let k = 0; k < 3; k++) vgLianeAn(g, 14 + k * 20, rn.between(40, 200), rn.between(180, 340), rn);
+}
+function vgLianeAn(g, x0, y0, laenge, rn) { let x = x0; for (let y = y0; y < y0 + laenge; y += 4) { x += rn.pick([-4, 0, 0, 4]); rasterZelle(g, x, y, VG.basis); if (y % 24 === 0) rasterZelle(g, x + 4, y, VG.licht); } }
+
+function vgGras(g, w, h, rn) {
+    for (let x = 0; x < w; x += 4) {
+        if (rn.frac() < 0.35) continue;
+        const hoehe = Math.round(rn.between(24, h - 8) * (0.5 + 0.5 * Math.sin(x / w * Math.PI)) / 4) * 4;
+        let bx = x, richtung = rn.pick([-1, 1]);
+        for (let y = 0; y < hoehe; y += 4) {
+            if (y > hoehe * 0.55 && y % 8 === 0) bx += richtung * 4;
+            rasterZelle(g, bx, h - 4 - y, y > hoehe * 0.7 ? VG.mitte : VG.basis);
+            if (y > hoehe - 8) rasterZelle(g, bx, h - 4 - y, VG.licht);
+        }
+    }
+}
+
+function vgFarn(g, w, h, rn) {
+    for (let i = 0; i < 9; i++) {
+        const winkel = -Math.PI / 2 + (i - 4) * 0.34 + rn.between(-10, 10) / 100;
+        fiederWedel(g, w / 2 + rn.between(-12, 12), h - 4, rn.between(110, 200), winkel, (i - 4) * 0.12, rn.between(18, 30), rn);
+    }
+}
+
+export function baueVordergrund(scene, weltBreite, boden) {
+    const bk = (key, w, h, fn) => backeTextur(scene, key, w, h, (g) => fn(g, new Phaser.Math.RandomDataGenerator([key])));
+    bk('vg_palme', 360, 300, (g, rn) => { for (let i = 0; i < 6; i++) fiederWedel(g, rn.between(0, 24), rn.between(0, 30), rn.between(210, 330) - i * 12, -0.15 + i * 0.27 + rn.between(-5, 5) / 100, 1.0 - i * 0.1 + rn.between(-10, 10) / 100, rn.between(30, 46), rn); });
+    bk('vg_blatt', 320, 280, (g, rn) => { grossesBlatt(g, 90, 60, 120, 44, 0.55, rn); grossesBlatt(g, 170, 130, 130, 50, 0.9, rn); grossesBlatt(g, 40, 160, 100, 36, 1.2, rn); });
+    bk('vg_liane1', 56, 200, (g, rn) => vgLiane(g, 170, rn));
+    bk('vg_liane2', 56, 300, (g, rn) => vgLiane(g, 270, rn));
+    bk('vg_liane3', 56, 380, (g, rn) => vgLiane(g, 350, rn));
+    bk('vg_ast', 620, 160, (g, rn) => vgAst(g, 620, 160, rn));
+    bk('vg_stamm', 96, 760, (g, rn) => vgStamm(g, 96, 760, rn));
+    bk('vg_gras', 380, 120, (g, rn) => vgGras(g, 380, 120, rn));
+    bk('vg_farn', 380, 230, (g, rn) => vgFarn(g, 380, 230, rn));
+
+    // Wie dicht der Dschungel im Vordergrund an welcher Stelle des Levels ist (0 = frei, 1 = sehr dicht)
+    const dichte = (x) => x < 2200 ? 0.8 : x < 4400 ? 0.6 : x < 6500 ? 0.95 : x < 9700 ? 0.5 : x < 12000 ? 0.75 : x < 13400 ? 0.9 : x < 15600 ? 0.4 : 0.15;
+    const rnd = new Phaser.Math.RandomDataGenerator(['vordergrundplatz2']);
+    const teile = [];
+    const H = () => scene.scale.height;
+    // Beschreibung einer Sorte: Textur, Verankerung (oben, unten, Seite), Parallaxfaktor, Größe, Spiegelung möglich
+    const SORTEN = [
+        { key: 'vg_palme',  anker: 'oo', faktor: [1.25, 1.4],  skala: [1.0, 1.5], gewicht: 3, spiegel: true },
+        { key: 'vg_blatt',  anker: 'oo', faktor: [1.35, 1.6],  skala: [0.9, 1.4], gewicht: 2, spiegel: true },
+        { key: 'vg_liane1', anker: 'oo', faktor: [1.15, 1.3],  skala: [1, 1.4],   gewicht: 2 },
+        { key: 'vg_liane2', anker: 'oo', faktor: [1.2, 1.35],  skala: [1, 1.3],   gewicht: 2 },
+        { key: 'vg_liane3', anker: 'oo', faktor: [1.25, 1.45], skala: [1, 1.2],   gewicht: 1 },
+        { key: 'vg_ast',    anker: 'oo', faktor: [1.1, 1.2],   skala: [1.2, 2.0], gewicht: 2, spiegel: true },
+        { key: 'vg_farn',   anker: 'uu', faktor: [1.3, 1.55],  skala: [1.0, 1.6], gewicht: 3, spiegel: true },
+        { key: 'vg_gras',   anker: 'uu', faktor: [1.15, 1.3],  skala: [1.0, 2.0], gewicht: 3, spiegel: true },
+        { key: 'vg_stamm',  anker: 'ss', faktor: [1.6, 1.8],   skala: [1.0, 1.5], gewicht: 1 },
+    ];
+    const lose = [];
+    for (const so of SORTEN) for (let i = 0; i < so.gewicht; i++) lose.push(so);
+    let letzteX = 0;
+    for (let x = 300; x < weltBreite; x += rnd.between(380, 820)) {
+        if (rnd.frac() > dichte(x)) continue;
+        // an manchen Stellen mehrere Teile zusammen: eine Gruppe (zum Beispiel Palme oben und Farn unten) wirkt wie echter Bewuchs
+        const gruppe = rnd.frac() < 0.4 ? 2 : 1;
+        for (let k = 0; k < gruppe; k++) {
+            const so = rnd.pick(lose);
+            const faktor = rnd.between(so.faktor[0] * 100, so.faktor[1] * 100) / 100, skala = rnd.between(so.skala[0] * 100, so.skala[1] * 100) / 100;
+            const bild = scene.add.image(0, 0, so.key).setScrollFactor(faktor, 0).setDepth(19).setScale(skala);
+            const spiegeln = so.spiegel && rnd.frac() < 0.5;
+            if (spiegeln) bild.setFlipX(true);
+            // Der Anker bestimmt, wo am Bildschirmrand das Teil sitzt: oben links/rechts, unten links/rechts, Seitenmitte
+            const rechts = rnd.frac() < 0.5;
+            bild.setOrigin(so.anker === 'ss' ? 0.5 : 0, so.anker === 'uu' ? 1 : 0);
+            // Weltposition, bei der das Teil auf dem Bildschirm erscheint, wenn die Kamera bei x steht
+            const kameraX = x + k * rnd.between(60, 200);
+            const bildschirmX = rechts ? scene.scale.width - bild.displayWidth * rnd.between(60, 100) / 100 : -bild.displayWidth * rnd.between(0, 35) / 100;
+            bild.x = kameraX * faktor - kameraX + bildschirmX + (kameraX - scene.scale.width / 2) * 0 + (scene.scale.width / 2) * (faktor - 1) * 0;
+            // Umrechnung: Bildschirm-x = bild.x - scrollX * faktor, mit scrollX = kameraX - Breite/2  =>  bild.x = bildschirmX + faktor * (kameraX - Breite/2)
+            bild.x = bildschirmX + faktor * (kameraX - scene.scale.width / 2);
+            if (so.anker === 'ss') bild.x = (rechts ? scene.scale.width - 30 : 30) + faktor * (kameraX - scene.scale.width / 2);
+            teile.push({ bild, so, kameraX, unten: so.anker === 'uu', ziel: 0.92, aktuell: 0.92 });
+        }
+        letzteX = x;
+    }
+    const lage = () => { for (const t of teile) if (t.unten) t.bild.y = H(); else if (t.bild.y !== 0) t.bild.y = 0; };
+    lage();
+    scene.scale.on('resize', lage);
     return {
-        update(kameraMitteY) {
-            const a = klemme(1 - (kameraMitteY - (boden - 60)) / 260, 0, 0.92);       // unter der Erde ausblenden
-            for (const t of teile) t.setAlpha(a);
+        // kameraMitteY: für das Ausblenden unter der Erde; spielerX/Y: Bildschirmposition des Spielers (zum Durchsichtigwerden vor ihm); scrollX: Kamera
+        update(kameraMitteY, spielerX, spielerY, scrollX) {
+            const unterErde = klemme(1 - (kameraMitteY - (boden - 60)) / 260, 0, 1);
+            for (const t of teile) {
+                const b = t.bild;
+                const sx = b.x - scrollX * b.scrollFactorX, links = sx, rechts = sx + b.displayWidth, breiteB = b.displayWidth, hoehe = b.displayHeight;
+                const oben = b.originY === 1 ? H() - hoehe : 0, unten = oben + hoehe;
+                const ueberlappt = spielerX !== undefined && spielerX > links - 70 && spielerX < rechts + 70 && spielerY > oben - 90 && spielerY < unten + 90 && breiteB > 0;
+                t.ziel = ueberlappt ? 0.28 : 0.92;
+                t.aktuell += (t.ziel - t.aktuell) * 0.08;
+                b.setAlpha(t.aktuell * unterErde);
+                b.setVisible(rechts > -20 && links < 3000 && unterErde > 0.01);
+            }
         },
     };
 }

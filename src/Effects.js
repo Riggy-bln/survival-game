@@ -102,7 +102,7 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
 // Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief detailliert wird.
 // Einheitlicher Helligkeitsverlauf der Erde: Die Helligkeit hängt nur von der Höhe in der Welt ab (y). Oben ist die Erde am hellsten, nach unten wird sie
 // gleichmäßig dunkler. Alles, was auf derselben Höhe liegt (Erde, Kies, Steine, Adern, Säume), bekommt dieselbe Helligkeit.
-function erdHelligkeit(y) { return 1.2 - 0.55 * Math.max(0, Math.min(1500, y)) / 1500; }
+function erdHelligkeit(y) { return Math.max(0.15, 0.92 - 1.65 * (Math.max(0, Math.min(1500, y)) - 760) / 1500); }   // 0,92 an der Oberfläche; 1,65 pro Weltbreite (dreimal so stark wie vorher)
 function mitHelligkeit(r) {
     const skaliere = (c, f) => {
         const rr = Math.min(255, Math.round(((c >> 16) & 255) * f)), gg = Math.min(255, Math.round(((c >> 8) & 255) * f)), bb = Math.min(255, Math.round((c & 255) * f));

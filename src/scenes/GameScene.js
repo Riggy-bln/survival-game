@@ -323,6 +323,47 @@ export default class GameScene extends Phaser.Scene {
         // Darum Esc kurz sperren (Date.now ist die echte Uhr, die Spieluhr steht ja in der Pause).
         this.pauseBlockedUntil = 0;
         this.events.on('resume', () => { this.pauseBlockedUntil = Date.now() + 300; });
+        if (this.modus === 'viewer') this.starteBetrachter();
+    }
+
+    // ---------- Kartenbetrachter (nur auf localhost im Menü): frei durch die Welt fliegen, ohne etwas zu berühren ----------
+    // Die Spielfigur, Gegner, Physik und Anzeigen sind aus. Die Kamera fliegt frei (auch über und unter die Welt hinaus).
+    starteBetrachter() {
+        this.betrachter = true;
+        this.physics.pause();
+        this.player.body.enable = false;
+        [this.hpBack, this.hpBar, this.hpText, this.hotbar, this.slotName, this.crosshair, this.teamHud, this.belebenHinweis, this.evacLabel].forEach((o) => { if (o && o.setVisible) o.setVisible(false); });
+        for (const o of this.children.list) if (o.scrollFactorX === 0 && o.depth >= 20 && o.setVisible && !o.__betrachter) o.setVisible(false);   // alle Bildschirmanzeigen
+        if (this.touch && this.touch.verstecken) this.touch.verstecken();
+        this.input.setDefaultCursor('default');
+        const k = this.cameras.main, param = new URLSearchParams(window.location.search);
+        k.stopFollow();
+        k.removeBounds();
+        k.setZoom(Number(param.get('zoom')) || 1);
+        k.centerOn(Number(param.get('x')) || 400, Number(param.get('y')) || BODEN - 150);
+        this.betrachterTasten = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,Q,E,ESC,R');
+        this.input.on('wheel', (p, over, dx, dy) => { k.setZoom(Phaser.Math.Clamp(k.zoom * (dy > 0 ? 0.88 : 1.14), 0.08, 3)); });
+        this.betrachterText = this.add.text(0, 0, '', { fontSize: '14px', color: '#e8ffe8', backgroundColor: '#000000aa', padding: { x: 8, y: 5 } }).setScrollFactor(0).setDepth(30);
+        this.betrachterText.__betrachter = true;
+        this.betrachterText.setOrigin(0, 0);
+    }
+
+    betrachterUpdate(delta) {
+        const k = this.cameras.main, t = this.betrachterTasten, schnell = t.SHIFT.isDown ? 3.5 : 1;
+        const v = 14 * schnell * (delta / 16.7) / k.zoom;
+        if (t.A.isDown || t.LEFT.isDown) k.scrollX -= v;
+        if (t.D.isDown || t.RIGHT.isDown) k.scrollX += v;
+        if (t.W.isDown || t.UP.isDown) k.scrollY -= v;
+        if (t.S.isDown || t.DOWN.isDown) k.scrollY += v;
+        if (t.Q.isDown) k.setZoom(Phaser.Math.Clamp(k.zoom * 0.985, 0.08, 3));
+        if (t.E.isDown) k.setZoom(Phaser.Math.Clamp(k.zoom * 1.015, 0.08, 3));
+        if (Phaser.Input.Keyboard.JustDown(t.R)) { k.setZoom(1); k.centerOn(400, BODEN - 150); }
+        if (Phaser.Input.Keyboard.JustDown(t.ESC)) { this.input.setDefaultCursor('default'); this.scene.start('MenuScene'); return; }
+        // Anzeige oben links: bei Zoom bleibt sie in Bildschirmgröße (scrollFactor 0 wird sonst mitgezoomt)
+        const z = k.zoom, mx = this.scale.width / 2, my = this.scale.height / 2, tx = 12, ty = 12;
+        this.betrachterText.setScale(1 / z).setPosition(mx + (tx - mx) / z, my + (ty - my) / z);
+        this.betrachterText.setText(`MAP VIEWER   x ${Math.round(k.midPoint.x)}   y ${Math.round(k.midPoint.y)}   zoom ${z.toFixed(2)}\nWASD / arrows: fly   Shift: fast   wheel or Q/E: zoom   R: reset   Esc: menu`);
+        if (this.stimmung) this.stimmung.update(k.midPoint.x);
     }
 
     // Dunklere bzw. hellere Variante einer Farbe (für Schatten und Glanz).
@@ -1893,7 +1934,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // update() läuft ca. 60-mal pro Sekunde.
-    update() {
+    update(zeit, delta) {
+        if (this.betrachter) { this.betrachterUpdate(delta); return; }
         if (this.stimmung) this.stimmung.update(this.cameras.main.midPoint.x);
         // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
         if (this.gameOver) {

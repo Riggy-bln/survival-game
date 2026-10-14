@@ -46,7 +46,7 @@ export default class MenuScene extends Phaser.Scene {
         this.eintraege = [];
         this.auswahl = 0;
         this.zeigeMenue('haupt');
-        if (new URLSearchParams(window.location.search).get('start') === '1') this.starte('einzel');   // Testhilfe: Menü überspringen
+        if (new URLSearchParams(window.location.search).get('start') === '1') this.starte(new URLSearchParams(window.location.search).get('viewer') === '1' ? 'viewer' : 'einzel');   // Testhilfe: Menü überspringen
 
         // Tastatur: hoch/runter wählt, Enter oder Leertaste bestätigt, Esc geht zurück, N schaltet den Ton
         this.tasten = this.input.keyboard.addKeys('UP,DOWN,W,S,ENTER,SPACE,ESC,N');
@@ -84,6 +84,10 @@ export default class MenuScene extends Phaser.Scene {
                 { text: 'SINGLE PLAYER', info: 'Alone through the military zone.', farbe: GRUEN, aktion: () => this.starte('einzel') },
                 { text: 'MULTIPLAYER', info: 'Play together with others.', farbe: BLAU, aktion: () => this.zeigeMenue('mehrspieler') },
             ];
+            // Nur auf dem eigenen Rechner (localhost): ein Kartenbetrachter zum Entwickeln, in dem man frei durch die Welt fliegt
+            if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+                eintraege.push({ text: 'MAP VIEWER', info: 'Fly through the whole world without playing (only on localhost).', farbe: 0xc080ff, aktion: () => this.starte('viewer') });
+            }
         } else if (name === 'mehrspieler') {
             eintraege = [
                 { text: 'PLAY ONLINE', info: 'Over the internet with friends: create a room and share the code.', farbe: ORANGE, aktion: () => this.zeigeMenue('online') },
@@ -100,7 +104,7 @@ export default class MenuScene extends Phaser.Scene {
         this.eintraege = eintraege;
         this.untertitel.setText(name === 'haupt' ? '' : (name === 'online' ? '- ONLINE -' : '- MULTIPLAYER -'));
 
-        const abstand = 64, y0 = name === 'haupt' ? 268 : 262 - (eintraege.length - 2) * 12;
+        const abstand = 64, y0 = name === 'haupt' ? 268 - (eintraege.length - 2) * 18 : 262 - (eintraege.length - 2) * 12;
         eintraege.forEach((e, i) => {
             const k = pixelKnopf(this, MITTE_X, y0 + i * abstand, 440, 50, e.text + (e.demnaechst ? '  (soon)' : ''), e.farbe, () => { this.waehle(i); this.bestaetige(); },
                 { px: 3, deaktiviert: !!e.demnaechst });
@@ -123,7 +127,7 @@ export default class MenuScene extends Phaser.Scene {
         e.aktion();
     }
 
-    // Startet das Spiel im gewählten Modus ('einzel'; später 'online' und 'lokal').
+    // Startet das Spiel im gewählten Modus ('einzel', 'viewer'; online über die Lobby).
     starte(modus) {
         this.registry.set('modus', modus);
         this.scene.start('GameScene');

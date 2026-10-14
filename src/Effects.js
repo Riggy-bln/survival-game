@@ -100,6 +100,17 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
 }
 
 // Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief detailliert wird.
+// Einheitlicher Helligkeitsverlauf der Erde: Die Helligkeit hängt nur von der Höhe in der Welt ab (y). Oben ist die Erde am hellsten, nach unten wird sie
+// gleichmäßig dunkler. Alles, was auf derselben Höhe liegt (Erde, Kies, Steine, Adern, Säume), bekommt dieselbe Helligkeit.
+function erdHelligkeit(y) { return 1.2 - 0.55 * Math.max(0, Math.min(1500, y)) / 1500; }
+function mitHelligkeit(r) {
+    const skaliere = (c, f) => {
+        const rr = Math.min(255, Math.round(((c >> 16) & 255) * f)), gg = Math.min(255, Math.round(((c >> 8) & 255) * f)), bb = Math.min(255, Math.round((c & 255) * f));
+        return (rr << 16) | (gg << 8) | bb;
+    };
+    return { rect: (c, x, y, w, h, a = 1) => r.rect(skaliere(c, erdHelligkeit(y + h / 2)), x, y, w, h, a), tri: r.tri, ell: r.ell, line: r.line };
+}
+
 // Schneidet aus einem Malwerkzeug Rechtecke heraus (z. B. abgerundete Ecken): alles, was in "weg" liegt, wird nicht gemalt.
 function mitAusschnitt(r, weg) {
     const Z = 64, raster = new Map();                  // grobes Raster: welche Ausschnitte liegen in welchem 64er-Feld?
@@ -222,6 +233,7 @@ function erdSchichten(r, rn, l, t, w, h, innen = () => true) {
 }
 
 function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei = null, kanten = {}) {
+    r = mitHelligkeit(r);
     const u = t + tiefe;
     const rn = new Phaser.Math.RandomDataGenerator(['rand' + l + '_' + t]);
     let saum = null;
@@ -933,6 +945,7 @@ export function buildCaves(scene, hoehlen, lampen) {
 // dunkler wird. Gleicher Stil wie der flache Boden. f = { links, breite, schritt, werte[] } (siehe Level01.js).
 function zeichneHuegel(r, rnd, f, boden) {
     boden = f.boden ?? boden;            // Hänge im Untergrund haben eine eigene Standhöhe
+    r = mitHelligkeit(r);
     const fels = !!f.fels;   // Felshang statt Grashügel: graue Steinkacheln statt grüner Grasschicht
     const GRAS_OBEN = fels ? [0x8c8474, 0x7d776a, 0x948c7c] : [0x6aa032, 0x7ab83c, 0x5d9029];
     const GRAS_MITTE = fels ? [0x6f6a5e, 0x66605a, 0x757066] : [0x4f7f27, 0x467022, 0x588a2c];

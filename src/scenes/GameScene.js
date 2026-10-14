@@ -330,8 +330,10 @@ export default class GameScene extends Phaser.Scene {
     // Die Spielfigur, Gegner, Physik und Anzeigen sind aus. Die Kamera fliegt frei (auch über und unter die Welt hinaus).
     starteBetrachter() {
         this.betrachter = true;
-        this.physics.pause();
         this.player.body.enable = false;
+        // Die Kreaturen stehen still (keine KI): Sie fallen noch kurz auf ihren Boden, dann wird die Physik angehalten.
+        for (const e of this.enemies) if (e.body) e.body.setVelocity(0, 0);
+        this.time.delayedCall(1500, () => this.physics.pause());
         [this.hpBack, this.hpBar, this.hpText, this.hotbar, this.slotName, this.crosshair, this.teamHud, this.belebenHinweis, this.evacLabel].forEach((o) => { if (o && o.setVisible) o.setVisible(false); });
         for (const o of this.children.list) if (o.scrollFactorX === 0 && o.depth >= 20 && o.setVisible && !o.__betrachter) o.setVisible(false);   // alle Bildschirmanzeigen
         if (this.touch && this.touch.verstecken) this.touch.verstecken();
@@ -348,7 +350,30 @@ export default class GameScene extends Phaser.Scene {
         this.betrachterText.setOrigin(0, 0);
     }
 
+    // Zeichnet im Kartenbetrachter alle Kreaturen (Soldaten, Schützen, Skelette, Brut und den Boss) ruhig stehend und mit Blick zur Kamera-Mitte.
+    zeichneKreaturenBetrachter() {
+        const g = this.charGfx, p = this.player, ansicht = this.cameras.main.worldView;
+        g.clear();
+        for (const e of this.enemies) {
+            if (!e.active || e.x < ansicht.x - 300 || e.x > ansicht.right + 300 || e.y < ansicht.y - 300 || e.y > ansicht.bottom + 300) continue;
+            if (e.body) e.body.setVelocity(0, 0);
+            // Als "Ziel" dient ein Punkt vor der Kreatur: So blicken alle in ihre Laufrichtung (Skelette zielen waagerecht)
+            const richtung = e.direction ?? (e.x < this.cameras.main.midPoint.x ? 1 : -1);
+            p.x = e.x + richtung * 120; p.y = e.y;
+            if (e === this.boss) { this.drawBoss(g, e); continue; }
+            if (e.brut) { this.drawBrut(g, e); continue; }
+            if (e.skelett) { this.drawSkelett(g, e, p); continue; }
+            const fern = e.range !== undefined;
+            this.drawHumanoid(g, e.x, e.y, {
+                facing: richtung, body: e.fillColor, skin: fern ? 0x8a6fb0 : 0xc88a6a, head: fern ? 'hood' : 'mask',
+                moving: false, air: !e.body.blocked.down, aim: fern ? Phaser.Math.Angle.Between(e.x, e.y, p.x, p.y) : undefined, gun: 26, reach: !fern,
+                rueck: 0,
+            });
+        }
+    }
+
     betrachterUpdate(delta) {
+        this.zeichneKreaturenBetrachter();
         const k = this.cameras.main, t = this.betrachterTasten, schnell = t.SHIFT.isDown ? 3.5 : 1;
         const v = 14 * schnell * (delta / 16.7) / k.zoom;
         if (t.A.isDown || t.LEFT.isDown) k.scrollX -= v;

@@ -13,7 +13,7 @@ import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
 import { buildLandscape } from '../Landscape.js';
 import { buildDschungelHimmel, buildDschungelSchicht, buildBrandherde } from '../Dschungel.js';
-import { baueStimmung, baueLichtstrahlen, baueBodennebel, baueVordergrund, baueBodendetails } from '../Atmosphaere.js';
+import { baueStimmung, baueLichtstrahlen, baueBodennebel, baueBodendetails } from '../Atmosphaere.js';
 import Mehrspieler, { SPIELERFARBEN } from '../Mehrspieler.js';
 import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves, buildHuegel, buildBerge } from '../Effects.js';
 import level from '../levels/Level01.js';  // die Leveldaten (Listen)
@@ -76,11 +76,10 @@ export default class GameScene extends Phaser.Scene {
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.14, 0x226444, 150, 105, 'j2', 8, 95, true, -25);
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.22, 0x194c34, 115, 85, 'j3', 9, 120, false, -24);
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.32, 0x103a28, 85, 65, 'j4', 8, 150, false, -23);        // nahe, dunkle Palmen
-        // Stimmung und Tiefe: Farbwechsel im Level, Lichtstrahlen, Bodennebel und Blätter im Vordergrund
+        // Stimmung und Tiefe: Farbwechsel im Level, Lichtstrahlen und Bodennebel (der Vordergrund aus Blättern ist ausgebaut; baueVordergrund liegt noch in Atmosphaere.js)
         this.stimmung = baueStimmung(this);
         baueLichtstrahlen(this);
         baueBodennebel(this, WORLD_WIDTH, BODEN);
-        this.vordergrund = baueVordergrund(this, WORLD_WIDTH, BODEN);
 
         // --- Dekoration: Ruinen im Hintergrund (ohne Physik) ---
         // (Die alten Rechtecke sind weg: Verfallene Gebäude und Pflanzen kommen aus Landscape.js.)
@@ -1895,7 +1894,7 @@ export default class GameScene extends Phaser.Scene {
 
     // update() läuft ca. 60-mal pro Sekunde.
     update() {
-        if (this.stimmung) { const k = this.cameras.main, m = k.midPoint; this.stimmung.update(m.x); this.vordergrund.update(m.y, this.player.x - k.scrollX, this.player.y - k.scrollY, k.scrollX); }
+        if (this.stimmung) this.stimmung.update(this.cameras.main.midPoint.x);
         // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
         if (this.gameOver) {
             if (this.mp) {                                    // Online: Enter startet (nur der Gastgeber) für alle neu, Esc zweimal verlässt

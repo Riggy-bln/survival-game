@@ -16,7 +16,27 @@
 //   wieder(nr)                die Verbindung steht wieder
 //   getrennt(nr)              ein Spieler ist endgültig weg (Gast: der Gastgeber, nr = 1)
 //   fehler(text)              etwas ist schiefgegangen (Text für den Spieler)
+import { METERED, TURN } from './NetzKonfig.js';
+
 const VORSILBE = 'survivalgame-';
+// STUN-Server helfen, die öffentliche Adresse zu finden (nötig für fast alle Heimnetze). Mehrere, damit einer ausfallen darf.
+const STUN = ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302', 'stun:stun.cloudflare.com:3478'];
+const BEITRITT_VERSUCHE = 5;     // so viele Versuche gibt es insgesamt, einem Raum beizutreten
+const VERSUCH_DAUER = 8000;      // ein einzelner Versuch bekommt so lange (ms); ein Verbindungsaufbau dauert normalerweise 1 bis 3 Sekunden
+const NICHT_GEFUNDEN_MAX = 3;    // so oft darf der Vermittler "Raum nicht bekannt" melden, bevor wir einen falschen Code annehmen
+
+// Baut die Liste der ICE-Server: STUN immer, TURN (Weiterleitung) wenn in NetzKonfig.js eingetragen.
+async function holeIceServer() {
+    const liste = [{ urls: STUN }];
+    if (TURN.urls.length) liste.push({ urls: TURN.urls, username: TURN.username, credential: TURN.credential });
+    if (METERED.app && METERED.apiKey) {
+        try {
+            const antwort = await fetch(`https://${METERED.app}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(METERED.apiKey)}`, { signal: AbortSignal.timeout(5000) });
+            if (antwort.ok) liste.push(...await antwort.json());
+        } catch (e) { /* ohne TURN weitermachen */ }
+    }
+    return liste;
+}
 const ZEICHEN = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // ohne I, O, 0, 1: sie verwechselt man leicht
 export const CODE_LAENGE = 4;
 // Macht aus einer Eingabe einen brauchbaren Spielernamen (höchstens 12 Zeichen, nur Buchstaben, Ziffern, Leerzeichen, - und _).
@@ -53,12 +73,14 @@ export default class Netz {
     ruf(name, ...args) { if (this.rufe[name]) this.rufe[name](...args); }
 
     // ---------- Gastgeber ----------
-    erstelleRaum(versuch = 0) {
+    async erstelleRaum(versuch = 0) {
         this.rolle = 'host';
         this.meineNr = 1;
         this.spieler = new Map([[1, { name: saubererName(this.meinName) || 'Player 1', conn: null, ping: 0 }]]);
         this.code = zufallscode();
-        this.peer = new Peer(VORSILBE + this.code);
+        this.iceServer = this.iceServer || await holeIceServer();
+        if (this.geschlossen) return;
+        this.peer = new Peer(VORSILBE + this.code, { config: { iceServers: this.iceServer, iceCandidatePoolSize: 4 } });
         this.peer.on('open', () => { this.ruf('bereit', this.code); this.starteMessung(); });
         this.peer.on('connection', (conn) => this.neueVerbindung(conn));
         this.peer.on('error', (err) => {
@@ -131,28 +153,70 @@ export default class Netz {
     }
 
     // ---------- Gast ----------
-    tritBei(code) {
+    async tritBei(code) {
         this.rolle = 'gast';
         this.code = code.toUpperCase();
-        this.peer = new Peer();
-        // Nach 12 Sekunden ohne Verbindung aufgeben und eine verständliche Meldung zeigen
+        this.beitrittVersuche = 0;
+        this.iceServer = this.iceServer || await holeIceServer();
+        if (this.geschlossen) return;
+        this.peer = new Peer(undefined, { config: { iceServers: this.iceServer, iceCandidatePoolSize: 4 } });
+        // Notbremse: Nach 60 Sekunden ohne Verbindung aufgeben (normalerweise endet es früher, siehe beitrittNeuVersuchen)
         this.zeitTimer = setTimeout(() => {
             if (!this.verbunden && !this.geschlossen) this.ruf('fehler', 'No answer. Is the code correct and the room still open?');
-        }, 12000);
+        }, 60000);
         this.peer.on('open', () => this.verbindeMitHost(false));
         this.peer.on('error', (err) => {
             // Mitten im Spiel sind manche Meldungen nur Hinweise (zum Beispiel "Raum nicht gefunden" bei einem Neuversuch)
             if (this.verbunden && err.type === 'peer-unavailable') return;
+            // Beim Beitritt sind zwei Fehler oft nur vorübergehend: Der Gastgeber ist beim Vermittler noch nicht eingetragen
+            // ("peer-unavailable"), oder der Verbindungsaufbau ist einmal gescheitert ("webrtc"). Dann einfach noch einmal versuchen.
+            if (!this.verbunden && (err.type === 'peer-unavailable' || err.type === 'webrtc')) {
+                this.beitrittNeuVersuchen(err.type === 'peer-unavailable' ? 'Room not found. Check the code.' : this.fehlertext(err), err.type === 'peer-unavailable' ? 'unbekannt' : 'aufbau');
+                return;
+            }
             this.ruf('fehler', this.fehlertext(err));
         });
         this.peer.on('disconnected', () => { if (!this.geschlossen) { try { this.peer.reconnect(); } catch (e) { /* egal */ } } });
     }
 
+    // Ein Beitritt ist gescheitert: nach kurzer Pause mit einer frischen Verbindung noch einmal versuchen, bis die Versuche aufgebraucht sind.
+    // art: 'unbekannt' = der Vermittler kennt den Raum nicht (falscher Code oder der Gastgeber ist noch nicht eingetragen), 'aufbau' = die direkte
+    // Verbindung ist nicht zustande gekommen. Wird ein Raum dreimal hintereinander nicht gefunden, nehmen wir einen falschen Code an.
+    beitrittNeuVersuchen(letzteMeldung, art = 'aufbau') {
+        if (this.verbunden || this.geschlossen) return;
+        if (this.beitrittWartet) return;                         // es ist schon ein neuer Versuch geplant
+        this.beitrittVersuche++;
+        this.unbekanntZaehler = art === 'unbekannt' ? (this.unbekanntZaehler || 0) + 1 : 0;
+        this.letzteArt = art;
+        if (this.beitrittVersuche >= BEITRITT_VERSUCHE || this.unbekanntZaehler >= NICHT_GEFUNDEN_MAX) {
+            clearTimeout(this.zeitTimer);
+            this.ruf('fehler', letzteMeldung);
+            return;
+        }
+        this.beitrittWartet = true;
+        setTimeout(() => {
+            this.beitrittWartet = false;
+            if (this.verbunden || this.geschlossen || !this.peer || this.peer.destroyed) return;
+            if (this.peer.disconnected) { try { this.peer.reconnect(); } catch (e) { /* egal */ } }
+            if (this.peer.open) this.verbindeMitHost(false);
+        }, 1000 + this.beitrittVersuche * 500);
+    }
+
     // Baut die Verbindung zum Gastgeber auf (beim Neuversuch mit demselben Erkennungszeichen).
     verbindeMitHost(neuVersuch) {
+        if (this.hostConn && !this.verbunden && this.hostConn !== undefined) { try { this.hostConn.close(); } catch (e) { /* egal */ } }
         const conn = this.peer.connect(VORSILBE + this.code, { reliable: true, metadata: { token: this.token, name: saubererName(this.meinName) } });
         this.hostConn = conn;
+        // Hängt ein Versuch (kein Ergebnis, keine Fehlermeldung), wird er nach VERSUCH_DAUER abgebrochen und neu begonnen
+        if (!neuVersuch) {
+            conn.versuchTimer = setTimeout(() => {
+                if (this.verbunden || this.geschlossen || conn !== this.hostConn) return;
+                try { conn.close(); } catch (e) { /* egal */ }
+                this.beitrittNeuVersuchen(this.letzteArt === 'unbekannt' ? 'Room not found. Check the code.' : 'The connection to the room failed.', this.letzteArt || 'aufbau');
+            }, VERSUCH_DAUER);
+        }
         conn.on('open', () => {
+            clearTimeout(conn.versuchTimer);
             this.verbunden = true;
             clearTimeout(this.zeitTimer);
             clearInterval(this.neuTimer);
@@ -163,9 +227,11 @@ export default class Netz {
         conn.on('data', (daten) => this.empfange(1, daten));
         conn.on('close', () => {
             if (this.geschlossen || this.endgueltig || conn !== this.hostConn) return;
+            clearTimeout(conn.versuchTimer);
+            if (!this.verbunden) { this.beitrittNeuVersuchen('The connection to the room failed.'); return; }   // noch gar nicht verbunden gewesen: Beitritt erneut versuchen
             this.verbindungZumHostVerloren();
         });
-        conn.on('error', () => { if (!this.verbunden) this.ruf('fehler', 'The connection to the room failed.'); });
+        conn.on('error', () => { if (!this.verbunden && conn === this.hostConn) this.beitrittNeuVersuchen('The connection to the room failed.'); });
     }
 
     // Die Verbindung zum Gastgeber ist abgerissen: bis zu 20 Sekunden lang alle 2 Sekunden neu versuchen.

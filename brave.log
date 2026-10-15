@@ -1,0 +1,26 @@
+[93910:5549949:1015/094430.660765:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[93910:5549949:1015/094430.661843:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[93910:5549949:1015/094430.661908:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[93911:5549939:1015/094431.072340:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.073174:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.073247:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.073310:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.076286:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.cloudflare.com., errorcode: -105
+[93911:5549939:1015/094431.076409:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.cloudflare.com., errorcode: -105
+[93911:5549939:1015/094431.076487:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.cloudflare.com., errorcode: -105
+[93911:5549939:1015/094431.076542:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.cloudflare.com., errorcode: -105
+[93911:5549939:1015/094431.076587:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.cloudflare.com., errorcode: -105
+[93911:5549939:1015/094431.105431:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun2.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.105560:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun2.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.105586:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun2.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.105603:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun2.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.105619:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun2.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.106133:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun1.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.106215:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun1.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.106247:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun1.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.106263:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun1.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.106278:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun1.l.google.com., errorcode: -105
+[93911:5549939:1015/094431.124609:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for stun.l.google.com., errorcode: -105
+[93911:5549939:1015/094434.068854:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for 0676e521-9429-451a-b40b-0a220f9f0d9c.local., errorcode: -105
+[93911:5549939:1015/094434.068947:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for 0676e521-9429-451a-b40b-0a220f9f0d9c.local., errorcode: -105
+[93911:5549939:1015/094434.068992:ERROR:services/network/p2p/socket_manager.cc:145] Failed to resolve address for 0676e521-9429-451a-b40b-0a220f9f0d9c.local., errorcode: -105

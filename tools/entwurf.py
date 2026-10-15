@@ -29,29 +29,36 @@ def entwerfe(b):
     akt6(b); akt7(b); akt8(b); akt9(b); akt10(b)
 
 def verbindungen(b):
-    """Damit alles erreichbar ist: Leitern an hohen Wänden, Holzbrücken über zu breite Lücken. (Das Gelände selbst ist unverändert.)"""
-    # Treppe zum Aussichtsplateau (erste große Fahne): Stufen von vier Zellen Höhe sind zu hoch zum Springen, dort hängen Leitern
-    b.leiter(107, 12, 16, +1)
-    b.leiter(111, 4, 8, +1)
-    b.leiter(112, 0, 4, +1)
-    # Der Aufstieg zu den Himmelsinseln: eine lange Leiter vom ersten Hof (Spalte 18) hinauf
-    b.leiter(18, -9, 5, +1)
-    # Der Rückweg aus der Nische unter dem Startplateau: Steg und Leiter hinauf zum ersten Hof
-    b.planke(11, 13, 8); b.leiter(13, 5, 8, +1)
-    # Schluchten, die zu breit sind
-    b.planke(35, 37, 5)
-    # Obere Route: von der Mittelplattform zum ersten Aussichtsplateau (sechs Zellen Lücke)
-    b.planke(109, 110, -2); b.planke(112, 113, -2)
-    # Hinter der ersten großen Fahne: Schlucht (neun Zellen) und zweite Schlucht (sieben Zellen)
-    b.planke(123, 124, -2); b.planke(126, 127, -2); b.planke(129, 130, -2)
-    b.planke(141, 142, -2); b.planke(144, 145, -2)
-    # Aufstieg zur Himmelsroute über der Festung (Leiter an der Treppe aus Erde) und Ende des Oberflächenwegs (zehn Zellen Lücke)
-    b.leiter(153, -10, -2, +1); b.leiter(156, -13, -10, +1)
-    b.planke(189, 190, 3); b.planke(192, 193, 4); b.planke(195, 196, 4)
-    b.leiter(194, 5, 10, +1)
-    # Schlusskletterei und die Lücke vor der Landezone
-    b.leiter(232, -6, 0, +1)
-    b.planke(243, 244, -7)
+    """Leitern und Brücken setzt der Spieler selbst im Karteneditor (Werkzeuge 'Ladder' und 'Wooden floor'): Der Generator übernimmt sie aus der Skizze.
+    Früher standen hier meine Vorschläge für die Verbindungen; sie sind unten als Kommentar aufbewahrt (Spalte, Zeile) und werden NICHT mehr gebaut."""
+    return
+
+# Die früheren Vorschläge (nicht mehr aktiv):
+#     def verbindungen(b):
+#         """Damit alles erreichbar ist: Leitern an hohen Wänden, Holzbrücken über zu breite Lücken. (Das Gelände selbst ist unverändert.)"""
+#         # Treppe zum Aussichtsplateau (erste große Fahne): Stufen von vier Zellen Höhe sind zu hoch zum Springen, dort hängen Leitern
+#         b.leiter(107, 12, 16, +1)
+#         b.leiter(111, 4, 8, +1)
+#         b.leiter(112, 0, 4, +1)
+#         # Der Aufstieg zu den Himmelsinseln: eine lange Leiter vom ersten Hof (Spalte 18) hinauf
+#         b.leiter(18, -9, 5, +1)
+#         # Der Rückweg aus der Nische unter dem Startplateau: Steg und Leiter hinauf zum ersten Hof
+#         b.planke(11, 13, 8); b.leiter(13, 5, 8, +1)
+#         # Schluchten, die zu breit sind
+#         b.planke(35, 37, 5)
+#         # Obere Route: von der Mittelplattform zum ersten Aussichtsplateau (sechs Zellen Lücke)
+#         b.planke(109, 110, -2); b.planke(112, 113, -2)
+#         # Hinter der ersten großen Fahne: Schlucht (neun Zellen) und zweite Schlucht (sieben Zellen)
+#         b.planke(123, 124, -2); b.planke(126, 127, -2); b.planke(129, 130, -2)
+#         b.planke(141, 142, -2); b.planke(144, 145, -2)
+#         # Aufstieg zur Himmelsroute über der Festung (Leiter an der Treppe aus Erde) und Ende des Oberflächenwegs (zehn Zellen Lücke)
+#         b.leiter(153, -10, -2, +1); b.leiter(156, -13, -10, +1)
+#         b.planke(189, 190, 3); b.planke(192, 193, 4); b.planke(195, 196, 4)
+#         b.leiter(194, 5, 10, +1)
+#         # Schlusskletterei und die Lücke vor der Landezone
+#         b.leiter(232, -6, 0, +1)
+#         b.planke(243, 244, -7)
+#
 
 # ---------------------------------------------------------------- Akt 1: Landung
 def akt1(b):

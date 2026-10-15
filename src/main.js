@@ -2,6 +2,7 @@ import MenuScene from './scenes/MenuScene.js';
 import GameScene from './scenes/GameScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import LobbyScene from './scenes/LobbyScene.js';
+import EditorScene from './scenes/EditorScene.js';
 import { breiteFuerFenster, haltePassend, SPIEL_HOEHE } from './Anpassung.js';
 
 // Die Konfiguration beschreibt unser Spiel: Größe, Physik und welche Szenen es gibt.
@@ -19,7 +20,7 @@ const config = {
             debug: false          // true zeigt Kollisionsboxen – hilfreich zum Lernen
         }
     },
-    scene: [MenuScene, GameScene, PauseScene, LobbyScene]  // die erste (Menü) startet automatisch
+    scene: [MenuScene, GameScene, PauseScene, LobbyScene, EditorScene]  // die erste (Menü) startet automatisch
 };
 
 const game = new Phaser.Game(config);

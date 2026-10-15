@@ -46,7 +46,8 @@ export default class MenuScene extends Phaser.Scene {
         this.eintraege = [];
         this.auswahl = 0;
         this.zeigeMenue('haupt');
-        if (new URLSearchParams(window.location.search).get('start') === '1') this.starte(new URLSearchParams(window.location.search).get('viewer') === '1' ? 'viewer' : 'einzel');   // Testhilfe: Menü überspringen
+        if (new URLSearchParams(window.location.search).get('editor') === '1') this.scene.start('EditorScene');   // Testhilfe
+        else if (new URLSearchParams(window.location.search).get('start') === '1') this.starte(new URLSearchParams(window.location.search).get('viewer') === '1' ? 'viewer' : 'einzel');   // Testhilfe: Menü überspringen
 
         // Tastatur: hoch/runter wählt, Enter oder Leertaste bestätigt, Esc geht zurück, N schaltet den Ton
         this.tasten = this.input.keyboard.addKeys('UP,DOWN,W,S,ENTER,SPACE,ESC,N');
@@ -86,7 +87,7 @@ export default class MenuScene extends Phaser.Scene {
             ];
             // Nur auf dem eigenen Rechner (localhost): ein Kartenbetrachter zum Entwickeln, in dem man frei durch die Welt fliegt
             if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-                eintraege.push({ text: 'MAP VIEWER', info: 'Fly through the whole world without playing (only on localhost).', farbe: 0xc080ff, aktion: () => this.starte('viewer') });
+                eintraege.push({ text: 'MAP EDITOR', info: 'Sketch your own map: blocks, ladders, enemies, items (only on localhost).', farbe: 0xc080ff, aktion: () => this.scene.start('EditorScene') });
             }
         } else if (name === 'mehrspieler') {
             eintraege = [

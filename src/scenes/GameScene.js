@@ -316,6 +316,7 @@ export default class GameScene extends Phaser.Scene {
         this.respawnZeit = 0;
         this.wipeSeit = 0;
         this.baueFlagge();
+        if (level.start) this.checkpoint = { x: level.start.x, y: level.start.y };   // neues Level: Der Start ist der erste Checkpoint (kein Neustart bei einem frühen Tod)
         this.baueSeilbahn();
         this.teamHud = this.add.graphics().setScrollFactor(0).setDepth(20);   // Lebensbalken der Mitspieler
         this.teamTexte = new Map();

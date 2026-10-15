@@ -487,7 +487,7 @@ export function decoratePlatforms(scene, platforms, boden) {
     const FELS = 0x5e5a55;                    // grauer Fels (Felsstufen am Höhleneingang)
     const ERDFARBEN = [0x5b4a35, 0x4b3b2a, FELS];
     let nr = 0;
-    const hinten = scene.add.graphics().setDepth(-6);          // dunkle Erde hinter allem, was unter der Oberfläche liegt: Durch die ausgefransten Ränder scheint dann Erde statt Himmel
+    const hinten = scene.add.graphics().setDepth(-6);   // (siehe unten: gilt für jede Erde, auch über der Oberfläche)          // dunkle Erde hinter allem, was unter der Oberfläche liegt: Durch die ausgefransten Ränder scheint dann Erde statt Himmel
     const feste = platforms.filter(q => !q.brechbar && q.height >= 30);     // alles, was Erde verdeckt (auch die unsichtbaren Hügelblöcke)
 
     for (const p of platforms) {
@@ -498,7 +498,13 @@ export function decoratePlatforms(scene, platforms, boden) {
         const istErde = ERDFARBEN.includes(grundfarbe) && p.height >= 40;
 
         if (istErde) {
-            if (t >= boden - 2) hinten.fillStyle(0x20180f).fillRect(l, t, p.width, p.height + (b >= 1490 ? 600 : 0));   // am Weltende ein Stück weiter nach unten
+            if (p.gras !== undefined || t >= boden - 2) {                 // Unterlage in Erdfarbe (nach Höhe abgedunkelt wie die Erde selbst): Nähte zwischen Blöcken und ausgefranste Ränder zeigen so Erde statt Hintergrund
+                const tief = p.height + (b >= 1490 ? 600 : 0);
+                for (let yy = 0; yy < tief; yy += 28) {
+                    const f = erdHelligkeit(t + yy + 14) * 0.62, ch = (c) => Math.min(255, Math.round(c * f));
+                    hinten.fillStyle((ch(0x5b) << 16) | (ch(0x4a) << 8) | ch(0x35)).fillRect(l, t + yy, p.width, Math.min(28, tief - yy));
+                }
+            }
             p.setVisible(false);          // das einfarbige Rechteck verstecken: Es würde durch die ausgefransten Ränder der Erdtextur scheinen
             const anOberflaeche = (p.gras !== undefined ? p.gras : t <= boden + 1) && grundfarbe !== FELS;   // Fels trägt kein Gras; p.gras (neues Level) = Oberseite ist frei
             const istDecke = !anOberflaeche && p.height <= 180;
@@ -732,6 +738,15 @@ function zeichneHoehle(r, rnd, h, lampen) {
     };
     if (h.stil && STILE[h.stil]) Object.assign(farben, STILE[h.stil]);
     const S = 8;
+    if (h.stil === 'schlicht') {                       // einfache Höhlenwand (alte Farben): Kachelwand, ein paar Steine, oben etwas Schatten
+        for (let y = 0; y < hh; y += S) for (let x = 0; x < w; x += S) {
+            const c = variiere(mische(farben.dunkel, farben.basis, Math.min(1, 0.75 + y / hh * 0.4)), rnd.between(-5, 5));
+            r.rect(c, l + x, t + y, Math.min(S, w - x), Math.min(S, hh - y));
+        }
+        for (let i = 0; i < w * hh / 14000; i++) r.rect(farben.hell, l + rnd.between(0, Math.max(0, w - 12)), t + rnd.between(8, Math.max(9, hh - 16)), rnd.pick([8, 12]), 8, 0.5);
+        for (let y = 0; y < Math.min(hh * 0.3, 80); y += 8) r.rect(0x000000, l, t + y, w, 8, 0.22 * (1 - y / Math.min(hh * 0.3, 80)));
+        return;
+    }
 
     // --- 1. Wand aus 8-Pixel-Kacheln, oben dunkler, unten etwas heller ---
     for (let y = 0; y < hh; y += S) {

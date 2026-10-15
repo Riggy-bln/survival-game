@@ -140,7 +140,14 @@ def hoehlen_hintergrund(b, bloecke):
                     if any(luft(ca - 1, rr) for rr in range(x0, p + 1)) and ca == a: offen.append('links')
                     if any(luft(ce + 1, rr) for rr in range(x0, p + 1)) and ce == e: offen.append('rechts')
                     if any(luft(cc, p + 1) for cc in range(ca, ce + 1)): offen.append('unten')
-                    b.hoehle(ca, ce, x0, p + 1, art='tunnel', stil='staubig', offen=offen)
+                    # Nähte vermeiden: Der Hintergrund ragt 14 Pixel unter angrenzende Blöcke und in Nachbarstücke (die Erde liegt davor);
+                    # nur an offener Luft endet er genau an der Kante (dort löst ihn der Zeichner verpixelt auf)
+                    b.hoehle(ca, ce, x0, p + 1, art='tunnel', stil='schlicht', offen=offen)
+                    h = b.hoehlen[-1]
+                    if 'links' not in offen: h['links'] -= 14
+                    if 'rechts' not in offen: h['rechts'] += 14
+                    h['oben'] -= 14
+                    if 'unten' not in offen: h['unten'] += 14
                     n += 1
                 if r is not None: x0 = r
             if r is not None: p = r

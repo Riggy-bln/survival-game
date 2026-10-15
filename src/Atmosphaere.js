@@ -87,7 +87,7 @@ export function baueBodennebel(scene, weltBreite, boden) {
     });
     const rnd = new Phaser.Math.RandomDataGenerator(['nebelbaenke']);
     for (let x = 200; x < weltBreite; x += rnd.between(520, 900)) {
-        const n = scene.add.image(x, boden - rnd.between(30, 70), 'atmo_nebel').setDepth(-4).setAlpha(rnd.between(55, 100) / 100).setScale(rnd.between(14, 26) / 10, rnd.between(10, 16) / 10);
+        const n = scene.add.image(x, boden - rnd.between(30, 70), 'atmo_nebel').setDepth(-6).setAlpha(rnd.between(55, 100) / 100).setScale(rnd.between(14, 26) / 10, rnd.between(10, 16) / 10);
         scene.tweens.add({ targets: n, x: n.x + rnd.pick([-1, 1]) * rnd.between(60, 160), duration: rnd.between(14000, 26000), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 }

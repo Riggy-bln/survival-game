@@ -2621,285 +2621,285 @@ export default {
 "stil": "staubig"
 },
 {
-"links": 9632,
-"rechts": 9968,
-"oben": 440,
-"unten": 496,
+"links": 9618,
+"rechts": 9982,
+"oben": 426,
+"unten": 510,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 9576,
-"rechts": 10472,
-"oben": 496,
-"unten": 552,
+"links": 9562,
+"rechts": 10486,
+"oben": 482,
+"unten": 566,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 9576,
-"rechts": 10864,
-"oben": 552,
-"unten": 664,
+"links": 9562,
+"rechts": 10878,
+"oben": 538,
+"unten": 678,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
 "links": 8736,
-"rechts": 8792,
-"oben": 608,
-"unten": 664,
+"rechts": 8806,
+"oben": 594,
+"unten": 678,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
 "links": 8736,
-"rechts": 10416,
-"oben": 664,
-"unten": 720,
+"rechts": 10430,
+"oben": 650,
+"unten": 734,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 10416,
-"rechts": 10864,
-"oben": 664,
-"unten": 720,
+"links": 10402,
+"rechts": 10878,
+"oben": 650,
+"unten": 734,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
 "links": 8736,
-"rechts": 10416,
-"oben": 720,
-"unten": 832,
+"rechts": 10430,
+"oben": 706,
+"unten": 846,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 10416,
-"rechts": 10920,
-"oben": 720,
-"unten": 832,
+"links": 10402,
+"rechts": 10934,
+"oben": 706,
+"unten": 846,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 12768,
+"links": 12754,
 "rechts": 12936,
-"oben": 720,
-"unten": 776,
+"oben": 706,
+"unten": 790,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 2856,
+"links": 2842,
 "rechts": 2912,
-"oben": 776,
-"unten": 832,
+"oben": 762,
+"unten": 846,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 12488,
+"links": 12474,
 "rechts": 12936,
-"oben": 776,
-"unten": 832,
+"oben": 762,
+"unten": 846,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 2464,
+"links": 2450,
 "rechts": 2912,
-"oben": 832,
-"unten": 888,
+"oben": 818,
+"unten": 902,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 8736,
-"rechts": 10416,
-"oben": 832,
-"unten": 888,
+"rechts": 10430,
+"oben": 818,
+"unten": 902,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 10416,
-"rechts": 11200,
-"oben": 832,
-"unten": 888,
+"links": 10402,
+"rechts": 11214,
+"oben": 818,
+"unten": 902,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 12432,
+"links": 12418,
 "rechts": 12936,
-"oben": 832,
-"unten": 1000,
+"oben": 818,
+"unten": 1014,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 1176,
-"rechts": 1232,
-"oben": 888,
-"unten": 1112,
+"rechts": 1246,
+"oben": 874,
+"unten": 1126,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 2016,
+"links": 2002,
 "rechts": 2912,
-"oben": 888,
-"unten": 1056,
+"oben": 874,
+"unten": 1070,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 3080,
-"rechts": 3136,
-"oben": 888,
-"unten": 1000,
+"rechts": 3150,
+"oben": 874,
+"unten": 1014,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 9240,
-"rechts": 10920,
-"oben": 888,
-"unten": 944,
+"links": 9226,
+"rechts": 10934,
+"oben": 874,
+"unten": 958,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 10920,
-"rechts": 11200,
-"oben": 888,
-"unten": 944,
+"links": 10906,
+"rechts": 11214,
+"oben": 874,
+"unten": 958,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 3472,
-"rechts": 4200,
-"oben": 944,
-"unten": 1000,
+"links": 3458,
+"rechts": 4214,
+"oben": 930,
+"unten": 1014,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 9240,
-"rechts": 10920,
-"oben": 944,
-"unten": 1000,
+"links": 9226,
+"rechts": 10934,
+"oben": 930,
+"unten": 1014,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 10920,
-"rechts": 11760,
-"oben": 944,
-"unten": 1000,
+"links": 10906,
+"rechts": 11774,
+"oben": 930,
+"unten": 1014,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
 "links": 3080,
-"rechts": 4256,
-"oben": 1000,
-"unten": 1056,
+"rechts": 4270,
+"oben": 986,
+"unten": 1070,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 4704,
+"links": 4690,
 "rechts": 4760,
-"oben": 1000,
-"unten": 1056,
+"oben": 986,
+"unten": 1070,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 9912,
-"rechts": 11592,
-"oben": 1000,
-"unten": 1112,
+"links": 9898,
+"rechts": 11606,
+"oben": 986,
+"unten": 1126,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 11592,
+"links": 11578,
 "rechts": 12936,
-"oben": 1000,
-"unten": 1112,
+"oben": 986,
+"unten": 1126,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 1960,
+"links": 1946,
 "rechts": 2912,
-"oben": 1056,
-"unten": 1112,
+"oben": 1042,
+"unten": 1126,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
@@ -2907,221 +2907,221 @@ export default {
 {
 "links": 3080,
 "rechts": 4760,
-"oben": 1056,
-"unten": 1168,
+"oben": 1042,
+"unten": 1182,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links",
 "rechts"
 ]
 },
 {
-"links": 13552,
+"links": 13538,
 "rechts": 13608,
-"oben": 1056,
-"unten": 1112,
+"oben": 1042,
+"unten": 1126,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 1176,
-"rechts": 2856,
-"oben": 1112,
-"unten": 1168,
+"rechts": 2870,
+"oben": 1098,
+"unten": 1182,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 2856,
+"links": 2842,
 "rechts": 2912,
-"oben": 1112,
-"unten": 1168,
+"oben": 1098,
+"unten": 1182,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 10136,
-"rechts": 11816,
-"oben": 1112,
-"unten": 1168,
+"links": 10122,
+"rechts": 11830,
+"oben": 1098,
+"unten": 1182,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 11816,
-"rechts": 12712,
-"oben": 1112,
-"unten": 1168,
+"links": 11802,
+"rechts": 12726,
+"oben": 1098,
+"unten": 1182,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 13272,
+"links": 13258,
 "rechts": 13608,
-"oben": 1112,
-"unten": 1224,
+"oben": 1098,
+"unten": 1238,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 1176,
-"rechts": 2856,
-"oben": 1168,
-"unten": 1224,
+"rechts": 2870,
+"oben": 1154,
+"unten": 1238,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 3920,
+"links": 3906,
 "rechts": 4760,
-"oben": 1168,
-"unten": 1224,
+"oben": 1154,
+"unten": 1238,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 6104,
+"links": 6090,
 "rechts": 6160,
-"oben": 1168,
-"unten": 1224,
+"oben": 1154,
+"unten": 1238,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 7448,
-"rechts": 7504,
-"oben": 1168,
-"unten": 1280,
+"rechts": 7518,
+"oben": 1154,
+"unten": 1294,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 7896,
+"links": 7882,
 "rechts": 7952,
-"oben": 1168,
-"unten": 1280,
+"oben": 1154,
+"unten": 1294,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 10584,
-"rechts": 11200,
-"oben": 1168,
-"unten": 1224,
+"links": 10570,
+"rechts": 11214,
+"oben": 1154,
+"unten": 1238,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 11648,
-"rechts": 12656,
-"oben": 1168,
-"unten": 1224,
+"links": 11634,
+"rechts": 12670,
+"oben": 1154,
+"unten": 1238,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 504,
+"links": 490,
 "rechts": 728,
-"oben": 1224,
-"unten": 1280,
+"oben": 1210,
+"unten": 1294,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 1176,
-"rechts": 2744,
-"oben": 1224,
-"unten": 1280,
+"rechts": 2758,
+"oben": 1210,
+"unten": 1294,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 4088,
+"links": 4074,
 "rechts": 4760,
-"oben": 1224,
-"unten": 1280,
+"oben": 1210,
+"unten": 1294,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 5544,
+"links": 5530,
 "rechts": 6160,
-"oben": 1224,
-"unten": 1280,
+"oben": 1210,
+"unten": 1294,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 10584,
-"rechts": 11144,
-"oben": 1224,
-"unten": 1280,
+"links": 10570,
+"rechts": 11158,
+"oben": 1210,
+"unten": 1294,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 12992,
+"links": 12978,
 "rechts": 13608,
-"oben": 1224,
-"unten": 2344,
+"oben": 1210,
+"unten": 2358,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 12992,
+"links": 12978,
 "rechts": 13608,
-"oben": 2344,
+"oben": 2330,
 "unten": 2456,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts",
 "unten"
@@ -3130,10 +3130,10 @@ export default {
 {
 "links": 13888,
 "rechts": 14560,
-"oben": 1224,
-"unten": 2344,
+"oben": 1210,
+"unten": 2358,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links",
 "rechts"
@@ -3142,10 +3142,10 @@ export default {
 {
 "links": 13888,
 "rechts": 14560,
-"oben": 2344,
+"oben": 2330,
 "unten": 2456,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links",
 "rechts",
@@ -3153,116 +3153,116 @@ export default {
 ]
 },
 {
-"links": 448,
+"links": 434,
 "rechts": 728,
-"oben": 1280,
-"unten": 1448,
+"oben": 1266,
+"unten": 1462,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 2016,
-"rechts": 2296,
-"oben": 1280,
-"unten": 1840,
+"links": 2002,
+"rechts": 2310,
+"oben": 1266,
+"unten": 1854,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 2016,
-"rechts": 2296,
-"oben": 2064,
+"links": 2002,
+"rechts": 2310,
+"oben": 2050,
 "unten": 2456,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "unten"
 ]
 },
 {
-"links": 2464,
-"rechts": 2688,
-"oben": 1280,
-"unten": 1784,
+"links": 2450,
+"rechts": 2702,
+"oben": 1266,
+"unten": 1798,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 2464,
-"rechts": 2688,
-"oben": 2064,
+"links": 2450,
+"rechts": 2702,
+"oben": 2050,
 "unten": 2456,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "unten"
 ]
 },
 {
-"links": 4144,
+"links": 4130,
 "rechts": 4760,
-"oben": 1280,
-"unten": 1392,
+"oben": 1266,
+"unten": 1406,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 5488,
+"links": 5474,
 "rechts": 6160,
-"oben": 1280,
-"unten": 1336,
+"oben": 1266,
+"unten": 1350,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 7448,
-"rechts": 7560,
-"oben": 1280,
-"unten": 1336,
+"rechts": 7574,
+"oben": 1266,
+"unten": 1350,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 7840,
+"links": 7826,
 "rechts": 7952,
-"oben": 1280,
-"unten": 1336,
+"oben": 1266,
+"unten": 1350,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 10584,
-"rechts": 11032,
-"oben": 1280,
-"unten": 1448,
+"links": 10570,
+"rechts": 11046,
+"oben": 1266,
+"unten": 1462,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
 "links": 4816,
 "rechts": 6160,
-"oben": 1336,
-"unten": 1560,
+"oben": 1322,
+"unten": 1574,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links",
 "rechts"
@@ -3271,10 +3271,10 @@ export default {
 {
 "links": 7448,
 "rechts": 7952,
-"oben": 1336,
+"oben": 1322,
 "unten": 2456,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links",
 "rechts",
@@ -3282,153 +3282,153 @@ export default {
 ]
 },
 {
-"links": 4256,
+"links": 4242,
 "rechts": 4760,
-"oben": 1392,
-"unten": 1448,
+"oben": 1378,
+"unten": 1462,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 4648,
+"links": 4634,
 "rechts": 4760,
-"oben": 1448,
-"unten": 1504,
+"oben": 1434,
+"unten": 1518,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 10136,
-"rechts": 11032,
-"oben": 1448,
+"links": 10122,
+"rechts": 11046,
+"oben": 1434,
 "unten": 1504,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "unten"
 ]
 },
 {
-"links": 8792,
+"links": 8778,
 "rechts": 8848,
-"oben": 1504,
-"unten": 1672,
+"oben": 1490,
+"unten": 1686,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 10808,
-"rechts": 11032,
-"oben": 1504,
-"unten": 1560,
+"rechts": 11046,
+"oben": 1490,
+"unten": 1574,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 4872,
+"links": 4858,
 "rechts": 6160,
-"oben": 1560,
-"unten": 1616,
+"oben": 1546,
+"unten": 1630,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 10808,
-"rechts": 10920,
-"oben": 1560,
-"unten": 1616,
+"rechts": 10934,
+"oben": 1546,
+"unten": 1630,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 5264,
+"links": 5250,
 "rechts": 6160,
-"oben": 1616,
-"unten": 1672,
+"oben": 1602,
+"unten": 1686,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
 "links": 10808,
-"rechts": 10864,
-"oben": 1616,
-"unten": 1672,
+"rechts": 10878,
+"oben": 1602,
+"unten": 1686,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "links"
 ]
 },
 {
-"links": 5600,
-"rechts": 6160,
-"oben": 1672,
+"links": 5586,
+"rechts": 6174,
+"oben": 1658,
 "unten": 1840,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "unten"
 ]
 },
 {
-"links": 2464,
-"rechts": 2744,
-"oben": 1784,
+"links": 2450,
+"rechts": 2758,
+"oben": 1770,
 "unten": 1840,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "unten"
 ]
 },
 {
-"links": 2016,
+"links": 2002,
 "rechts": 2688,
-"oben": 1840,
-"unten": 2064,
+"oben": 1826,
+"unten": 2078,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": [
 "rechts"
 ]
 },
 {
-"links": 3472,
-"rechts": 5152,
-"oben": 2064,
-"unten": 2120,
+"links": 3458,
+"rechts": 5166,
+"oben": 2050,
+"unten": 2134,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 },
 {
-"links": 5152,
-"rechts": 5600,
-"oben": 2064,
-"unten": 2120,
+"links": 5138,
+"rechts": 5614,
+"oben": 2050,
+"unten": 2134,
 "art": "tunnel",
-"stil": "staubig",
+"stil": "schlicht",
 "offen": []
 }
 ],

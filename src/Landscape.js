@@ -627,6 +627,81 @@ export function buildKriegsreste(scene, level) {
             }
             px(hinten, 0x14160f, x - 14, y - 36, 28, 36); px(hinten, 0x3a3a30, x - 12, y - 34, 24, 4);           // Eingang
             balken(hinten, 0, x - w / 2, y, x - w / 2 - 14, y + 0, 0x6a5a3a); px(hinten, 0x6a5238, x - w / 2 - 6, y - 30, 3, 30); px(hinten, 0x6a5238, x + w / 2 + 3, y - 30, 3, 30);
+        } else if (d.art === 'kisten') {
+            // Kistenstapel: unten zwei bis drei Kisten, darauf eine oder zwei; einzelne mit Aufdruck, eine Plane obenauf
+            const HOLZ = [0x7a6540, 0x6b5636, 0x8a7448], N = d.anzahl ?? rnd.between(2, 4);
+            const kiste = (kx, ky, w, h) => {
+                px(g, rnd.pick(HOLZ), kx, ky - h, w, h); px(g, 0x4a3d26, kx, ky - h, w, 3); px(g, 0x4a3d26, kx, ky - 3, w, 3);
+                px(g, 0x4a3d26, kx, ky - h, 3, h); px(g, 0x4a3d26, kx + w - 3, ky - h, 3, h);
+                for (let i = 0; i < Math.round(w / 6); i++) px(g, 0x5a4a2c, kx + 3 + i * 6, ky - h + 3, 1, h - 6);                    // Bretter
+                strebeK(kx + 3, ky - h + 3, kx + w - 3, ky - 3);
+                if (rnd.frac() < 0.4) { px(g, 0xc8b040, kx + w / 2 - 6, ky - h / 2 - 3, 12, 6); px(g, 0x2a2410, kx + w / 2 - 4, ky - h / 2 - 1, 8, 2); }   // Stempel
+            };
+            const strebeK = (x0, y0, x1, y1) => { const n = Math.round(Math.hypot(x1 - x0, y1 - y0) / 4); for (let i = 0; i <= n; i++) px(g, 0x5a4a2c, x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, 2, 2); };
+            for (let i = 0; i < N && i < 3; i++) kiste(x - N * 15 + i * 30, y, 30, 28);
+            if (N >= 3) kiste(x - N * 15 + 14, y - 28, 30, 28);
+            if (N === 4) { px(g, 0x4a5238, x - 20, y - 60, 40, 6); px(g, 0x3a4028, x - 20, y - 56, 40, 2); }                            // Plane
+        } else if (d.art === 'sandsaecke') {
+            const reihen = d.reihen ?? 3, w = d.breite ?? 84;
+            for (let rr = 0; rr < reihen; rr++) {
+                const v = rr % 2 ? 14 : 0, breiteR = w - rr * 14;
+                for (let xx = -breiteR / 2 + v - 14; xx < breiteR / 2; xx += 28) {
+                    const sx = x + xx + (rr * 7), sw = 27;
+                    px(g, rnd.pick([0xb5a47a, 0xa89868, 0xbcae84]), sx, y - 14 - rr * 14, sw, 13); px(g, 0xcfc29a, sx, y - 14 - rr * 14, sw, 2);
+                    px(g, 0x6a5c3e, sx, y - 3 - rr * 14, sw, 2); px(g, 0x7a6c48, sx + 12, y - 9 - rr * 14, 3, 5);
+                }
+            }
+        } else if (d.art === 'auto') {
+            const k = scene.add.image(x, y + 2, `auto_${d.nr ?? rnd.between(0, 2)}`).setOrigin(0.5, 1).setDepth(-3);
+            if (rnd.frac() < 0.5) k.setFlipX(true);
+        } else if (d.art === 'strommast') {
+            const hh = d.hoehe ?? 190;
+            px(g, 0x4a3a28, x - 4, y - hh, 8, hh); px(g, 0x6a5238, x - 4, y - hh, 2, hh); px(g, 0x2a2018, x + 2, y - hh, 2, hh);
+            px(g, 0x4a3a28, x - 28, y - hh + 14, 56, 6); px(g, 0x4a3a28, x - 20, y - hh + 40, 40, 5);
+            px(g, 0x4a3a28, x - 14, y - hh + 20, 4, 18); px(g, 0x4a3a28, x + 10, y - hh + 20, 4, 18);                       // Streben
+            for (const dx of [-26, -10, 10, 24]) px(g, 0x9aa8b0, dx + x - 2, y - hh + 8, 4, 8);                                // Isolatoren
+            for (const [dx, richt] of [[-24, -1], [24, 1]]) {                                                                     // abgerissene Kabel hängen herab
+                for (let i = 0; i < 12; i++) px(g, 0x14110e, x + dx + richt * i * 3, y - hh + 14 + Math.round(i * i * 0.7), 3, 2);
+            }
+            px(g, 0x2a2018, x - 10, y - 6, 20, 6);
+        } else if (d.art === 'schienen') {
+            const w = d.breite ?? 224;
+            for (let sx = x - w / 2; sx < x + w / 2; sx += 14) px(g, 0x4a331d, sx, y - 4, 8, 4);                                 // Schwellen
+            px(g, 0x77746e, x - w / 2, y - 6, w, 2); px(g, 0x4a4844, x - w / 2, y - 4, w, 1);                                      // Schiene
+            if (d.wagen) {                                                                                                         // Grubenwagen mit Gestein
+                const wx = x + (d.wagenX ?? 0);
+                px(g, 0x6b3a22, wx - 24, y - 34, 48, 26); px(g, 0x8a4a2a, wx - 24, y - 34, 48, 4); px(g, 0x4a2a18, wx - 26, y - 38, 52, 5);
+                px(g, 0x222222, wx - 16, y - 12, 11, 11); px(g, 0x222222, wx + 6, y - 12, 11, 11);
+                px(g, 0x8c8474, wx - 14, y - 44, 14, 8); px(g, 0x77716a, wx + 4, y - 46, 12, 10); px(g, 0x948c7c, wx - 4, y - 42, 8, 6);
+            }
+        } else if (d.art === 'stuetze') {
+            // Grubenstütze: vom Boden y bis zur Decke darüber (wird aus den Blöcken gesucht). Pfosten mit Kopfbalken, Fußplatte und Streben.
+            let decke = -Infinity;
+            for (const p of level.platforms) {
+                if (p.brechbar || p.bruecke || p.innen) continue;
+                const u = p.y + p.h / 2;
+                if (u < y - 40 && u > decke && Math.abs(x - p.x) <= p.w / 2 - 2) decke = u;
+            }
+            const gap = y - decke;
+            if (!isFinite(decke) || gap < 90 || gap > 420) continue;
+            const HOLZ = [0x3a2c1e, 0x4c3926, 0x5a4630];
+            px(hinten, HOLZ[0], x - 6, decke, 12, gap); px(hinten, HOLZ[1], x - 6, decke, 4, gap);                              // Pfosten
+            px(hinten, HOLZ[0], x - 28, decke, 56, 12); px(hinten, HOLZ[2], x - 28, decke, 56, 3);                              // Kopfbalken
+            px(hinten, HOLZ[0], x - 12, y - 6, 24, 6);                                                                           // Fußplatte
+            if (gap > 130) for (const richt of [-1, 1]) balken(hinten, 0, x + richt * 6, decke + 12, x + richt * 30, decke + 40, HOLZ[0]);   // Streben unter dem Kopfbalken
+            if (rnd.frac() < 0.5) px(hinten, 0x2c5a24, x + 6, decke + 14 + rnd.between(0, 20), 4, rnd.between(10, 30));         // Ranke
+        } else if (d.art === 'wellblech') {
+            // Ein Unterstand aus Wellblech: schräges Dach auf zwei Pfosten, daneben angelehnte Bretter
+            const w = d.breite ?? 120;
+            px(g, 0x4a3a28, x - w / 2, y - 60, 6, 60); px(g, 0x4a3a28, x + w / 2 - 6, y - 80, 6, 80);
+            for (let i = 0; i < w; i += 4) { const hy = y - 64 - Math.round(i / w * 20); px(g, i % 8 ? 0x7a6a58 : 0x8a7a68, x - w / 2 + i, hy, 4, 8); px(g, 0x5a4a38, x - w / 2 + i, hy + 8, 4, 2); }
+            px(g, 0x6a3a22, x - w / 2 + 14, y - 34, 18, 6); px(g, 0x6a3a22, x - w / 2 + 14, y - 22, 18, 6);                      // Rost
+            px(hinten, 0x2a2018, x - w / 2 + 6, y - 60, w - 12, 60, 0.5);
+        } else if (d.art === 'reifen') {
+            for (let i = 0; i < (d.anzahl ?? 3); i++) {
+                const rx = x + i * 20 - 20, ry = y - 18 - (i === 2 ? 16 : 0);
+                px(g, 0x141414, rx, ry, 22, 18); px(g, 0x2a2a2a, rx + 4, ry + 4, 14, 10); px(g, 0x0b0b0b, rx + 8, ry + 7, 6, 4); px(g, 0x3a3a3a, rx + 2, ry + 2, 6, 2);
+            }
         } else if (d.art === 'banner') {
             px(g, 0x2a2018, x - 2, y - 110, 4, 110); px(g, 0x6a5a3a, x - 4, y - 114, 8, 6);
             for (let i = 0; i < 40; i += 4) { const h = 36 - Math.floor(i / 8) * 4 + rnd.between(-2, 2); px(g, i % 8 ? 0x6a1a14 : 0x7a2018, x + 2 + i, y - 106 + Math.round(Math.sin(i * 0.4) * 2), 4, h); }
@@ -751,8 +826,12 @@ export function buildLandscape(scene, level) {
     const bild = (key, x, y, tiefe, ursprungY = 1) => scene.add.image(x, y, key).setOrigin(0.5, ursprungY).setDepth(tiefe);
 
     // 1. Verfallene Gebäude im Hintergrund (nur am Boden, nicht auf Klippen)
+    const neuAb = level.neuAb ?? Infinity;                                    // ab hier das Gelände aus der Skizze: Häuser, Autos usw. stehen auf jeder ebenen Fläche, nicht nur auf Höhe 0
+    const eben = (x, w = 70) => { const y = oben(x); return isFinite(y) && Math.abs(oben(x - w) - y) < 2 && Math.abs(oben(x + w) - y) < 2; };
     for (let x = 160; x < level.width - 200; x += rnd.between(240, 480)) {
-        if (gesperrt(x) || Math.abs(oben(x) - BODEN) > 2) continue;
+        if (gesperrt(x)) continue;
+        if (x >= neuAb) { if (eben(x, 90)) bild(`ruine_${rnd.between(0, 5)}`, x, oben(x) + 3, -10); continue; }
+        if (Math.abs(oben(x) - BODEN) > 2) continue;
         bild(`ruine_${rnd.between(0, 5)}`, x, BODEN + 3, -10);
     }
     // 2. Bäume, Büsche, Farne, Wracks, Zäune, Laternen, Trümmer
@@ -766,7 +845,7 @@ export function buildLandscape(scene, level) {
         else if (wurf < 0.15 && frei) bild(`totbaum_${rnd.between(0, 2)}`, x, y + 2, -4);
         else if (wurf < 0.25) bild(`busch_${rnd.between(0, 3)}`, x, y + 3, -3);
         else if (wurf < 0.31) bild(`farn_${rnd.between(0, 2)}`, x, y + 3, -3);
-        else if (wurf < 0.36 && frei && y >= BODEN - 2 && x - letztesWrack > 900) { bild(`auto_${rnd.between(0, 2)}`, x, y + 2, -3); letztesWrack = x; }
+        else if (wurf < 0.36 && frei && (x >= neuAb ? eben(x, 60) : y >= BODEN - 2) && x - letztesWrack > (x >= neuAb ? 420 : 900)) { bild(`auto_${rnd.between(0, 2)}`, x, y + 2, -3); letztesWrack = x; }
         else if (wurf < 0.43 && frei) bild(`zaun_${rnd.between(0, 1)}`, x, y + 2, -3);
         else if (wurf < 0.48 && frei) bild('laterne_0', x, y + 2, -3);
         else if (wurf < 0.62) bild(`truemmer_${rnd.between(0, 2)}`, x, y + 3, -3);

@@ -283,6 +283,10 @@ def main():
     if b.verschoben: print(f'{len(b.verschoben)} Platzierungen an die nächste Oberfläche verschoben (Gelände wurde verändert):', ', '.join(b.verschoben[:40]))
     if b.fehler:
         print('\n'.join(b.fehler)); raise SystemExit(f'{len(b.fehler)} Platzierungen ohne passende Oberfläche (siehe oben)')
+    if not os.environ.get('OHNE_ENTWURF'):
+        import verzierung
+        z = verzierung.verziere(b, bloecke, daten)
+        print('Verzierung:', ', '.join(f'{k} {v}' for k, v in sorted(z.items())), f'; Lampen {len(b.lampen)}')
     zonen = [d for d in daten['dinge'] if d['t'] == 'hintergrund']
     if zonen: zonen_hintergrund(b, bloecke, zonen)          # selbst eingezeichnete Zonen ersetzen die automatische Berechnung
     else: hoehlen_hintergrund(b, bloecke)

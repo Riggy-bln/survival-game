@@ -45,6 +45,7 @@ const level = {
     height: Math.max(neu.height, alt.height + VERSATZ_Y),
     boden: neu.boden,
     abschnitt: 0.5,                                       // Das ganze Spiel soll aus mehreren Kapiteln bestehen: Dieses Level ist etwa die Hälfte eines Kapitels
+    neuAb: SCHNITT_X,                                     // ab hier gilt das neue Gelände (für den Landschaftsgenerator)
     sperre: [[4250, 4930]],                               // hier stehen der Bunker und der Höhleneingang: keine Bäume, Zäune oder Wracks aus dem Landschaftsgenerator
     erdVerlauf: { boden: neu.boden, hell: 0.95, rate: 1.0, min: 0.3 },
     titel: neu.titel, einstieg: neu.einstieg, abschluss: neu.abschluss, abschlussHinweis: neu.abschlussHinweis,

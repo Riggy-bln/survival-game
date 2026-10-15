@@ -20,7 +20,7 @@ def rechtecke(bloecke):
     Zeilenläufe werden nach 'Oberseite frei' getrennt, und senkrecht wird nur mit nicht freien Zeilen weiterverschmolzen."""
     nach_typ = {}
     for (c, r), t in bloecke.items():
-        if t != 'h': nach_typ.setdefault(t, set()).add((c, r))      # Holzplanken sind dünne Böden (siehe planken)
+        if t not in ('h', 'f'): nach_typ.setdefault(t, set()).add((c, r))      # Holzplanken sind dünne Böden (siehe planken)
     ergebnis = []
     for t, zellen in nach_typ.items():
         zeilen = {}
@@ -61,16 +61,17 @@ def rechtecke(bloecke):
 
 def planken(bloecke):
     """Holzböden: dünne Planken (20 Pixel) oben in der Zelle, zusammenhängende Zellen einer Zeile zu einer Planke verbunden."""
-    byrow = {}
-    for (c, r), t in bloecke.items():
-        if t == 'h': byrow.setdefault(r, []).append(c)
     liste = []
-    for r, cs in sorted(byrow.items()):
+    for typ in ('h', 'f'):
+      byrow = {}
+      for (c, r), t in bloecke.items():
+        if t == typ: byrow.setdefault(r, []).append(c)
+      for r, cs in sorted(byrow.items()):
         cs.sort(); a = p = cs[0]
         for c in cs[1:] + [None]:
             if c is None or c != p + 1:
                 l, rr = welt_x(a), welt_x(p + 1)
-                liste.append({'x': (l + rr) / 2, 'y': welt_y(r) + 10, 'w': rr - l, 'h': 20, 'color': 0x6b4a2a, 'bruecke': True})
+                liste.append({'x': (l + rr) / 2, 'y': welt_y(r) + 10, 'w': rr - l, 'h': 20, 'color': 0x6b4a2a, **({'bruecke': True} if typ == 'h' else {'innen': True})})
                 if c is not None: a = c
             if c is not None: p = c
     return liste

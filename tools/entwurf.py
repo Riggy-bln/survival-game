@@ -21,12 +21,28 @@
 # nach jedem zweiten Heilung. Nie zwei Spitzen (schwere Gefechte) direkt hintereinander: dazwischen immer ein Atemzug. Fahnen etwa alle
 # 40 Zellen, jeweils nach dem überstandenen Gefecht und vor dem nächsten.
 
+# ---------------------------------------------------------------- Bauwerke, Kriegsüberreste und Landschaftsschmuck
+# Die Gebäude entstehen aus Blöcken (vor dem Erzeugen der Platten), siehe tools/bauwerke.py. Wo sie stehen, hat das Gelände der Skizze genug freie Höhe.
+#   Festung   (Spalte 163-173, 6 Zeilen hoch, 2 Etagen + begehbares Dach): Nahkampf im Inneren mit Fässern, oben ein Scharfschütze
+#   Hütte     (Spalte 198-205, 1 Raum): im Kessel, ein Wächter mit Heilung dahinter
+#   Wachtürme (zerstörbar) am ersten Hof und auf der zweiten Klippe: Schützen oben, man kann ein Bein wegschießen
+# Dazu Dekoration: Panzerwracks (als Deckung begehbar), Panzersperren, Stacheldraht, brennende Tonnen, ein abgestürzter Hubschrauber, Mauerreste,
+# Gräber, ein Zelt am Start und zerfetzte Banner. Sie erzählen: Hier war eine Schlacht; je näher am Ziel, desto mehr Trümmer und Feuer.
+FESTUNG = KESSEL = None
+
+def bauwerke(daten, bloecke):
+    global FESTUNG, KESSEL
+    from bauwerke import haus
+    FESTUNG = haus(daten, bloecke, 163, -6, 173, -1, H=3)
+    KESSEL = haus(daten, bloecke, 198, -1, 205, 2, H=3, dachzugang=False)
+
 def entwerfe(b):
     b.ziel = (255, -7)
     verbindungen(b)
     akt1(b); akt2(b); akt3(b); akt4(b); akt5(b)
     tresor(b); himmelsroute(b)
     akt6(b); akt7(b); akt8(b); akt9(b); akt10(b)
+    schmuck(b)
 
 def verbindungen(b):
     """Leitern und Brücken setzt der Spieler selbst im Karteneditor (Werkzeuge 'Ladder' und 'Wooden floor'): Der Generator übernimmt sie aus der Skizze.
@@ -69,7 +85,9 @@ def akt1(b):
     b.item('health', 7, 8); b.item('grenade', 9, 8); b.item('ammo', 8, 8)
     # Der erste Hof: Belohnung zuerst, dann der Kampf
     b.item('ammo', 16, 5)
-    b.schild(16, 5, 'A ladder: W / S\nIt leads up to the sky', hoch=150)
+    b.schild(17, 5, 'Ladders: W / S\nClimb the tower!', hoch=190)
+    x, oben = b.wachturm(15, 5, 224, +1)                                                   # der erste Wachturm: ein Bogenschütze oben, man kann sein Bein wegschießen
+    b.gegner_xy(b.skelette, x, oben, x - 40, x + 40, 2)
     b.soldat(22, 5, hp=2, links=19, rechts=23)             # zwei SCHWACHE Soldaten, ein Fass genau dazwischen:
     b.fass(24, 5)                                          # die erste Explosion erledigt beide und fühlt sich großartig an
     b.soldat(26, 5, hp=2, links=25, rechts=28)
@@ -153,7 +171,9 @@ def akt6(b):
 # ---------------------------------------------------------------- Akt 7: Brücken
 def akt7(b):
     b.skelett(136, -2, hp=3, links=134, rechts=138)        # der Scharfschütze auf der Insel
-    b.fass(134, -2); b.soldat(138, -2, links=137, rechts=139)
+    b.fass(135, -2); b.soldat(138, -2, links=137, rechts=139)
+    x2, o2 = b.wachturm(132, -2, 224, +1)                                                  # Wachturm an der Klippe: er deckt die Brücke
+    b.gegner_xy(b.skelette, x2, o2, x2 - 40, x2 + 40, 3)
     b.item('ammo', 132, -2); b.item('health', 133, -2)
 
 # ---------------------------------------------------------------- Akt 8: Die Festung
@@ -163,8 +183,12 @@ def akt8(b):
     b.schild(152, -2, 'Three ways on:\nsurface, tunnel or sky', hoch=120)
     # Oberfläche: die Außenwerke
     b.soldat(155, -2, links=154, rechts=157); b.fass(158, -2); b.soldat(160, -2, links=158, rechts=162)
-    b.deckung(167, 0, breite=2, art='beton'); b.schuetze(165, 0, links=164, rechts=166)
-    b.soldat(171, 0, links=170, rechts=173); b.fass(172, 0)
+    # Die Festung (Gebäude): Erdgeschoss, ein Obergeschoss und das begehbare Dach
+    F = FESTUNG; e0, e1, dach = F['raeume'][0], F['raeume'][1], F['dach']
+    b.soldat(166, e0 + 1, links=165, rechts=168); b.fass(170, e0 + 1); b.schuetze(172, e0 + 1, links=171, rechts=172)          # Erdgeschoss: enger Nahkampf
+    b.item('health', 167, e0 + 1)                                                                                              # kleine Erholung hinter der Tür
+    b.skelett(166, e1 + 1, links=165, rechts=168); b.soldat(172, e1 + 1, links=172, rechts=172); b.fass(168, e1 + 1)            # Obergeschoss
+    b.skelett(166, dach, links=164, rechts=169); b.item('grenade', 168, dach); b.item('ammo', 164, dach)                       # Dach: Scharfschütze und Beute
     b.schwer(177, 2, hp=8, links=175, rechts=178)          # der schwere Wächter der Festung
     b.skelett(182, 3, links=180, rechts=185); b.item('ammo', 183, 3); b.item('health', 185, 3)
     # Tunnel
@@ -181,7 +205,7 @@ def akt8(b):
 def akt9(b):
     pass  # Fahne (199, 3) entfernt: Checkpoints stehen dort, wo sie in der Skizze eingezeichnet sind
     b.item('ammo', 198, 3); b.item('health', 200, 3)
-    b.schuetze(203, 3, links=201, rechts=205)
+    b.schuetze(203, 3, links=201, rechts=204)                                           # in der Hütte
     b.soldat(208, 4, links=206, rechts=212); b.fass(210, 4); b.soldat(213, 4, links=211, rechts=216)
     b.schwer(218, 4, hp=8, links=215, rechts=221)          # der schwere Wächter des Kessels
     b.schuetze(222, 4, links=220, rechts=223)
@@ -202,3 +226,40 @@ def akt10(b):
     b.deckung(252, -7, breite=2, art='sand'); b.schwer(255, -7, hp=8, links=254, rechts=256)
     b.schuetze(256, -7, links=255, rechts=257)
     b.item('health', 249, -7)
+
+
+# ---------------------------------------------------------------- Schmuck
+def schmuck(b):
+    # Start: Zelt, Banner, Tonne. Der erste Eindruck: Hier ist Krieg, aber es ist noch ruhig.
+    b.rest('zelt', 3, 0, breite=150)
+    b.rest('banner', -0, 0, dx=-20)
+    b.rest('tonne', 7, 0, dx=-10)
+    # Erster Hof: Mauerrest im Hintergrund, Sperre und Draht vor der Kante zum ersten Gegner
+    b.rest('sperre', 19, 5); b.rest('draht', 20, 5, breite=112)
+    # Schluchten: Wrack einer Panzersperre-Reihe am Rand
+    b.rest('sperre', 40, 5); b.rest('tonne', 41, 5)
+    # Das Feld: Panzerwrack als Deckung in der Mitte, Sperren und Draht an den Seiten, Tonnen als Lichtquelle, Kistenstapel
+    b.panzer(57, 59, 3, hoehe=56)
+    b.gegner_xy(b.rangedEnemies, b.x(58), b.y(3) - 56, b.x(57), b.x(59), 3)                   # ein Schütze hinter dem Panzerturm
+    b.rest('sperre', 52, 3); b.rest('sperre', 53, 3, dx=14); b.rest('draht', 54, 3, breite=84)
+    b.rest('tonne', 61, 3); b.rest('sperre', 65, 3); b.rest('draht', 66, 3, breite=84)
+    b.deckung(62, 3, breite=2, art='kiste', hoehe=2)
+    # Abstieg und Tresor-Eingang: Mauerreste, Gräber
+    b.rest('mauer', 75, 8, breite=168, hoehe=100); b.rest('graeber', 78, 8, anzahl=3)
+    # Gipfelruhe: ein Platz zum Verschnaufen mit Spuren des Absturzes: Hubschrauberwrack, Gräber, Banner, Tonne
+    b.rest('hubschrauber', 120, -2); b.rest('graeber', 115, -2, anzahl=4); b.rest('banner', 114, -2, dx=-10); b.rest('tonne', 118, -2)
+    # Brücken: Banner an den Klippen, Mauer
+    b.rest('banner', 131, -2, dx=24); b.rest('mauer', 138, -2, breite=112, hoehe=84)
+    # Festung: Banner davor, Sperren und Draht vor den Türen, Tonnen als Fackeln
+    b.rest('banner', 161, 0); b.rest('sperre', 160, 0); b.rest('draht', 175, 2, breite=84)
+    b.rest('tonne', 162, 0); b.rest('tonne', 175, 2)
+    b.rest('graeber', 180, 3, anzahl=3)
+    # Kessel: Panzerwrack vor der Hütte, Draht, Zelt, Tonnen
+    b.panzer(214, 216, 4, hoehe=56)
+    b.rest('draht', 210, 4, breite=112); b.rest('sperre', 212, 4); b.rest('zelt', 200, 3, breite=150, dx=-80)
+    b.rest('tonne', 207, 4); b.rest('tonne', 218, 4)
+    # Landezone: je näher am Ziel, desto mehr Zerstörung: Mauerreste, Sperren, Draht, abgestürzter Hubschrauber, Tonnen, Banner
+    b.rest('mauer', 248, -7, breite=196, hoehe=120)
+    b.rest('sperre', 249, -7); b.rest('sperre', 252, -7); b.rest('draht', 251, -7, breite=112)
+    b.rest('hubschrauber', 251, -7, dx=30); b.rest('tonne', 247, -7); b.rest('tonne', 254, -7); b.rest('banner', 257, -7, dx=-10)
+    b.rest('graeber', 244, -7, anzahl=2) if False else None

@@ -385,7 +385,7 @@ export function buildStuetzen(scene, level) {
     // Hier gibt es schon eine eigene Gebäude-Rückwand, ein Gerüst oder einen Schacht: keine Stützen
     const sperre = [[6380, 6920], [10225, 10545], [7400, 7660], [9640, 9900], [11520, 11800], [2730, 3170]];
     const WAND_MAX = 320;
-    for (const p of level.platforms.filter(q => q.h < 40 && !q.kollision && !q.brechbar && !q.bruecke)) {
+    for (const p of level.platforms.filter(q => q.h < 40 && !q.kollision && !q.brechbar && !q.bruecke && !q.innen)) {
         if (sperre.some(([a, b]) => p.x >= a && p.x <= b)) continue;
         const l = p.x - p.w / 2, r = p.x + p.w / 2, unten = p.y + p.h / 2;
         const holz = p.color === 0x6b4a2a;
@@ -552,6 +552,110 @@ export function buildHaengebruecken(scene, level) {
     }
 }
 
+// ---- Kriegsüberreste (aus level.reste): reine Dekoration, die das Schlachtfeld erzählt ----
+//   sperre      Panzersperre (drei gekreuzte Stahlträger)           draht     Rolle Stacheldraht (breite = Pixel)
+//   tonne       brennende Tonne mit Flammen und Funken              hubschrauber  abgestürztes Hubschrauberwrack mit Rauchsäule
+//   mauer       Mauerrest (breite, hoehe in Pixeln)                  graeber   Reihe einfacher Gräber (anzahl)
+//   zelt        Armeezelt                                            banner    zerfetztes Banner des Gegners
+export function buildKriegsreste(scene, level) {
+    const rnd = new Phaser.Math.RandomDataGenerator(['kriegsreste']);
+    const g = scene.add.graphics().setDepth(2.2), hinten = scene.add.graphics().setDepth(-2.8);
+    const px = (gr, c, x, y, w, h, a = 1) => gr.fillStyle(c, a).fillRect(Math.round(x), Math.round(y), w, h);
+    const feuer = [];
+    const balken = (gr, c0, x0, y0, x1, y1, c) => {
+        const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 3));
+        for (let i = 0; i <= n; i++) px(gr, c, x0 + (x1 - x0) * i / n - 3, y0 + (y1 - y0) * i / n - 3, 6, 6);
+    };
+    for (const d of level.reste ?? []) {
+        const x = d.x, y = d.y;
+        if (d.art === 'sperre') {
+            const ROST = [0x4a3a2c, 0x6a5038, 0x2e241c];
+            balken(g, 0, x - 18, y, x + 18, y - 40, ROST[1]); balken(g, 0, x + 18, y, x - 18, y - 40, ROST[1]); balken(g, 0, x - 20, y - 18, x + 20, y - 22, ROST[0]);
+            px(g, ROST[2], x - 24, y - 4, 10, 4); px(g, ROST[2], x + 14, y - 4, 10, 4); px(g, 0x8a6a48, x - 2, y - 24, 4, 4);
+        } else if (d.art === 'draht') {
+            const w = d.breite ?? 112, n = Math.round(w / 14);
+            px(g, 0x3a2a1a, x - w / 2 - 4, y - 24, 6, 24); px(g, 0x3a2a1a, x + w / 2 - 2, y - 24, 6, 24);
+            for (let i = 0; i < n; i++) {
+                const cx = x - w / 2 + 7 + i * 14, cy = y - 12 + (i % 2 ? 2 : -2);
+                for (const [dx, dy] of [[-6, 0], [-4, -4], [0, -6], [4, -4], [6, 0], [4, 4], [0, 6], [-4, 4]]) px(g, 0x9a9a9a, cx + dx - 1, cy + dy - 1, 2, 2);
+                px(g, 0x3a3a3a, cx - 2, cy - 1, 4, 2);
+            }
+            for (let i = 0; i < 4; i++) px(g, 0xb0b0b0, x - w / 2 + 10 + rnd.between(0, w - 20), y - 24 + rnd.between(0, 20), 2, 2);   // Stacheln
+        } else if (d.art === 'tonne') {
+            px(g, 0x6a3a22, x - 12, y - 34, 24, 34); px(g, 0x8a4a2a, x - 12, y - 34, 4, 34); px(g, 0x3a1e12, x + 8, y - 34, 4, 34);
+            px(g, 0x2a1810, x - 12, y - 26, 24, 3); px(g, 0x2a1810, x - 12, y - 10, 24, 3); px(g, 0x1a1008, x - 10, y - 36, 20, 4);
+            feuer.push({ x, y: y - 36, s: 1 });
+        } else if (d.art === 'hubschrauber') {
+            const OL = [0x2e3226, 0x3a3f2e, 0x4a5238], RUSS = 0x14160f;
+            px(hinten, 0x000000, x - 90, y - 4, 190, 5, 0.3);                                           // Schatten
+            px(hinten, OL[1], x - 70, y - 44, 100, 36); px(hinten, OL[2], x - 70, y - 44, 100, 5); px(hinten, RUSS, x - 70, y - 22, 100, 14);
+            for (let i = 0; i < 7; i++) px(hinten, RUSS, x - 66 + i * 14 + rnd.between(0, 6), y - 40 + rnd.between(0, 24), rnd.pick([8, 12, 16]), rnd.pick([6, 10]));   // Brandflecken
+            px(hinten, 0x4a6868, x - 66, y - 40, 22, 18); px(hinten, 0x1a2a2a, x - 60, y - 36, 4, 12); px(hinten, 0x1a2a2a, x - 52, y - 30, 8, 4);   // zerbrochene Scheibe
+            px(hinten, OL[0], x + 30, y - 22, 70, 10); px(hinten, OL[1], x + 30, y - 22, 70, 3); px(hinten, OL[0], x + 92, y - 40, 6, 28);          // abgerissenes Heck mit Flosse
+            px(hinten, OL[0], x + 14, y - 12, 18, 6);                                                    // Bruchkante
+            px(hinten, 0x1a1a1a, x - 14, y - 52, 6, 10);                                                 // Rotormast
+            balken(hinten, 0, x - 11, y - 52, x - 66, y - 30, 0x22241a); balken(hinten, 0, x - 11, y - 52, x + 44, y - 26, 0x22241a);        // hängende Rotorblätter
+            px(hinten, 0x22241a, x - 60, y - 8, 90, 4); px(hinten, 0x22241a, x - 56, y - 14, 4, 8); px(hinten, 0x22241a, x + 20, y - 14, 4, 8);  // Kufen
+            for (let k = 0; k < 4; k++) {                                                                // Rauchsäule
+                const r = scene.add.circle(x - 20 + rnd.between(-8, 8), y - 50, rnd.between(8, 14), 0x222222, 0.35).setDepth(-2.7);
+                scene.tweens.add({ targets: r, y: y - 180, x: r.x + rnd.between(-30, 30), alpha: 0, scale: 2.4, duration: 3600 + k * 500, delay: k * 900, repeat: -1 });
+            }
+            feuer.push({ x: x - 10, y: y - 40, s: 0.8 });
+        } else if (d.art === 'mauer') {
+            const w = d.breite ?? 168, hh = d.hoehe ?? 112, BETON = [0x6a6a66, 0x5e5e5a, 0x74746e];
+            let hoch = rnd.between(hh * 0.5, hh);
+            for (let xx = 0; xx < w; xx += 8) {
+                if (xx % 32 === 0) hoch = Math.max(hh * 0.3, Math.min(hh, hoch + rnd.pick([-32, -16, 0, 0, 16, 32])));      // Bruchkante in groben Stufen
+                const hq = Math.round(hoch / 8) * 8;
+                for (let yy = 0; yy < hq; yy += 8) { px(hinten, rnd.pick(BETON), x - w / 2 + xx, y - yy - 8, 8, 8); if (yy % 16 === 0) px(hinten, 0x44443f, x - w / 2 + xx, y - yy - 8, 8, 1); }
+                if (rnd.frac() < 0.15) px(hinten, 0x2a2a28, x - w / 2 + xx + 2, y - hq - rnd.between(6, 18), 2, rnd.between(8, 18));   // Armierungseisen
+            }
+            for (let k = 0; k < Math.max(1, Math.floor(w / 70)); k++) px(hinten, 0x2a2a28, x - w / 2 + 14 + k * 62 + rnd.between(0, 10), y - 40, 18, 22);    // Fensterloch
+        } else if (d.art === 'graeber') {
+            const n = d.anzahl ?? 4;
+            for (let i = 0; i < n; i++) {
+                const gx = x - (n - 1) * 14 + i * 28;
+                px(g, 0x4a3828, gx - 9, y - 5, 18, 5); px(g, 0x5a4634, gx - 7, y - 7, 14, 3);                   // Hügel
+                px(g, 0x6a5238, gx - 2, y - 30, 4, 26); px(g, 0x6a5238, gx - 7, y - 24, 14, 4);                  // Kreuz
+                if (i % 2 === 0) { px(g, 0x4a5238, gx - 5, y - 36, 10, 6); px(g, 0x2e3226, gx - 5, y - 32, 10, 2); }   // Helm
+            }
+        } else if (d.art === 'zelt') {
+            const w = d.breite ?? 150, hh = 70, OL = [0x4a5238, 0x5a6244, 0x3a4028];
+            for (let yy = 0; yy < hh; yy += 4) {
+                const halb = (w / 2) * (1 - yy / hh);
+                px(hinten, yy % 8 ? OL[0] : OL[1], x - halb, y - yy - 4, halb * 2, 4);
+            }
+            px(hinten, 0x14160f, x - 14, y - 36, 28, 36); px(hinten, 0x3a3a30, x - 12, y - 34, 24, 4);           // Eingang
+            balken(hinten, 0, x - w / 2, y, x - w / 2 - 14, y + 0, 0x6a5a3a); px(hinten, 0x6a5238, x - w / 2 - 6, y - 30, 3, 30); px(hinten, 0x6a5238, x + w / 2 + 3, y - 30, 3, 30);
+        } else if (d.art === 'banner') {
+            px(g, 0x2a2018, x - 2, y - 110, 4, 110); px(g, 0x6a5a3a, x - 4, y - 114, 8, 6);
+            for (let i = 0; i < 40; i += 4) { const h = 36 - Math.floor(i / 8) * 4 + rnd.between(-2, 2); px(g, i % 8 ? 0x6a1a14 : 0x7a2018, x + 2 + i, y - 106 + Math.round(Math.sin(i * 0.4) * 2), 4, h); }
+            px(g, 0x14110e, x + 12, y - 92, 14, 14);
+        }
+    }
+    // Feuer (Flammen und Funken) flackern: alle in einem Zeichner, jedes Bild neu
+    if (feuer.length) {
+        const f = scene.add.graphics().setDepth(2.3);
+        const zeichne = () => {
+            f.clear();
+            const t = scene.time.now;
+            const k = scene.cameras.main, v = k.worldView;
+            for (const e of feuer) {
+                if (e.x < v.x - 80 || e.x > v.right + 80 || e.y < v.y - 120 || e.y > v.bottom + 80) continue;
+                f.fillStyle(0xff7a1a, 0.10 + 0.04 * Math.sin(t * 0.01 + e.x)).fillCircle(e.x, e.y - 8, 46 * e.s);                       // Schein
+                for (let i = 0; i < 3; i++) {
+                    const ph = t * 0.012 + i * 2.1 + e.x, h = (16 + 8 * Math.sin(ph) + i * 3) * e.s, w = (10 - i * 2) * e.s;
+                    f.fillStyle(i === 0 ? 0xd8501a : (i === 1 ? 0xff9a2a : 0xffe070)).fillRect(Math.round(e.x - w / 2 + Math.sin(ph * 1.3) * 2), Math.round(e.y - h), Math.round(w), Math.round(h));
+                }
+                const fk = (t * 0.06 + e.x) % 60;
+                f.fillStyle(0xffc060, 1 - fk / 60).fillRect(Math.round(e.x + Math.sin(fk * 0.3 + e.x) * 8), Math.round(e.y - 20 - fk), 2, 2);   // Funke
+            }
+        };
+        scene.events.on('update', zeichne);
+        scene.events.once('shutdown', () => scene.events.off('update', zeichne));
+    }
+}
+
 export function buildBruecken(scene, level) {
     const rnd = new Phaser.Math.RandomDataGenerator(['bruecken']);
     const g = scene.add.graphics().setDepth(-2);
@@ -669,6 +773,7 @@ export function buildLandscape(scene, level) {
     }
     buildStuetzen(scene, level);   // Säulen und Mauerreste unter bzw. auf den schwebenden Plattformen
     buildBruecken(scene, level);   // Fachwerk, Seile und Autobahn-Reste
+    buildKriegsreste(scene, level);      // Panzersperren, Stacheldraht, brennende Tonnen, Hubschrauberwrack, Mauerreste, Gräber, Zelte, Banner
     buildHaengebruecken(scene, level);   // Brücken aus der Skizze: an den Wänden befestigt, ohne Stützen
     buildGeruest(scene, level);    // Streben und Ketten an den Holzabsätzen
     buildSchachtkoepfe(scene, level);   // Fördergerüste über den Minenschächten

@@ -117,6 +117,7 @@ export default class GameScene extends Phaser.Scene {
                 wand.gruppe = p.gruppe;              // Zusammengehörige Teile (Stützen und Böden eines Turms)
                 wand.rolle = p.rolle;                // 'stuetze' trägt, 'boden' fällt herunter, wenn alle Stützen der Gruppe weg sind
             }
+            if (p.innen) this.platforms[this.platforms.length - 1].innen = true;       // Boden im Gebäude: keine Stützen darunter
             if (p.bruecke) this.platforms[this.platforms.length - 1].bruecke = true;     // Holzboden aus der Skizze: die Landschaft malt die Hängebrücke
             if (p.gras !== undefined) this.platforms[this.platforms.length - 1].gras = p.gras;     // neues Level: nur Schollen mit freier Oberseite bekommen Gras
             if (p.kollision) {                       // Stufenblock eines sanften Hügels: unsichtbar, nur zum Laufen

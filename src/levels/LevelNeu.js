@@ -56,6 +56,22 @@ export default {
 "bruecke": true
 },
 {
+"x": 9464.0,
+"y": 842,
+"w": 336,
+"h": 20,
+"color": 7031338,
+"innen": true
+},
+{
+"x": 9772.0,
+"y": 842,
+"w": 56,
+"h": 20,
+"color": 7031338,
+"innen": true
+},
+{
 "x": 308.0,
 "y": 1056.0,
 "w": 504,
@@ -782,6 +798,13 @@ export default {
 "h": 616,
 "color": 4930346,
 "gras": true
+},
+{
+"x": 9716.0,
+"y": 692.0,
+"w": 280,
+"h": 56,
+"color": 6183509
 },
 {
 "x": 10052.0,
@@ -1536,6 +1559,102 @@ export default {
 "gras": false
 },
 {
+"x": 9296.0,
+"y": 692.0,
+"w": 112,
+"h": 56,
+"color": 6183509
+},
+{
+"x": 9520.0,
+"y": 692.0,
+"w": 112,
+"h": 56,
+"color": 6183509
+},
+{
+"x": 9268.0,
+"y": 804.0,
+"w": 56,
+"h": 168,
+"color": 6183509
+},
+{
+"x": 9828.0,
+"y": 804.0,
+"w": 56,
+"h": 168,
+"color": 6183509
+},
+{
+"x": 11424.0,
+"y": 972.0,
+"w": 448,
+"h": 56,
+"color": 6183509
+},
+{
+"x": 11228.0,
+"y": 1028.0,
+"w": 56,
+"h": 56,
+"color": 6183509
+},
+{
+"x": 11620.0,
+"y": 1028.0,
+"w": 56,
+"h": 56,
+"color": 6183509
+},
+{
+"x": 928.0,
+"y": 1178.0,
+"w": 22,
+"h": 204,
+"brechbar": true,
+"hp": 5,
+"art": "turm",
+"color": 8018478,
+"gruppe": "turm980",
+"rolle": "stuetze"
+},
+{
+"x": 1032.0,
+"y": 1178.0,
+"w": 22,
+"h": 204,
+"brechbar": true,
+"hp": 5,
+"art": "turm",
+"color": 8018478,
+"gruppe": "turm980",
+"rolle": "stuetze"
+},
+{
+"x": 980.0,
+"y": 1066.0,
+"w": 140,
+"h": 20,
+"brechbar": true,
+"hp": 9999,
+"art": "turm",
+"color": 8018478,
+"gruppe": "turm980",
+"rolle": "boden"
+},
+{
+"x": 930.0,
+"y": 1042.0,
+"w": 40,
+"h": 28,
+"brechbar": true,
+"hp": 4,
+"art": "sand",
+"color": 11902826,
+"deckung": true
+},
+{
 "x": 1792.0,
 "y": 1266.0,
 "w": 112,
@@ -1558,14 +1677,50 @@ export default {
 "deckung": true
 },
 {
-"x": 9520.0,
-"y": 986.0,
-"w": 112,
-"h": 28,
-"color": 8225157,
+"x": 7480.0,
+"y": 786.0,
+"w": 22,
+"h": 204,
 "brechbar": true,
-"hp": 9,
-"art": "beton",
+"hp": 5,
+"art": "turm",
+"color": 8018478,
+"gruppe": "turm7532",
+"rolle": "stuetze"
+},
+{
+"x": 7584.0,
+"y": 786.0,
+"w": 22,
+"h": 204,
+"brechbar": true,
+"hp": 5,
+"art": "turm",
+"color": 8018478,
+"gruppe": "turm7532",
+"rolle": "stuetze"
+},
+{
+"x": 7532.0,
+"y": 674.0,
+"w": 140,
+"h": 20,
+"brechbar": true,
+"hp": 9999,
+"art": "turm",
+"color": 8018478,
+"gruppe": "turm7532",
+"rolle": "boden"
+},
+{
+"x": 7482.0,
+"y": 650.0,
+"w": 40,
+"h": 28,
+"brechbar": true,
+"hp": 4,
+"art": "sand",
+"color": 11902826,
 "deckung": true
 },
 {
@@ -1578,6 +1733,33 @@ export default {
 "hp": 5,
 "art": "sand",
 "deckung": true
+},
+{
+"x": 3388.0,
+"y": 1140.0,
+"w": 168,
+"h": 56,
+"color": 4870712,
+"kollision": true
+},
+{
+"x": 3640.0,
+"y": 1140.0,
+"w": 112,
+"h": 56,
+"color": 8021312,
+"brechbar": true,
+"hp": 3,
+"art": "kiste",
+"deckung": true
+},
+{
+"x": 12180.0,
+"y": 1196.0,
+"w": 168,
+"h": 56,
+"color": 4870712,
+"kollision": true
 }
 ],
 "decor": [],
@@ -1593,9 +1775,9 @@ export default {
 "text": "Aim with the mouse\nShoot: left click"
 },
 {
-"x": 1036,
-"y": 1130,
-"text": "A ladder: W / S\nIt leads up to the sky"
+"x": 1092,
+"y": 1090,
+"text": "Ladders: W / S\nClimb the tower!"
 },
 {
 "x": 3052,
@@ -1749,10 +1931,17 @@ export default {
 "hp": 3
 },
 {
-"x": 9716,
+"x": 9436,
 "y": 970,
-"left": 9660,
-"right": 9828,
+"left": 9380,
+"right": 9548,
+"hp": 3
+},
+{
+"x": 9772,
+"y": 802,
+"left": 9772.0,
+"right": 9772.0,
 "hp": 3
 },
 {
@@ -1884,10 +2073,10 @@ export default {
 "hp": 3
 },
 {
-"x": 9380,
+"x": 9772,
 "y": 970,
-"left": 9324,
-"right": 9436,
+"left": 9716,
+"right": 9772,
 "hp": 3
 },
 {
@@ -1901,7 +2090,7 @@ export default {
 "x": 11508,
 "y": 1138,
 "left": 11396,
-"right": 11620,
+"right": 11564,
 "hp": 3
 },
 {
@@ -1924,9 +2113,23 @@ export default {
 "left": 14420,
 "right": 14532,
 "hp": 3
+},
+{
+"x": 3388,
+"y": 1082,
+"left": 3332,
+"right": 3444,
+"hp": 3
 }
 ],
 "skelette": [
+{
+"x": 980,
+"y": 1026,
+"left": 940,
+"right": 1020,
+"hp": 2
+},
 {
 "x": 2772,
 "y": 1194,
@@ -1988,6 +2191,27 @@ export default {
 "y": 858,
 "left": 7644,
 "right": 7868,
+"hp": 3
+},
+{
+"x": 7532,
+"y": 634,
+"left": 7492,
+"right": 7572,
+"hp": 3
+},
+{
+"x": 9436,
+"y": 802,
+"left": 9380,
+"right": 9548,
+"hp": 3
+},
+{
+"x": 9604,
+"y": 634,
+"left": 9616,
+"right": 9816,
 "hp": 3
 },
 {
@@ -2291,6 +2515,21 @@ export default {
 "type": "health"
 },
 {
+"x": 9492,
+"y": 990,
+"type": "health"
+},
+{
+"x": 9604,
+"y": 654,
+"type": "grenade"
+},
+{
+"x": 9324,
+"y": 822,
+"type": "ammo"
+},
+{
 "x": 10388,
 "y": 1158,
 "type": "ammo"
@@ -2421,7 +2660,7 @@ export default {
 "y": 869
 },
 {
-"x": 7644,
+"x": 7700,
 "y": 869
 },
 {
@@ -2429,8 +2668,12 @@ export default {
 "y": 869
 },
 {
-"x": 9772,
+"x": 9660,
 "y": 981
+},
+{
+"x": 9548,
+"y": 813
 },
 {
 "x": 9548,
@@ -2447,11 +2690,297 @@ export default {
 ],
 "bruecken": [],
 "treppen": [],
-"wracks": [],
+"wracks": [
+{
+"x": 3388.0,
+"y": 1168,
+"w": 168,
+"h": 56
+},
+{
+"x": 12180.0,
+"y": 1224,
+"w": 168,
+"h": 56
+}
+],
+"reste": [
+{
+"art": "zelt",
+"x": 308,
+"y": 1000,
+"breite": 150
+},
+{
+"art": "banner",
+"x": 120,
+"y": 1000
+},
+{
+"art": "tonne",
+"x": 522,
+"y": 1000
+},
+{
+"art": "sperre",
+"x": 1204,
+"y": 1280
+},
+{
+"art": "draht",
+"x": 1260,
+"y": 1280,
+"breite": 112
+},
+{
+"art": "sperre",
+"x": 2380,
+"y": 1280
+},
+{
+"art": "tonne",
+"x": 2436,
+"y": 1280
+},
+{
+"art": "sperre",
+"x": 3052,
+"y": 1168
+},
+{
+"art": "sperre",
+"x": 3122,
+"y": 1168
+},
+{
+"art": "draht",
+"x": 3164,
+"y": 1168,
+"breite": 84
+},
+{
+"art": "tonne",
+"x": 3556,
+"y": 1168
+},
+{
+"art": "sperre",
+"x": 3780,
+"y": 1168
+},
+{
+"art": "draht",
+"x": 3836,
+"y": 1168,
+"breite": 84
+},
+{
+"art": "mauer",
+"x": 4340,
+"y": 1448,
+"breite": 168,
+"hoehe": 100
+},
+{
+"art": "graeber",
+"x": 4508,
+"y": 1448,
+"anzahl": 3
+},
+{
+"art": "hubschrauber",
+"x": 6860,
+"y": 888
+},
+{
+"art": "graeber",
+"x": 6580,
+"y": 888,
+"anzahl": 4
+},
+{
+"art": "banner",
+"x": 6514,
+"y": 888
+},
+{
+"art": "tonne",
+"x": 6748,
+"y": 888
+},
+{
+"art": "banner",
+"x": 7500,
+"y": 888
+},
+{
+"art": "mauer",
+"x": 7868,
+"y": 888,
+"breite": 112,
+"hoehe": 84
+},
+{
+"art": "banner",
+"x": 9156,
+"y": 1000
+},
+{
+"art": "sperre",
+"x": 9100,
+"y": 1000
+},
+{
+"art": "draht",
+"x": 9940,
+"y": 1112,
+"breite": 84
+},
+{
+"art": "tonne",
+"x": 9212,
+"y": 1000
+},
+{
+"art": "tonne",
+"x": 9940,
+"y": 1112
+},
+{
+"art": "graeber",
+"x": 10220,
+"y": 1168,
+"anzahl": 3
+},
+{
+"art": "draht",
+"x": 11900,
+"y": 1224,
+"breite": 112
+},
+{
+"art": "sperre",
+"x": 12012,
+"y": 1224
+},
+{
+"art": "zelt",
+"x": 11260,
+"y": 1168,
+"breite": 150
+},
+{
+"art": "tonne",
+"x": 11732,
+"y": 1224
+},
+{
+"art": "tonne",
+"x": 12348,
+"y": 1224
+},
+{
+"art": "mauer",
+"x": 14028,
+"y": 608,
+"breite": 196,
+"hoehe": 120
+},
+{
+"art": "sperre",
+"x": 14084,
+"y": 608
+},
+{
+"art": "sperre",
+"x": 14252,
+"y": 608
+},
+{
+"art": "draht",
+"x": 14196,
+"y": 608,
+"breite": 112
+},
+{
+"art": "hubschrauber",
+"x": 14226,
+"y": 608
+},
+{
+"art": "tonne",
+"x": 13972,
+"y": 608
+},
+{
+"art": "tonne",
+"x": 14364,
+"y": 608
+},
+{
+"art": "banner",
+"x": 14522,
+"y": 608
+}
+],
 "geruest": [],
 "schachtkoepfe": [],
-"leitern": [],
-"tuerme": [],
+"leitern": [
+{
+"x": 9660,
+"oben": 832,
+"unten": 1000,
+"seite": -1,
+"art": "holz",
+"ausX": 56,
+"breite": 56
+},
+{
+"x": 9436,
+"oben": 664,
+"unten": 832,
+"seite": 1,
+"art": "holz",
+"ausX": 56,
+"breite": 56
+},
+{
+"x": 1072,
+"oben": 1056,
+"unten": 1280,
+"seite": -1,
+"art": "holz",
+"ausX": 56,
+"breite": 56
+},
+{
+"x": 7624,
+"oben": 664,
+"unten": 888,
+"seite": -1,
+"art": "holz",
+"ausX": 56,
+"breite": 56
+}
+],
+"tuerme": [
+{
+"gruppe": "turm980",
+"x": 980,
+"oben": 1056,
+"bl": 1280,
+"br": 1280,
+"ladeSeite": 1
+},
+{
+"gruppe": "turm7532",
+"x": 7532,
+"oben": 664,
+"bl": 888,
+"br": 888,
+"ladeSeite": 1
+}
+],
 "huegelformen": [],
 "hoehlen": [
 {
@@ -3046,6 +3575,30 @@ export default {
 "art": "tunnel",
 "stil": "schlicht",
 "offen": []
+},
+{
+"links": 9282,
+"rechts": 9814,
+"oben": 706,
+"unten": 1014,
+"art": "gebaeude",
+"stil": "",
+"etagen": [
+182
+],
+"geschlossen": true
+},
+{
+"links": 11242,
+"rechts": 11606,
+"oben": 986,
+"unten": 1182,
+"art": "gebaeude",
+"stil": "",
+"etagen": [
+76
+],
+"geschlossen": true
 }
 ],
 "lampen": [

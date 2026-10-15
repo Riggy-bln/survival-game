@@ -29,6 +29,7 @@ class Bau:
         self.enemies, self.rangedEnemies, self.skelette, self.pickups, self.faesser = [], [], [], [], []
         self.leitern, self.signs, self.decor, self.flaggen, self.bruecken = [], [], [], [], []
         self.hoehlen, self.lampen = [], []
+        self.tuerme, self.wracks, self.reste = [], [], []
         self.fehler = []
         self.verschoben = []
         self.notizen = []                                   # Hinweise für die Dokumentation (werden nicht ins Spiel übernommen)
@@ -109,6 +110,40 @@ class Bau:
         l, rr = T.welt_x(cx0), T.welt_x(cx1 + 1)
         self.platforms.append({'x': (l + rr) / 2, 'y': self.y(r) + 10, 'w': rr - l, 'h': 20, 'color': 0x6b4a2a})
         if bruecke: self.bruecken.append({'art': 'seil', 'stuecke': [[l, rr, self.y(r)]]})
+    def gegner_xy(self, liste, x, y, links, rechts, hp):
+        """Ein Gegner auf einer Fläche, die keine Zelle ist (zum Beispiel das Dach eines Wachturms): x, y in Weltkoordinaten (y = Standfläche)."""
+        liste.append({'x': x, 'y': y - 30, 'left': links, 'right': rechts, 'hp': hp})
+
+    def wachturm(self, cx, r, hoehe=224, lade_seite=1):
+        """Ein Holzwachturm (zerstörbar: schießt man ein Bein weg oder sprengt daneben ein Fass, stürzt er ein) auf der Fläche Zeile r.
+        Die Mitte liegt in der Mitte der Zelle cx; die Leiter steht auf der Seite lade_seite. Gibt (x, y_der_Plattform) zurück."""
+        cx, r = self.ort(cx, r)
+        x, boden = self.x(cx), self.y(r)
+        oben = boden - hoehe
+        gruppe = f'turm{int(x)}'
+        def bauteil(l, rr, o, u, art, hp, **extra):
+            p = {'x': (l + rr) / 2, 'y': (o + u) / 2, 'w': rr - l, 'h': u - o, 'brechbar': True, 'hp': hp, 'art': art, 'color': {'turm': 0x7a5a2e, 'sand': 0xb59f6a}[art]}
+            p.update(extra); self.platforms.append(p)
+        bauteil(x - 63, x - 41, oben + 20, boden, 'turm', 5, gruppe=gruppe, rolle='stuetze')
+        bauteil(x + 41, x + 63, oben + 20, boden, 'turm', 5, gruppe=gruppe, rolle='stuetze')
+        bauteil(x - 70, x + 70, oben, oben + 20, 'turm', 9999, gruppe=gruppe, rolle='boden')
+        self.tuerme.append({'gruppe': gruppe, 'x': x, 'oben': oben, 'bl': boden, 'br': boden, 'ladeSeite': lade_seite})
+        bauteil(min(x - lade_seite * 70, x - lade_seite * 30), max(x - lade_seite * 70, x - lade_seite * 30), oben - 28, oben, 'sand', 4, deckung=True)
+        self.leitern.append({'x': x + lade_seite * 92, 'oben': oben, 'unten': boden, 'seite': -lade_seite, 'art': 'holz', 'ausX': Z, 'breite': Z})
+        return x, oben
+
+    def panzer(self, cx0, cx1, r, hoehe=56):
+        """Ein ausgebranntes Panzerwrack (begehbarer Block, Oberkante = Standfläche) von Spalte cx0 bis cx1 auf der Fläche Zeile r."""
+        l, rr, boden = T.welt_x(cx0), T.welt_x(cx1 + 1), self.y(r)
+        self.platforms.append({'x': (l + rr) / 2, 'y': boden - hoehe / 2, 'w': rr - l, 'h': hoehe, 'color': 0x4a5238, 'kollision': True})
+        self.wracks.append({'x': (l + rr) / 2, 'y': boden, 'w': rr - l, 'h': hoehe})
+
+    def rest(self, art, cx, r, **extra):
+        """Ein Kriegsüberrest als reine Dekoration (kein Einfluss auf das Spiel): sperre, draht, tonne, hubschrauber, mauer, graeber, zelt, banner.
+        cx, r = Zelle der Standfläche; dx verschiebt in Pixeln."""
+        x = self.x(cx) + extra.pop('dx', 0)
+        self.reste.append({'art': art, 'x': x, 'y': self.y(r), **extra})
+
     def deckung(self, cx, r, breite=2, art='sand', hoehe=1):
         """Zerstörbare Deckung (Sandsäcke, Kisten) auf der Fläche Zeile r: breite Zellen breit, hoehe Halbzellen (28 Pixel) hoch."""
         l, rr = T.welt_x(cx), T.welt_x(cx + breite)
@@ -220,6 +255,7 @@ def uebernehme_skizze(b, daten, bloecke):
 
 def main():
     daten, bloecke = T.lade(os.path.join(WURZEL, 'editor', 'karte.json'))
+    if hasattr(entwurf, 'bauwerke') and not os.environ.get('OHNE_ENTWURF'): entwurf.bauwerke(daten, bloecke)     # Gebäude ändern Blöcke und Zonen dieses Laufs
     b = Bau(daten, bloecke)
     for d in daten['dinge']:
         if d['t'] == 'start': b.start = (d['cx'], d['cy'] + 1)
@@ -245,8 +281,8 @@ def main():
         'goalX': b.x(b.ziel[0]), 'goalY': b.y(b.ziel[1]),
         'platforms': b.platforms, 'decor': b.decor, 'signs': b.signs,
         'enemies': b.enemies, 'rangedEnemies': b.rangedEnemies, 'skelette': b.skelette, 'brutlinge': [],
-        'haenge': T.haengebruecken(bloecke), 'flaggen': b.flaggen, 'pickups': b.pickups, 'faesser': b.faesser, 'bruecken': b.bruecken, 'treppen': [], 'wracks': [],
-        'geruest': [], 'schachtkoepfe': [], 'leitern': b.leitern, 'tuerme': [], 'huegelformen': [], 'hoehlen': b.hoehlen, 'lampen': b.lampen,
+        'haenge': T.haengebruecken(bloecke), 'flaggen': b.flaggen, 'pickups': b.pickups, 'faesser': b.faesser, 'bruecken': b.bruecken, 'treppen': [], 'wracks': b.wracks, 'reste': b.reste,
+        'geruest': [], 'schachtkoepfe': [], 'leitern': b.leitern, 'tuerme': b.tuerme, 'huegelformen': [], 'hoehlen': b.hoehlen, 'lampen': b.lampen,
     }
     kopf = ('// AUTOMATISCH ERZEUGT von tools/level_aus_karte.py (aus editor/karte.json und tools/entwurf.py). Nicht von Hand ändern:\n'
             '// Änderungen gehören in die Skizze (Karteneditor) oder in tools/entwurf.py. Dann den Befehl  python3 tools/level_aus_karte.py  wiederholen.\n')

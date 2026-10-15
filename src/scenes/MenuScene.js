@@ -89,6 +89,7 @@ export default class MenuScene extends Phaser.Scene {
             // Nur auf dem eigenen Rechner (localhost): ein Kartenbetrachter zum Entwickeln, in dem man frei durch die Welt fliegt
             if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
                 eintraege.push({ text: 'MAP EDITOR', info: 'Sketch your own map: blocks, ladders, enemies, items (only on localhost).', farbe: 0xc080ff, aktion: () => this.scene.start('EditorScene') });
+                eintraege.push({ text: 'MAP VIEWER', info: 'Fly through the whole level without playing (only on localhost).', farbe: 0x80c0ff, aktion: () => this.starte('viewer') });
             }
         } else if (name === 'mehrspieler') {
             eintraege = [
@@ -106,7 +107,8 @@ export default class MenuScene extends Phaser.Scene {
         this.eintraege = eintraege;
         this.untertitel.setText(name === 'haupt' ? '' : (name === 'online' ? '- ONLINE -' : '- MULTIPLAYER -'));
 
-        const abstand = 64, y0 = name === 'haupt' ? 268 - (eintraege.length - 2) * 18 : 262 - (eintraege.length - 2) * 12;
+        const dicht = name === 'haupt' && eintraege.length > 2;           // mit den Entwicklerknöpfen etwas enger, damit die Beschreibung darunter frei bleibt
+        const abstand = dicht ? 56 : 64, y0 = name === 'haupt' ? (dicht ? 212 : 268) : 262 - (eintraege.length - 2) * 12;
         eintraege.forEach((e, i) => {
             const k = pixelKnopf(this, MITTE_X, y0 + i * abstand, 440, 50, e.text + (e.demnaechst ? '  (soon)' : ''), e.farbe, () => { this.waehle(i); this.bestaetige(); },
                 { px: 3, deaktiviert: !!e.demnaechst });

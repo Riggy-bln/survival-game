@@ -27,6 +27,9 @@ const WERKZEUGE = [
     { id: 'stein', name: 'Stone block', gruppe: 'BLOCKS', farbe: 0x7a7670, tipp: 'Drag a rectangle to fill it with stone.' },
     { id: 'holz', name: 'Wooden floor', gruppe: 'BLOCKS', farbe: 0x9a7a3a, tipp: 'Thin wooden floor that you can stand on (good for floors inside buildings).' },
     { id: 'radierer', name: 'Eraser brush', gruppe: 'BLOCKS', farbe: 0xe06060, tipp: 'Paint over things to erase them. Choose the brush SIZE below. To erase a big area: use Select area + Delete.' },
+    { id: 'gebaeude', name: 'Building (drag)', gruppe: 'BUILDINGS', farbe: 0xb0a8c0, tipp: 'Drag a rectangle (outer walls and roof, standing on the ground): you get walls, wooden floors, ladders, doors and the room background. Set ROOM HEIGHT below.' },
+    { id: 'bg_hoehle', name: 'Cave background', gruppe: 'BUILDINGS', farbe: 0x5a4636, tipp: 'Drag a rectangle: here the dark cave wall appears behind the terrain (inside mountains, under islands).' },
+    { id: 'bg_gebaeude', name: 'Building background', gruppe: 'BUILDINGS', farbe: 0x5a6a78, tipp: 'Drag a rectangle: here the wall of a building (with windows and floors) appears behind the terrain.' },
     { id: 'leiter', name: 'Ladder (drag)', gruppe: 'CLIMB', farbe: 0xc9a05a, tipp: 'Drag from the top to the bottom of the ladder (one cell wide).' },
     { id: 'nahkaempfer', name: 'Soldier (melee)', gruppe: 'ENEMIES', farbe: 0xc84a4a, tipp: 'Click to place a soldier who runs at you.' },
     { id: 'fernkaempfer', name: 'Gunner', gruppe: 'ENEMIES', farbe: 0x9a6ad0, tipp: 'Click to place a gunner who shoots from a distance.' },
@@ -46,6 +49,7 @@ const WERKZEUGE = [
     { id: 'notiz', name: 'Note (text)', gruppe: 'MARKS', farbe: 0xffe080, tipp: 'Click to write a note on the map (for example "hard part: snipers").' },
     { id: 'bereich', name: 'Area (drag + label)', gruppe: 'MARKS', farbe: 0x66a0ff, tipp: 'Drag a rectangle and give it a name (for example "Boss arena").' },
 ];
+const BG_NAMEN = { bg_hoehle: 'hoehle', bg_gebaeude: 'gebaeude' };
 const ZIFFERN = ['erde', 'stein', 'holz', 'radierer', 'leiter', 'nahkaempfer', 'fernkaempfer', 'skelett', 'schwer', 'boss'];   // Tasten 1 bis 0
 const NAMEN = Object.fromEntries(WERKZEUGE.map((w) => [w.id, w.name]));
 const BLOCK_CODE = { erde: 'e', stein: 's', holz: 'h' };
@@ -68,6 +72,7 @@ export default class EditorScene extends Phaser.Scene {
         this.werkzeug = 'erde';
         this.letzterBlock = 'erde';
         this.groesse = 1;                           // Pinselgröße (Zellen) für Radierer und freies Malen
+        this.raumHoehe = 4;                         // Gebäudewerkzeug: Abstand von Boden zu Boden (Zellen, einschließlich der Decke)
         this.frei = false;                          // false = Rechteck aufziehen, true = frei malen
         this.camX = -300; this.camY = BODEN - 380; this.zoom = 0.8;
         this.gitter = true; this.hilfe = true;
@@ -196,12 +201,12 @@ export default class EditorScene extends Phaser.Scene {
         // Werkzeugliste links
         let y = KOPF + 5, letzteGruppe = '';
         for (const w of WERKZEUGE) {
-            if (w.gruppe !== letzteGruppe) { letzteGruppe = w.gruppe; text(10, y, w.gruppe, { color: '#8fb0a0', fontSize: '11px' }); y += 14; }
+            if (w.gruppe !== letzteGruppe) { letzteGruppe = w.gruppe; text(10, y, w.gruppe, { color: '#8fb0a0', fontSize: '10px' }); y += 13; }
             const taste = ZIFFERN.indexOf(w.id); const kurz = taste >= 0 ? String((taste + 1) % 10) : (w.id === 'auswahl' ? 'V' : '');
-            const k = { x: 6, y, w: BREITE_PANEL - 12, h: 21, id: w.id, farbe: w.farbe, tipp: w.tipp, aktion: () => this.waehle(w.id) };
-            k.label = text(34, y + 3, (kurz ? '[' + kurz + '] ' : '') + w.name);
+            const k = { x: 6, y, w: BREITE_PANEL - 12, h: 18, id: w.id, farbe: w.farbe, tipp: w.tipp, aktion: () => this.waehle(w.id) };
+            k.label = text(34, y + 2, (kurz ? '[' + kurz + '] ' : '') + w.name, { fontSize: '12px' });
             this.knoepfe.push(k);
-            y += 22;
+            y += 19;
         }
         // Pinselgröße und Malmodus (unten im Panel)
         const H = this.scale.height;
@@ -210,12 +215,17 @@ export default class EditorScene extends Phaser.Scene {
             const k = { x: 6 + i * 66, y: H - 64, w: 62, h: 22, groesse: n, tipp: `Brush size ${n} x ${n} cells (for the eraser and freehand drawing).`, aktion: () => { this.groesse = n; } };
             k.label = text(k.x + 12, k.y + 4, `${n} x ${n}`); this.knoepfe.push(k); return k;
         });
+        this.raumLabel = text(10, H - 80, 'ROOM HEIGHT (cells)', { color: '#8fb0a0', fontSize: '11px' });
+        this.raumKnoepfe = [3, 4, 5].map((n, i) => {
+            const k = { x: 6 + i * 66, y: H - 64, w: 62, h: 22, raum: n, tipp: `Floor to floor ${n} cells: rooms ${n - 1} cells high (the player is 1 cell tall).`, aktion: () => { this.raumHoehe = n; } };
+            k.label = text(k.x + 22, k.y + 4, `${n}`); this.knoepfe.push(k); return k;
+        });
         this.modusKnopf = { x: 6, y: H - 36, w: BREITE_PANEL - 12, h: 24, tipp: 'Blocks: draw a rectangle or paint freely. Key B switches.', aktion: () => { this.frei = !this.frei; } };
         this.modusKnopf.label = text(14, H - 31, ''); this.knoepfe.push(this.modusKnopf);
         // Knöpfe oben rechts
         const kopf = [['UNDO', () => this.rueckgaengig(), 56, 'Undo the last action (Ctrl+Z)'], ['REDO', () => this.wiederholen(), 56, 'Redo (Ctrl+Y)'], ['SAVE', () => this.speichern(), 56, 'Save so Claude can read the map (Ctrl+S)'],
             ['LOAD', () => this.laden(), 56, 'Load the last saved map from editor/karte.json'], ['NEW', () => this.neu(), 48, 'Start a new empty map'],
-            ['FIT', () => this.passeAn(), 48, 'Show the whole map (key F)'], ['LEVEL VIEW', () => this.zumLevelAnsehen(), 100, 'Look at the real game level for comparison'],
+            ['FIT', () => this.passeAn(), 48, 'Show the whole map (key F)'], ['AUTO BG', () => this.autoHintergrund(), 76, 'Suggest cave backgrounds under every ceiling of the map (you can edit them)'], ['LEVEL VIEW', () => this.zumLevelAnsehen(), 100, 'Look at the real game level for comparison'],
             ['HELP', () => { this.hilfe = !this.hilfe; }, 52, 'Show or hide the help (key H)'], ['MENU', () => this.zumMenue(), 52, 'Back to the menu (your map stays saved in the browser)']];
         let kx = this.scale.width - 8;
         for (const [name, aktion, b, tipp] of kopf.reverse()) { kx -= b + 4; const k = { x: kx, y: 4, w: b, h: 25, aktion, kopf: true, name, tipp }; k.label = text(kx + 7, 10, name, { fontSize: '12px' }); this.knoepfe.push(k); this.kopfKnoepfe.push(k); }
@@ -244,8 +254,12 @@ export default class EditorScene extends Phaser.Scene {
         const B = this.scale.width, H = this.scale.height;
         let x2 = B - 8; for (const k of this.kopfKnoepfe) { x2 -= k.w + 4; k.x = x2; k.label.setX(x2 + 7); }
         this.sizeLabel.setY(H - 80); for (const k of this.sizeKnoepfe) { k.y = H - 64; k.label.setY(k.y + 4); }
+        this.raumLabel.setY(H - 80); for (const k of this.raumKnoepfe) { k.y = H - 64; k.label.setY(k.y + 4); }
         this.modusKnopf.y = H - 36; this.modusKnopf.label.setY(H - 31); this.hinweisText.setY(H - FUSS + 6);
     }
+
+    // Pinselgröße gilt nicht beim Gebäudewerkzeug, Raumhöhe nur dort
+    verborgen(k) { const g = this.werkzeug === 'gebaeude'; return (k.groesse !== undefined && g) || (k.raum !== undefined && !g); }
 
     waehle(id) {
         this.werkzeug = id; this.zieh = null; this.einfuegen = false;
@@ -272,7 +286,7 @@ export default class EditorScene extends Phaser.Scene {
         for (const k of this.bloecke.keys()) { const i = k.indexOf(','); f(Number(k.slice(0, i)), Number(k.slice(i + 1))); }
         for (const d of this.dinge) {
             if (d.t === 'leiter') { f(d.cx, d.cy0); f(d.cx, d.cy1); }
-            else if (d.t === 'bereich') { f(d.cx0, d.cy0); f(d.cx1, d.cy1); } else f(d.cx, d.cy);
+            else if (d.t === 'bereich' || d.t === 'hintergrund') { f(d.cx0, d.cy0); f(d.cx1, d.cy1); } else f(d.cx, d.cy);
         }
         if (c0 > c1) { c0 = 0; c1 = 20; r0 = -8; r1 = 4; }
         if (!mitBoden) r1 = Math.min(r1, Math.max(r0 + 6, 6));
@@ -285,7 +299,7 @@ export default class EditorScene extends Phaser.Scene {
     inRechteck(d, a) {
         const innen = (c, r) => c >= a.c0 && c <= a.c1 && r >= a.r0 && r <= a.r1;
         if (d.t === 'leiter') return d.cx >= a.c0 && d.cx <= a.c1 && d.cy1 >= a.r0 && d.cy0 <= a.r1;
-        if (d.t === 'bereich') return d.cx0 >= a.c0 && d.cx1 <= a.c1 && d.cy0 >= a.r0 && d.cy1 <= a.r1;
+        if (d.t === 'bereich' || d.t === 'hintergrund') return d.cx0 >= a.c0 && d.cx1 <= a.c1 && d.cy0 >= a.r0 && d.cy1 <= a.r1;
         return innen(d.cx, d.cy);
     }
 
@@ -322,7 +336,7 @@ export default class EditorScene extends Phaser.Scene {
     verschobenes(d, dx, dy) {
         const o = { ...d }; delete o.id;
         if (o.t === 'leiter') { o.cx += dx; o.cy0 += dy; o.cy1 += dy; }
-        else if (o.t === 'bereich') { o.cx0 += dx; o.cx1 += dx; o.cy0 += dy; o.cy1 += dy; }
+        else if (o.t === 'bereich' || o.t === 'hintergrund') { o.cx0 += dx; o.cx1 += dx; o.cy0 += dy; o.cy1 += dy; if (o.etagen) o.etagen = o.etagen.map((q) => q + dy); }
         else { o.cx += dx; o.cy += dy; }
         return o;
     }
@@ -412,7 +426,7 @@ export default class EditorScene extends Phaser.Scene {
     mausUnten(p) {
         this.maus = { x: p.x, y: p.y };
         if (p.button === 0) {
-            for (const k of this.knoepfe) { if (k.auswahl && !this.auswahl) continue; if (this.trifftKnopf(p, k)) { k.aktion(); return; } }
+            for (const k of this.knoepfe) { if (k.auswahl && !this.auswahl) continue; if (this.verborgen(k)) continue; if (this.trifftKnopf(p, k)) { k.aktion(); return; } }
             if (this.imMini(p)) { this.springeMini(p); this.zieh = { art: 'mini' }; return; }
         }
         if (this.imPanel(p)) return;
@@ -429,7 +443,7 @@ export default class EditorScene extends Phaser.Scene {
         else if (BLOCK_CODE[w]) {
             if (this.frei) { this.zieh = { art: 'malen', c0: c, r0: r, c1: c, r1: r }; this.malePinsel(c, r); }
             else this.zieh = { art: 'rechteck', c0: c, r0: r, c1: c, r1: r };
-        } else if (w === 'bereich') this.zieh = { art: 'rechteck', c0: c, r0: r, c1: c, r1: r };
+        } else if (w === 'bereich' || w === 'gebaeude' || BG_NAMEN[w]) this.zieh = { art: 'rechteck', c0: c, r0: r, c1: c, r1: r };
         else if (w === 'leiter') this.zieh = { art: 'leiter', c0: c, r0: r, c1: c, r1: r };
         else if (w === 'notiz') this.setzeNotiz(c, r);
         else this.setzeDing(w, c, r);
@@ -474,6 +488,8 @@ export default class EditorScene extends Phaser.Scene {
             this.verlaufSpeichern(); this.zeigeMeldung(kopie ? 'Copied' : 'Moved');
         } else if (z.art === 'rechteck') {
             if (BLOCK_CODE[w]) { for (let x = c0; x <= c1; x++) for (let y = r0; y <= r1; y++) this.bloecke.set(x + ',' + y, w); this.verlaufSpeichern(); }
+            else if (w === 'gebaeude') this.baueGebaeude(c0, r0, c1, r1);
+            else if (BG_NAMEN[w]) { this.dinge.push({ id: this.naechsteId++, t: 'hintergrund', art: BG_NAMEN[w], cx0: c0, cy0: r0, cx1: c1, cy1: r1 }); this.verlaufSpeichern(); this.zeigeMeldung('Background added'); }
             else if (w === 'bereich') {
                 const t = window.prompt('Label for this area (for example "Boss arena", "Sniper tower"):', '');
                 if (t !== null) { this.dinge.push({ id: this.naechsteId++, t: 'bereich', cx0: c0, cy0: r0, cx1: c1, cy1: r1, text: t }); this.verlaufSpeichern(); }
@@ -511,7 +527,7 @@ export default class EditorScene extends Phaser.Scene {
             this.bloecke.delete(cx + ',' + cy);
             this.dinge = this.dinge.filter((d) => {
                 if (d.t === 'leiter') return !(d.cx === cx && cy >= d.cy0 && cy <= d.cy1);
-                if (d.t === 'bereich') return !((cx === d.cx0 || cx === d.cx1) && cy >= d.cy0 && cy <= d.cy1 || (cy === d.cy0 || cy === d.cy1) && cx >= d.cx0 && cx <= d.cx1);
+                if (d.t === 'bereich' || d.t === 'hintergrund') return !((cx === d.cx0 || cx === d.cx1) && cy >= d.cy0 && cy <= d.cy1 || (cy === d.cy0 || cy === d.cy1) && cx >= d.cx0 && cx <= d.cx1);
                 return !(d.cx === cx && d.cy === cy);
             });
         }
@@ -559,9 +575,10 @@ export default class EditorScene extends Phaser.Scene {
             for (let r = r0; r <= r1; r++) { const y = (BODEN + r * Z - this.camY) * z; g.lineBetween(0, y, B, y); }
         }
         const gesehen = new Set();
+        for (const d of this.dinge) if (d.t === 'hintergrund') this.zeichneHintergrund(d);
         for (const d of this.dinge) if (d.t === 'bereich') this.zeichneBereich(d, gesehen);
         for (const d of this.dinge) if (d.t === 'leiter') this.zeichneLeiter(d);
-        for (const d of this.dinge) if (d.t !== 'bereich' && d.t !== 'leiter') this.zeichneDing(d, gesehen);
+        for (const d of this.dinge) if (d.t !== 'bereich' && d.t !== 'leiter' && d.t !== 'hintergrund') this.zeichneDing(d, gesehen);
         this.zeichneAuswahl();
         this.zeichneVorschau();
         for (const [id, o] of this.textObjekte) if (!gesehen.has(id)) { o.destroy(); this.textObjekte.delete(id); }
@@ -587,7 +604,9 @@ export default class EditorScene extends Phaser.Scene {
         g.lineStyle(1, 0x3a5a50, 1).lineBetween(BREITE_PANEL, 0, BREITE_PANEL, H).lineBetween(0, KOPF, B, KOPF).lineBetween(BREITE_PANEL, H - FUSS, B, H - FUSS);
         for (const k of this.knoepfe) {
             if (k.auswahl) continue;
-            const aktiv = (k.id && k.id === this.werkzeug) || (k.groesse && k.groesse === this.groesse);
+            if (this.verborgen(k)) { if (k.label) k.label.setVisible(false); continue; }
+            if (k.label) k.label.setVisible(true);
+            const aktiv = (k.id && k.id === this.werkzeug) || (k.groesse && k.groesse === this.groesse) || (k.raum && k.raum === this.raumHoehe);
             g.fillStyle(aktiv ? 0x2f6a58 : (k.kopf ? 0x24433b : 0x15302a), 1).fillRect(k.x, k.y, k.w, k.h);
             g.lineStyle(aktiv ? 2 : 1, aktiv ? 0xfff0a0 : 0x3a5a50, 1).strokeRect(k.x, k.y, k.w, k.h);
             if (k.farbe !== undefined) g.fillStyle(k.farbe, 1).fillRect(k.x + 5, k.y + 4, 14, 13).lineStyle(1, 0x000000, 0.6).strokeRect(k.x + 5, k.y + 4, 14, 13);
@@ -605,6 +624,7 @@ export default class EditorScene extends Phaser.Scene {
             }
         }
         for (const k of this.auswahlKnoepfe) k.label.setVisible(sichtbar);
+        this.sizeLabel.setVisible(this.werkzeug !== 'gebaeude'); this.raumLabel.setVisible(this.werkzeug === 'gebaeude');
         this.hilfeText.setVisible(this.hilfe);
     }
 
@@ -615,7 +635,7 @@ export default class EditorScene extends Phaser.Scene {
         this.modusKnopf.label.setText(this.frei ? 'DRAW: freehand  (B)' : 'DRAW: rectangle  (B)');
         // Hinweisleiste: Tipp zum Knopf unter der Maus, sonst zum aktuellen Werkzeug
         let tipp = null;
-        for (const k of this.knoepfe) if (k.tipp && (!k.auswahl || this.auswahl) && this.trifftKnopf(this.maus, k)) tipp = k.tipp;
+        for (const k of this.knoepfe) if (k.tipp && (!k.auswahl || this.auswahl) && !this.verborgen(k) && this.trifftKnopf(this.maus, k)) tipp = k.tipp;
         if (!tipp) tipp = this.einfuegen ? 'Paste mode: click to place the copy. Esc ends.' : WERKZEUGE.find((w) => w.id === this.werkzeug).tipp;
         this.hinweisText.setText(tipp);
         this.zeichneTooltip(c, r);
@@ -643,6 +663,99 @@ export default class EditorScene extends Phaser.Scene {
         this.rect(0x4a331d, x + 8, y0 - 24, 6, y1 - y0 + 24); this.rect(0x4a331d, x + Z - 14, y0 - 24, 6, y1 - y0 + 24);
         this.rect(0x8a6a3c, x + 9, y0 - 24, 3, y1 - y0 + 24); this.rect(0x8a6a3c, x + Z - 13, y0 - 24, 3, y1 - y0 + 24);
         for (let y = y1 - 14; y > y0 - 12; y -= 28) this.rect(0x8a6a38, x + 6, y, Z - 12, 4);
+    }
+
+    // Hintergrundzone: Höhle = dunkles Braun mit Punkten, Gebäude = bläuliches Grau mit Fensterreihen und den Geschossen
+    zeichneHintergrund(d) {
+        const x = d.cx0 * Z, y = BODEN + d.cy0 * Z, w = (d.cx1 - d.cx0 + 1) * Z, h = (d.cy1 - d.cy0 + 1) * Z;
+        const gebaeude = d.art === 'gebaeude';
+        this.rect(gebaeude ? 0x4a5a6a : 0x6a4a30, x, y, w, h, 0.34);
+        if (this.zoom > 0.3) {
+            for (let c = d.cx0; c <= d.cx1; c++) for (let r = d.cy0; r <= d.cy1; r++) {
+                if (gebaeude) { if ((c + r) % 3 === 0 && r < d.cy1) this.rect(0x161c22, c * Z + 12, BODEN + r * Z + 8, 30, 30, 0.55); }
+                else if ((c * 7 + r * 13) % 5 === 0) this.rect(0x2a1c10, c * Z + 14, BODEN + r * Z + 14, 22, 12, 0.5);
+            }
+        }
+        for (const e of d.etagen ?? []) this.rect(0x161c22, x, BODEN + e * Z, w, 6, 0.6);
+        this.g.lineStyle(1, gebaeude ? 0x9ab4cc : 0xd0a070, 0.85).strokeRect((x - this.camX) * this.zoom, (y - this.camY) * this.zoom, w * this.zoom, h * this.zoom);
+    }
+
+    // Das Gebäudewerkzeug: aus dem aufgezogenen Rechteck (Außenmaße: Wände, Dach, bis zum untersten Innenraum) entsteht ein ganzes Haus.
+    // Wände und Dach aus Stein, Böden aus Holzplanken, im Wechsel links und rechts ein Loch (2 Zellen) mit Leiter, auf Erdgeschosshöhe an beiden Seiten
+    // eine Tür (2 Zellen hoch) und dahinter die Hintergrundzone des Gebäudes. Alles ist danach ganz normal weiter bearbeitbar.
+    baueGebaeude(c0, r0, c1, r1) {
+        const H = this.raumHoehe, breite = c1 - c0 + 1;
+        if (breite < 7 || r1 - r0 < H) { this.zeigeMeldung('Too small: the building needs at least 7 cells in width and one floor in height'); return; }
+        const loescheZelle = (c, r) => { this.bloecke.delete(c + ',' + r); };
+        // das Innere und die Hülle vorbereiten: alles in der Hülle frei räumen
+        for (let c = c0; c <= c1; c++) for (let r = r0; r <= r1; r++) loescheZelle(c, r);
+        this.dinge = this.dinge.filter((d) => !(d.cx !== undefined && d.t !== 'leiter' && d.cx >= c0 && d.cx <= c1 && d.cy >= r0 && d.cy <= r1));
+        // Wände (links und rechts) und Dach
+        for (let r = r0; r <= r1; r++) { this.bloecke.set(c0 + ',' + r, 'stein'); this.bloecke.set(c1 + ',' + r, 'stein'); }
+        for (let c = c0; c <= c1; c++) this.bloecke.set(c + ',' + r0, 'stein');
+        // Böden (von unten nach oben): Zeilen, auf denen die Planken liegen. Oben bleibt ein Raum von mindestens 2 Zeilen unter dem Dach.
+        const boeden = [];
+        for (let s = r1 - (H - 1); s > r0 + 2; s -= H) boeden.push(s);
+        const lochSeite = (k) => (k % 2 === 0 ? 'rechts' : 'links');         // erster Boden: Loch rechts, dann abwechselnd
+        const loch = (seite) => seite === 'links' ? [c0 + 2, c0 + 3] : [c1 - 3, c1 - 2];
+        const bohre = (zeile, seite) => {
+            const [a, b] = loch(seite);
+            for (let c = c0 + 1; c < c1; c++) if (c !== a && c !== b) this.bloecke.set(c + ',' + zeile, 'holz');
+            const cx = seite === 'links' ? b : a;                                 // Leiter in der inneren Zelle des Lochs: Ausstieg zur Wand hin
+            return cx;
+        };
+        boeden.forEach((s, i) => {
+            const seite = lochSeite(i), cx = bohre(s, seite);
+            const unten = (i === 0 ? r1 : boeden[i - 1] - 1);                     // letzte Zelle des Raums darunter
+            this.dinge.push({ id: this.naechsteId++, t: 'leiter', cx, cy0: s, cy1: unten });
+        });
+        // Zugang zum Dach: ein Loch im Dach über dem obersten Raum, mit Leiter
+        const oberster = boeden.length ? boeden[boeden.length - 1] : r1 + 1;
+        const seiteDach = lochSeite(boeden.length), [da, db] = loch(seiteDach);
+        this.bloecke.delete(da + ',' + r0); this.bloecke.delete(db + ',' + r0);
+        this.dinge.push({ id: this.naechsteId++, t: 'leiter', cx: seiteDach === 'links' ? db : da, cy0: r0, cy1: oberster - 1 });
+        // Türen im Erdgeschoss (zwei Zellen hoch, auf beiden Seiten)
+        for (const wand of [c0, c1]) { this.bloecke.delete(wand + ',' + (r1 - 1)); this.bloecke.delete(wand + ',' + r1); }
+        // Hintergrundzone des Gebäudes (Innenraum)
+        this.dinge = this.dinge.filter((d) => !(d.t === 'hintergrund' && d.cx0 >= c0 && d.cx1 <= c1 && d.cy0 >= r0 && d.cy1 <= r1));
+        this.dinge.push({ id: this.naechsteId++, t: 'hintergrund', art: 'gebaeude', cx0: c0 + 1, cy0: r0 + 1, cx1: c1 - 1, cy1: r1, etagen: boeden });
+        this.verlaufSpeichern();
+        this.zeigeMeldung(`Building: ${boeden.length + 1} floors, ${breite} cells wide (walls stone, floors wood, ladders in the holes)`, 4500);
+    }
+
+    // Schlägt Höhlenhintergründe vor: überall, wo über einer freien Zelle (irgendwo in der Spalte) Gelände liegt, entsteht eine Zone.
+    // Bereits vorhandene Zonen bleiben; neue kommen dazu. Danach kann man sie einzeln löschen oder verschieben.
+    autoHintergrund() {
+        const gr = this.grenzen(true), schon = new Set();
+        for (const d of this.dinge) if (d.t === 'hintergrund') for (let c = d.cx0; c <= d.cx1; c++) for (let r = d.cy0; r <= d.cy1; r++) schon.add(c + ',' + r);
+        const neu = new Set();
+        for (let c = gr.c0; c <= gr.c1; c++) {
+            let gesehen = false;
+            for (let r = gr.r0; r <= gr.r1; r++) {
+                if (this.bloecke.has(c + ',' + r)) { gesehen = true; continue; }
+                if (gesehen && !schon.has(c + ',' + r)) neu.add(c + ',' + r);
+            }
+        }
+        // zu Rechtecken zusammenfassen: Läufe je Zeile, senkrecht verschmolzen
+        const laeufe = new Map();
+        for (let r = gr.r0; r <= gr.r1; r++) {
+            let a = null, p = null;
+            const ende = () => { if (a !== null) { const k = a + ',' + p; if (!laeufe.has(k)) laeufe.set(k, []); laeufe.get(k).push(r); } };
+            for (let c = gr.c0; c <= gr.c1 + 1; c++) {
+                if (neu.has(c + ',' + r)) { if (a === null) a = c; p = c; }
+                else { ende(); a = null; }
+            }
+        }
+        let n = 0;
+        for (const [k, rows] of laeufe) {
+            const [a, e] = k.split(',').map(Number); rows.sort((x, y) => x - y);
+            let start = rows[0], prev = rows[0];
+            for (const r of rows.slice(1).concat([null])) {
+                if (r === null || r !== prev + 1) { this.dinge.push({ id: this.naechsteId++, t: 'hintergrund', art: 'hoehle', cx0: a, cy0: start, cx1: e, cy1: prev }); n++; start = r; }
+                prev = r;
+            }
+        }
+        this.verlaufSpeichern(); this.zeigeMeldung(n ? `${n} cave background zones added (edit or delete them freely)` : 'Nothing to add: no free space under any ceiling', 4500);
     }
 
     zeichneBereich(d, gesehen) {
@@ -760,7 +873,7 @@ export default class EditorScene extends Phaser.Scene {
         let text = '';
         for (const d of this.dinge) {
             if (d.t === 'leiter' && d.cx === c && r >= d.cy0 && r <= d.cy1) text = NAMEN.leiter;
-            else if (d.t !== 'leiter' && d.t !== 'bereich' && d.cx === c && d.cy === r) text = NAMEN[d.t] ?? d.t;
+            else if (d.t !== 'leiter' && d.t !== 'bereich' && d.t !== 'hintergrund' && d.cx === c && d.cy === r) text = NAMEN[d.t] ?? d.t;
         }
         if (!text) { const b = this.bloecke.get(c + ',' + r); if (b) text = NAMEN[b] ?? b; }
         if (!text) { this.tooltip.setVisible(false); return; }

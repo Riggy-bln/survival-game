@@ -611,9 +611,9 @@ function zeichneGebaeude(r, rnd, h) {
     const basis = rnd.pick([0x3a3f43, 0x403c38, 0x363b38]), S = 8;
     // Ausgefranste Oberkante
     const tops = [];
-    let top = rnd.between(0, Math.floor(hh * 0.12));
+    let top = h.geschlossen ? 0 : rnd.between(0, Math.floor(hh * 0.12));
     for (let x = 0; x < w; x += S) {
-        top = Math.max(0, Math.min(Math.floor(hh * 0.3), top + rnd.pick([-24, -16, -8, 0, 0, 8, 16, 24])));
+        top = h.geschlossen ? 0 : Math.max(0, Math.min(Math.floor(hh * 0.3), top + rnd.pick([-24, -16, -8, 0, 0, 8, 16, 24])));      // geschlossene Gebäude haben eine gerade Oberkante (darüber liegt das Dach)
         tops.push(top);
         r.rect(variiere(basis, rnd.between(-5, 5)), l + x, t + top, Math.min(S, w - x), hh - top);
     }

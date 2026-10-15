@@ -94,11 +94,37 @@ class Bau:
         self.platforms.append({'x': (l + rr) / 2, 'y': self.y(r) - h / 2, 'w': rr - l, 'h': h,
                                'color': {'sand': 0xb59f6a, 'kiste': 0x7a6540, 'beton': 0x7d8185, 'holz': 0x7a5a2e}[art],
                                'brechbar': True, 'hp': {'sand': 5, 'kiste': 3, 'beton': 9, 'holz': 4}[art], 'art': art, 'deckung': True})
-    def hoehle(self, cx0, cx1, r_oben, r_unten, art='tunnel', stil='feucht', **extra):
+    def hoehle(self, cx0, cx1, r_oben, r_unten, art='tunnel', stil='feucht', **extra):   # (cx0 bis cx1 Spalten; r_oben bis r_unten: Oberkanten der Zeilen)
         """Ein dunkler Hintergrund für Gänge und Höhlen (von Spalte cx0 bis cx1, von Zeile r_oben bis Zeile r_unten, jeweils Oberseite)."""
         h = {'links': T.welt_x(cx0), 'rechts': T.welt_x(cx1 + 1), 'oben': self.y(r_oben), 'unten': self.y(r_unten), 'art': art, 'stil': stil}; h.update(extra); self.hoehlen.append(h)
     def lampe(self, cx, r): self.lampen.append({'x': self.x(cx), 'y': self.y(r) + 20})
     def notiz(self, text): self.notizen.append(text)
+
+def zonen_hintergrund(b, bloecke, zonen):
+    """Hintergründe, die man im Karteneditor selbst eingezeichnet hat ('Cave background' und 'Building background')."""
+    belegt = set()
+    for z in zonen:
+        for c in range(z['cx0'], z['cx1'] + 1):
+            for r in range(z['cy0'], z['cy1'] + 1): belegt.add((c, r))
+    luft = lambda c, r: (c, r) not in bloecke and (c, r) not in belegt
+    for z in zonen:
+        a, e, o, u = z['cx0'], z['cx1'], z['cy0'], z['cy1']
+        if z.get('art') == 'gebaeude':
+            etagen = [(u + 1 - s) * Z + 14 for s in z.get('etagen', [])]
+            b.hoehle(a, e, o, u + 1, art='gebaeude', stil='', etagen=etagen or [round((u - o + 1) * Z * 0.45)], geschlossen=True)
+            h = b.hoehlen[-1]; h['links'] -= 14; h['rechts'] += 14; h['oben'] -= 14; h['unten'] += 14
+        else:
+            offen = []
+            if any(luft(a - 1, r) for r in range(o, u + 1)): offen.append('links')
+            if any(luft(e + 1, r) for r in range(o, u + 1)): offen.append('rechts')
+            if any(luft(c, u + 1) for c in range(a, e + 1)): offen.append('unten')
+            if any(luft(c, o - 1) for c in range(a, e + 1)): offen.append('oben')
+            b.hoehle(a, e, o, u + 1, art='tunnel', stil='schlicht', offen=offen)
+            h = b.hoehlen[-1]
+            if 'links' not in offen: h['links'] -= 14
+            if 'rechts' not in offen: h['rechts'] += 14
+            if 'oben' not in offen: h['oben'] -= 14
+            if 'unten' not in offen: h['unten'] += 14
 
 def hoehlen_hintergrund(b, bloecke):
     """Überall, wo über einer Luftzelle irgendwo in ihrer Spalte Gelände liegt (Decke, egal wie hoch), kommt ein Höhlenhintergrund hin:
@@ -154,6 +180,22 @@ def hoehlen_hintergrund(b, bloecke):
     # Lampen: alle 9 Zellen in jeder zusammenhängenden Höhle, in der Höhe der Decke
     return n
 
+# Was man im Editor einzeichnet, wird übernommen: Gegner, Gegenstände, Fässer und Leitern (Zellkoordinaten: cy = Zeile der Zelle, in der das Ding steht;
+# es steht auf der Oberseite der Zeile darunter).
+NAMEN = {'nahkaempfer': 'soldat', 'fernkaempfer': 'schuetze', 'skelett': 'skelett', 'schwer': 'schwer'}
+GEGENSTAENDE = {'heilung': 'health', 'munition': 'ammo', 'granate': 'grenade', 'schrotflinte': 'shotgun', 'gewehr': 'rifle', 'schwert': 'sword'}
+
+def uebernehme_skizze(b, daten, bloecke):
+    for d in daten['dinge']:
+        t = d['t']
+        if t in NAMEN: getattr(b, NAMEN[t])(d['cx'], d['cy'] + 1)
+        elif t in GEGENSTAENDE: b.item(GEGENSTAENDE[t], d['cx'], d['cy'] + 1)
+        elif t == 'fass': b.fass(d['cx'], d['cy'] + 1)
+        elif t == 'boss': b.notiz(f"Boss in der Skizze bei Spalte {d['cx']}: noch nicht im Spiel eingebaut")
+        elif t == 'leiter':
+            seite = +1 if (d['cx'] + 1, d['cy0']) in bloecke else -1
+            b.leiter(d['cx'], d['cy0'], d['cy1'] + 1, seite)
+
 def main():
     daten, bloecke = T.lade(os.path.join(WURZEL, 'editor', 'karte.json'))
     b = Bau(daten, bloecke)
@@ -161,10 +203,14 @@ def main():
         if d['t'] == 'start': b.start = (d['cx'], d['cy'] + 1)
         elif d['t'] == 'fahne': b.fahne(d['cx'], d['cy'] + 1)
         elif d['t'] == 'ziel': b.ziel = (d['cx'], d['cy'] + 1)
-    entwurf.entwerfe(b)
+    uebernehme_skizze(b, daten, bloecke)
+    if os.environ.get('OHNE_ENTWURF'): b.ziel = b.ziel or (daten['dinge'][0]['cx'] + 3, 0)      # Testhilfe: nur die Skizze, ohne das Spieldesign
+    else: entwurf.entwerfe(b)
     if b.fehler:
         print('\n'.join(b.fehler)); raise SystemExit(f'{len(b.fehler)} Platzierungen ohne passende Oberfläche (siehe oben)')
-    hoehlen_hintergrund(b, bloecke)
+    zonen = [d for d in daten['dinge'] if d['t'] == 'hintergrund']
+    if zonen: zonen_hintergrund(b, bloecke, zonen)          # selbst eingezeichnete Zonen ersetzen die automatische Berechnung
+    else: hoehlen_hintergrund(b, bloecke)
     if b.ziel is None: raise SystemExit('Kein Ziel (Hubschrauber) in der Skizze oder im Entwurf')
     breite = max(p['x'] + p['w'] / 2 for p in b.platforms) + 4 * Z
     hoehe = max(p['y'] + p['h'] / 2 for p in b.platforms) + 2 * Z

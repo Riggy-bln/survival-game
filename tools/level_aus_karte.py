@@ -100,6 +100,53 @@ class Bau:
     def lampe(self, cx, r): self.lampen.append({'x': self.x(cx), 'y': self.y(r) + 20})
     def notiz(self, text): self.notizen.append(text)
 
+def hoehlen_hintergrund(b, bloecke):
+    """Überall, wo über einer Luftzelle irgendwo in ihrer Spalte Gelände liegt (Decke, egal wie hoch), kommt ein Höhlenhintergrund hin:
+    So wirken auch frei schwebende Inseln wie aufgeschnittene Berge mit Höhlen. Die Luft unter der Decke reicht bis zum nächsten Boden darunter
+    (oder bis zur untersten Zeile der Karte). Zellen, die schon ein eigener Hintergrund aus dem Entwurf abdeckt, werden übersprungen."""
+    cs = [c for c, r in bloecke]; rs = [r for c, r in bloecke]
+    c0, c1, r_max = min(cs), max(cs), max(rs)
+    schon = set()
+    for h in b.hoehlen:                                   # vom Entwurf angelegte Hintergründe (Zellen aus den Weltkoordinaten zurückrechnen)
+        a, e = round(h['links'] / Z) - T.RAND, round(h['rechts'] / Z) - T.RAND - 1
+        o, u = round((h['oben'] - T.BODEN) / Z), round((h['unten'] - T.BODEN) / Z) - 1
+        for c in range(a, e + 1):
+            for r in range(o, u + 1): schon.add((c, r))
+    bg = set()
+    for c in range(c0, c1 + 1):
+        gesehen = False
+        for r in range(min(rs), r_max + 1):
+            if (c, r) in bloecke: gesehen = True; continue
+            if gesehen and (c, r) not in schon: bg.add((c, r))
+    # rechteckig zusammenfassen: Läufe je Zeile, senkrecht verschmolzen; Stücke höchstens 30 x 20 Zellen (Texturgröße)
+    laeufe = {}
+    for r in sorted({r for c, r in bg}):
+        zs = sorted(c for c, rr in bg if rr == r)
+        a = p = zs[0]
+        for c in zs[1:] + [None]:
+            if c is None or c != p + 1:
+                laeufe.setdefault((a, p), []).append(r)
+                if c is not None: a = c
+            if c is not None: p = c
+    luft = lambda c, r: (c, r) not in bloecke and (c, r) not in bg
+    n = 0
+    for (a, e), zeilen in laeufe.items():
+        zeilen.sort(); x0 = p = zeilen[0]
+        for r in zeilen[1:] + [None]:
+            if r is None or r != p + 1 or p - x0 + 1 >= 20:
+                for ca in range(a, e + 1, 30):
+                    ce = min(e, ca + 29)
+                    offen = []
+                    if any(luft(ca - 1, rr) for rr in range(x0, p + 1)) and ca == a: offen.append('links')
+                    if any(luft(ce + 1, rr) for rr in range(x0, p + 1)) and ce == e: offen.append('rechts')
+                    if any(luft(cc, p + 1) for cc in range(ca, ce + 1)): offen.append('unten')
+                    b.hoehle(ca, ce, x0, p + 1, art='tunnel', stil='staubig', offen=offen)
+                    n += 1
+                if r is not None: x0 = r
+            if r is not None: p = r
+    # Lampen: alle 9 Zellen in jeder zusammenhängenden Höhle, in der Höhe der Decke
+    return n
+
 def main():
     daten, bloecke = T.lade(os.path.join(WURZEL, 'editor', 'karte.json'))
     b = Bau(daten, bloecke)
@@ -110,6 +157,7 @@ def main():
     entwurf.entwerfe(b)
     if b.fehler:
         print('\n'.join(b.fehler)); raise SystemExit(f'{len(b.fehler)} Platzierungen ohne passende Oberfläche (siehe oben)')
+    hoehlen_hintergrund(b, bloecke)
     if b.ziel is None: raise SystemExit('Kein Ziel (Hubschrauber) in der Skizze oder im Entwurf')
     breite = max(p['x'] + p['w'] / 2 for p in b.platforms) + 4 * Z
     hoehe = max(p['y'] + p['h'] / 2 for p in b.platforms) + 2 * Z

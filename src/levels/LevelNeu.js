@@ -2619,6 +2619,817 @@ export default {
 "unten": 1728,
 "art": "tunnel",
 "stil": "staubig"
+},
+{
+"links": 9632,
+"rechts": 9968,
+"oben": 440,
+"unten": 496,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 9576,
+"rechts": 10472,
+"oben": 496,
+"unten": 552,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 9576,
+"rechts": 10864,
+"oben": 552,
+"unten": 664,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 8736,
+"rechts": 8792,
+"oben": 608,
+"unten": 664,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 8736,
+"rechts": 10416,
+"oben": 664,
+"unten": 720,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 10416,
+"rechts": 10864,
+"oben": 664,
+"unten": 720,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 8736,
+"rechts": 10416,
+"oben": 720,
+"unten": 832,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 10416,
+"rechts": 10920,
+"oben": 720,
+"unten": 832,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 12768,
+"rechts": 12936,
+"oben": 720,
+"unten": 776,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 2856,
+"rechts": 2912,
+"oben": 776,
+"unten": 832,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 12488,
+"rechts": 12936,
+"oben": 776,
+"unten": 832,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 2464,
+"rechts": 2912,
+"oben": 832,
+"unten": 888,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 8736,
+"rechts": 10416,
+"oben": 832,
+"unten": 888,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 10416,
+"rechts": 11200,
+"oben": 832,
+"unten": 888,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 12432,
+"rechts": 12936,
+"oben": 832,
+"unten": 1000,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 1176,
+"rechts": 1232,
+"oben": 888,
+"unten": 1112,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 2016,
+"rechts": 2912,
+"oben": 888,
+"unten": 1056,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 3080,
+"rechts": 3136,
+"oben": 888,
+"unten": 1000,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 9240,
+"rechts": 10920,
+"oben": 888,
+"unten": 944,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 10920,
+"rechts": 11200,
+"oben": 888,
+"unten": 944,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 3472,
+"rechts": 4200,
+"oben": 944,
+"unten": 1000,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 9240,
+"rechts": 10920,
+"oben": 944,
+"unten": 1000,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 10920,
+"rechts": 11760,
+"oben": 944,
+"unten": 1000,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 3080,
+"rechts": 4256,
+"oben": 1000,
+"unten": 1056,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 4704,
+"rechts": 4760,
+"oben": 1000,
+"unten": 1056,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 9912,
+"rechts": 11592,
+"oben": 1000,
+"unten": 1112,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 11592,
+"rechts": 12936,
+"oben": 1000,
+"unten": 1112,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 1960,
+"rechts": 2912,
+"oben": 1056,
+"unten": 1112,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 3080,
+"rechts": 4760,
+"oben": 1056,
+"unten": 1168,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links",
+"rechts"
+]
+},
+{
+"links": 13552,
+"rechts": 13608,
+"oben": 1056,
+"unten": 1112,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 1176,
+"rechts": 2856,
+"oben": 1112,
+"unten": 1168,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 2856,
+"rechts": 2912,
+"oben": 1112,
+"unten": 1168,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10136,
+"rechts": 11816,
+"oben": 1112,
+"unten": 1168,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 11816,
+"rechts": 12712,
+"oben": 1112,
+"unten": 1168,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 13272,
+"rechts": 13608,
+"oben": 1112,
+"unten": 1224,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 1176,
+"rechts": 2856,
+"oben": 1168,
+"unten": 1224,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 3920,
+"rechts": 4760,
+"oben": 1168,
+"unten": 1224,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 6104,
+"rechts": 6160,
+"oben": 1168,
+"unten": 1224,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 7448,
+"rechts": 7504,
+"oben": 1168,
+"unten": 1280,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 7896,
+"rechts": 7952,
+"oben": 1168,
+"unten": 1280,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10584,
+"rechts": 11200,
+"oben": 1168,
+"unten": 1224,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 11648,
+"rechts": 12656,
+"oben": 1168,
+"unten": 1224,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 504,
+"rechts": 728,
+"oben": 1224,
+"unten": 1280,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 1176,
+"rechts": 2744,
+"oben": 1224,
+"unten": 1280,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 4088,
+"rechts": 4760,
+"oben": 1224,
+"unten": 1280,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 5544,
+"rechts": 6160,
+"oben": 1224,
+"unten": 1280,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10584,
+"rechts": 11144,
+"oben": 1224,
+"unten": 1280,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 12992,
+"rechts": 13608,
+"oben": 1224,
+"unten": 2344,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 12992,
+"rechts": 13608,
+"oben": 2344,
+"unten": 2456,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts",
+"unten"
+]
+},
+{
+"links": 13888,
+"rechts": 14560,
+"oben": 1224,
+"unten": 2344,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links",
+"rechts"
+]
+},
+{
+"links": 13888,
+"rechts": 14560,
+"oben": 2344,
+"unten": 2456,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links",
+"rechts",
+"unten"
+]
+},
+{
+"links": 448,
+"rechts": 728,
+"oben": 1280,
+"unten": 1448,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 2016,
+"rechts": 2296,
+"oben": 1280,
+"unten": 1840,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 2016,
+"rechts": 2296,
+"oben": 2064,
+"unten": 2456,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"unten"
+]
+},
+{
+"links": 2464,
+"rechts": 2688,
+"oben": 1280,
+"unten": 1784,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 2464,
+"rechts": 2688,
+"oben": 2064,
+"unten": 2456,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"unten"
+]
+},
+{
+"links": 4144,
+"rechts": 4760,
+"oben": 1280,
+"unten": 1392,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 5488,
+"rechts": 6160,
+"oben": 1280,
+"unten": 1336,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 7448,
+"rechts": 7560,
+"oben": 1280,
+"unten": 1336,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 7840,
+"rechts": 7952,
+"oben": 1280,
+"unten": 1336,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10584,
+"rechts": 11032,
+"oben": 1280,
+"unten": 1448,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 4816,
+"rechts": 6160,
+"oben": 1336,
+"unten": 1560,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links",
+"rechts"
+]
+},
+{
+"links": 7448,
+"rechts": 7952,
+"oben": 1336,
+"unten": 2456,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links",
+"rechts",
+"unten"
+]
+},
+{
+"links": 4256,
+"rechts": 4760,
+"oben": 1392,
+"unten": 1448,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 4648,
+"rechts": 4760,
+"oben": 1448,
+"unten": 1504,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10136,
+"rechts": 11032,
+"oben": 1448,
+"unten": 1504,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"unten"
+]
+},
+{
+"links": 8792,
+"rechts": 8848,
+"oben": 1504,
+"unten": 1672,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10808,
+"rechts": 11032,
+"oben": 1504,
+"unten": 1560,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 4872,
+"rechts": 6160,
+"oben": 1560,
+"unten": 1616,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10808,
+"rechts": 10920,
+"oben": 1560,
+"unten": 1616,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 5264,
+"rechts": 6160,
+"oben": 1616,
+"unten": 1672,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 10808,
+"rechts": 10864,
+"oben": 1616,
+"unten": 1672,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"links"
+]
+},
+{
+"links": 5600,
+"rechts": 6160,
+"oben": 1672,
+"unten": 1840,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"unten"
+]
+},
+{
+"links": 2464,
+"rechts": 2744,
+"oben": 1784,
+"unten": 1840,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"unten"
+]
+},
+{
+"links": 2016,
+"rechts": 2688,
+"oben": 1840,
+"unten": 2064,
+"art": "tunnel",
+"stil": "staubig",
+"offen": [
+"rechts"
+]
+},
+{
+"links": 3472,
+"rechts": 5152,
+"oben": 2064,
+"unten": 2120,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
+},
+{
+"links": 5152,
+"rechts": 5600,
+"oben": 2064,
+"unten": 2120,
+"art": "tunnel",
+"stil": "staubig",
+"offen": []
 }
 ],
 "lampen": [

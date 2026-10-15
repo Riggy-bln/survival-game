@@ -180,6 +180,7 @@ export default class GameScene extends Phaser.Scene {
         };
         this.baueGegner = baue;
         const b = level.boss;
+        this.arenaBoden = (b && b.boden) || BODEN;      // Höhe des Arenabodens (Steinschlag und Warnkreise richten sich danach)
         const haupt = [
             ...level.enemies.map(e => baue(Enemy, e)),
             ...level.rangedEnemies.map(e => baue(RangedEnemy, e)),
@@ -1472,7 +1473,7 @@ export default class GameScene extends Phaser.Scene {
     steinschlag(stellen, verzoegerung) {
         this.time.delayedCall(verzoegerung, () => {
             if (this.gameOver) return;
-            for (const x of stellen) this.spawnEnemyBullet(x, BODEN - 460, Math.PI / 2, 640, 20, true);
+            for (const x of stellen) this.spawnEnemyBullet(x, this.arenaBoden - 460, Math.PI / 2, 640, 20, true);
         });
     }
 
@@ -1481,9 +1482,9 @@ export default class GameScene extends Phaser.Scene {
         this.warnungen = this.warnungen.filter((w) => jetzt < w.bis);
         for (const w of this.warnungen) {
             const blink = 0.35 + 0.25 * Math.sin(jetzt * 0.02);
-            g.fillStyle(0xff2222, blink * 0.6).fillEllipse(w.x, BODEN - 4, 90, 16);
-            g.lineStyle(3, 0xff4444, blink + 0.3).strokeEllipse(w.x, BODEN - 4, 90, 16);
-            g.lineStyle(2, 0xff4444, blink * 0.5).beginPath().moveTo(w.x, BODEN - 12).lineTo(w.x, BODEN - 160).strokePath();
+            g.fillStyle(0xff2222, blink * 0.6).fillEllipse(w.x, this.arenaBoden - 4, 90, 16);
+            g.lineStyle(3, 0xff4444, blink + 0.3).strokeEllipse(w.x, this.arenaBoden - 4, 90, 16);
+            g.lineStyle(2, 0xff4444, blink * 0.5).beginPath().moveTo(w.x, this.arenaBoden - 12).lineTo(w.x, this.arenaBoden - 160).strokePath();
         }
     }
 

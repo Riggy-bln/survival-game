@@ -1,7 +1,7 @@
 // AUTOMATISCH ERZEUGT von tools/level_aus_karte.py (aus editor/karte.json und tools/entwurf.py). Nicht von Hand ändern:
 // Änderungen gehören in die Skizze (Karteneditor) oder in tools/entwurf.py. Dann den Befehl  python3 tools/level_aus_karte.py  wiederholen.
 export default {
-"width": 14784,
+"width": 15568,
 "height": 2568,
 "boden": 1000,
 "abschnitt": 0.3333333333333333,
@@ -20,7 +20,7 @@ export default {
 "x": 196,
 "y": 940
 },
-"goalX": 14420,
+"goalX": 15148,
 "goalY": 608,
 "platforms": [
 {
@@ -776,10 +776,10 @@ export default {
 "gras": true
 },
 {
-"x": 14224.0,
-"y": 916.0,
-"w": 672,
-"h": 616,
+"x": 14616.0,
+"y": 832.0,
+"w": 1456,
+"h": 448,
 "color": 4930346,
 "gras": true
 },
@@ -1072,6 +1072,14 @@ export default {
 "gras": false
 },
 {
+"x": 14560.0,
+"y": 1140.0,
+"w": 1344,
+"h": 56,
+"color": 4930346,
+"gras": false
+},
+{
 "x": 3584.0,
 "y": 412.0,
 "w": 448,
@@ -1272,6 +1280,14 @@ export default {
 "gras": false
 },
 {
+"x": 14532.0,
+"y": 1196.0,
+"w": 1288,
+"h": 56,
+"color": 4930346,
+"gras": false
+},
+{
 "x": 1372.0,
 "y": 1812.0,
 "w": 952,
@@ -1411,6 +1427,14 @@ export default {
 "x": 13328.0,
 "y": 1084.0,
 "w": 448,
+"h": 56,
+"color": 4930346,
+"gras": false
+},
+{
+"x": 14588.0,
+"y": 1084.0,
+"w": 1400,
 "h": 56,
 "color": 4930346,
 "gras": false
@@ -1594,15 +1618,18 @@ export default {
 "deckung": true
 },
 {
-"x": 14280.0,
-"y": 594.0,
-"w": 112,
-"h": 28,
-"color": 11902826,
-"brechbar": true,
-"hp": 5,
-"art": "sand",
-"deckung": true
+"x": 14336.0,
+"y": 486,
+"w": 224,
+"h": 20,
+"color": 6975347
+},
+{
+"x": 14728.0,
+"y": 486,
+"w": 224,
+"h": 20,
+"color": 6975347
 },
 {
 "x": 3388.0,
@@ -1672,7 +1699,12 @@ export default {
 {
 "x": 13468,
 "y": 498,
-"text": "The helicopter!\nOne last fight"
+"text": "The creature is waiting on the island.\nStock up and fight smart!"
+},
+{
+"x": 13972,
+"y": 468,
+"text": "BOSS ARENA\nDodge the charge, shoot the barrels!"
 }
 ],
 "enemies": [
@@ -1857,20 +1889,6 @@ export default {
 "left": 13020,
 "right": 13076,
 "hp": 3
-},
-{
-"x": 14028,
-"y": 578,
-"left": 13972,
-"right": 14140,
-"hp": 3
-},
-{
-"x": 14420,
-"y": 578,
-"left": 14364,
-"right": 14476,
-"hp": 8
 }
 ],
 "rangedEnemies": [
@@ -1949,20 +1967,6 @@ export default {
 "y": 1194,
 "left": 12460,
 "right": 12628,
-"hp": 3
-},
-{
-"x": 13972,
-"y": 578,
-"left": 13916,
-"right": 14028,
-"hp": 3
-},
-{
-"x": 14476,
-"y": 578,
-"left": 14420,
-"right": 14532,
 "hp": 3
 },
 {
@@ -2094,7 +2098,72 @@ export default {
 "hp": 3
 }
 ],
-"brutlinge": [],
+"brutlinge": [
+{
+"x": 13972,
+"y": 590,
+"left": 13972,
+"right": 14196,
+"hp": 2
+},
+{
+"x": 14028,
+"y": 590,
+"left": 13972,
+"right": 14196,
+"hp": 2
+},
+{
+"x": 14084,
+"y": 590,
+"left": 13972,
+"right": 14196,
+"hp": 2
+},
+{
+"x": 14140,
+"y": 590,
+"left": 13972,
+"right": 14196,
+"hp": 2
+},
+{
+"x": 14868,
+"y": 590,
+"left": 14868,
+"right": 15092,
+"hp": 2
+},
+{
+"x": 14924,
+"y": 590,
+"left": 14868,
+"right": 15092,
+"hp": 2
+},
+{
+"x": 14980,
+"y": 590,
+"left": 14868,
+"right": 15092,
+"hp": 2
+},
+{
+"x": 15036,
+"y": 590,
+"left": 14868,
+"right": 15092,
+"hp": 2
+}
+],
+"boss": {
+"x": 14700,
+"y": 558,
+"left": 14308,
+"right": 15036,
+"hp": 70,
+"boden": 608
+},
 "haenge": [
 {
 "l": 13608,
@@ -2462,9 +2531,34 @@ export default {
 "type": "grenade"
 },
 {
-"x": 14084,
+"x": 13972,
 "y": 598,
 "type": "health"
+},
+{
+"x": 14028,
+"y": 598,
+"type": "health"
+},
+{
+"x": 14084,
+"y": 598,
+"type": "ammo"
+},
+{
+"x": 14140,
+"y": 598,
+"type": "ammo"
+},
+{
+"x": 14196,
+"y": 598,
+"type": "grenade"
+},
+{
+"x": 14252,
+"y": 598,
+"type": "shotgun"
 }
 ],
 "faesser": [
@@ -2517,7 +2611,11 @@ export default {
 "y": 1205
 },
 {
-"x": 14140,
+"x": 14364,
+"y": 589
+},
+{
+"x": 14812,
 "y": 589
 }
 ],
@@ -2713,46 +2811,28 @@ export default {
 "y": 1224
 },
 {
-"art": "mauer",
-"x": 14028,
-"y": 608,
-"breite": 196,
-"hoehe": 120
-},
-{
-"art": "sperre",
-"x": 14084,
-"y": 608
-},
-{
-"art": "sperre",
-"x": 14252,
-"y": 608
-},
-{
-"art": "draht",
-"x": 14196,
-"y": 608,
-"breite": 112
-},
-{
-"art": "hubschrauber",
-"x": 14226,
+"art": "tonne",
+"x": 13936,
 "y": 608
 },
 {
 "art": "tonne",
-"x": 13972,
-"y": 608
-},
-{
-"art": "tonne",
-"x": 14364,
+"x": 15260,
 "y": 608
 },
 {
 "art": "banner",
-"x": 14522,
+"x": 14588,
+"y": 608
+},
+{
+"art": "sperre",
+"x": 14476,
+"y": 608
+},
+{
+"art": "sperre",
+"x": 14924,
 "y": 608
 }
 ],

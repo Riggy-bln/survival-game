@@ -33,10 +33,17 @@ def bauwerke(daten, bloecke):
     global FESTUNG, KESSEL
     from bauwerke import haus
     # (Die Häuser in den Höhlen - Festung und Hütte - wurden entfernt. Das Gebäudewerkzeug bleibt: haus(daten, bloecke, c0, r0, c1, r1, H).)
-    return
+    arena_insel(bloecke)
 
+def arena_insel(bloecke):
+    """Die letzte Insel (Spalte 246-257, Oberseite Zeile -7) wird nach rechts um 14 Spalten verlängert: Das ist die Arena des Endbosses. Die rechte Kante ist
+    abgerundet (wie ein Stück Berg). Die Skizze im Editor bleibt unverändert; die Erweiterung entsteht erst beim Erzeugen des Levels."""
+    for c in range(258, 272):
+        for r in range(-7, 4):
+            ecke = (c >= 270 and r >= 2) or (c == 271 and r >= 1) or (c == 269 and r == 3)
+            if not ecke: bloecke[(c, r)] = 'e'
 def entwerfe(b):
-    b.ziel = (255, -7)
+    b.ziel = (268, -7)                                      # der Hubschrauber wartet am rechten Ende der Arena (erst nach dem Boss offen)
     verbindungen(b)
     akt1(b); akt2(b); akt3(b); akt4(b); akt5(b)
     tresor(b); himmelsroute(b)
@@ -212,13 +219,22 @@ def akt9(b):
 
 # ---------------------------------------------------------------- Akt 10: Die Landezone
 def akt10(b):
-    # die Fahne bei Spalte 237 stammt aus der Skizze
+    """Die Arena der starken Kreatur (die letzte Insel, Spalte 246-271): Zuerst eine Ruhe vor dem Sturm mit allem, was man braucht (Heilung, Munition,
+    Granaten, Schrotflinte), dann der Kampf in drei Phasen mit Brut und Steinschlag. Zwei Betonplatten zum Ausweichen (die Kreatur läuft darunter durch).
+    Nach dem Sieg ist der Hubschrauber am rechten Ende offen."""
+    # die Fahne bei Spalte 237 stammt aus der Skizze: Vorbereitung vor der Brücke
     b.item('health', 235, -7); b.item('ammo', 236, -7); b.item('grenade', 239, -7)
-    b.schild(238, -7, 'The helicopter!\nOne last fight', hoch=110)
-    b.soldat(248, -7, links=247, rechts=250); b.fass(250, -7); b.schuetze(247, -7, links=246, rechts=248)
-    b.deckung(252, -7, breite=2, art='sand'); b.schwer(255, -7, hp=8, links=254, rechts=256)
-    b.schuetze(256, -7, links=255, rechts=257)
-    b.item('health', 249, -7)
+    b.schild(238, -7, 'The creature is waiting on the island.\nStock up and fight smart!', hoch=110)
+    # Ruhe vor dem Sturm: am Eingang der Arena
+    b.item('health', 247, -7); b.item('health', 248, -7); b.item('ammo', 249, -7); b.item('ammo', 250, -7); b.item('grenade', 251, -7); b.item('shotgun', 252, -7)
+    b.schild(247, -7, 'BOSS ARENA\nDodge the charge, shoot the barrels!', hoch=140)
+    b.fass(254, -7); b.fass(262, -7)                                                       # Fässer als Waffe gegen die Kreatur
+    b.plattform(252, 255, -7, hoch=132); b.plattform(259, 262, -7, hoch=132)               # Ausweichplattformen: Unterkante 112 über dem Boden (die Kreatur ist 100 hoch und passt darunter durch), Oberkante 132: man springt hinauf
+    b.boss(260, -7, 253, 266, hp=70)
+    for cx in (247, 248, 249, 250):                                                        # die Brut schläft an den Rändern und wird in Phase 2 und 3 gerufen
+        b.brut(cx, -7, 247, 251)
+    for cx in (263, 264, 265, 266):
+        b.brut(cx, -7, 263, 267)
 
 
 # ---------------------------------------------------------------- Schmuck
@@ -252,8 +268,6 @@ def schmuck(b):
     b.gegner_xy(b.rangedEnemies, b.x(215), b.y(4) - 56, b.x(214), b.x(216), 3)               # ein Schütze auf dem Wrack
     b.rest('draht', 210, 4, breite=112); b.rest('sperre', 212, 4); b.rest('zelt', 200, 3, breite=150, dx=-80)
     b.rest('tonne', 207, 4); b.rest('tonne', 218, 4)
-    # Landezone: je näher am Ziel, desto mehr Zerstörung: Mauerreste, Sperren, Draht, abgestürzter Hubschrauber, Tonnen, Banner
-    b.rest('mauer', 248, -7, breite=196, hoehe=120)
-    b.rest('sperre', 249, -7); b.rest('sperre', 252, -7); b.rest('draht', 251, -7, breite=112)
-    b.rest('hubschrauber', 251, -7, dx=30); b.rest('tonne', 247, -7); b.rest('tonne', 254, -7); b.rest('banner', 257, -7, dx=-10)
-    b.rest('graeber', 244, -7, anzahl=2) if False else None
+    # Arena: Fackeln (brennende Tonnen) an den Rändern, ein Banner der Kreatur, Schutt; der Hubschrauber des Spiels wartet ganz rechts
+    b.rest('tonne', 246, -7, dx=20); b.rest('tonne', 270, -7); b.rest('banner', 258, -7, dx=0); b.rest('sperre', 256, -7); b.rest('sperre', 264, -7)
+    b.rest('mauer', 270, -7, breite=84, hoehe=60) if False else None

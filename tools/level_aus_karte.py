@@ -30,6 +30,7 @@ class Bau:
         self.leitern, self.signs, self.decor, self.flaggen, self.bruecken = [], [], [], [], []
         self.hoehlen, self.lampen = [], []
         self.tuerme, self.wracks, self.reste = [], [], []
+        self.boss_daten = None; self.brutlinge = []
         self.fehler = []
         self.verschoben = []
         self.notizen = []                                   # Hinweise für die Dokumentation (werden nicht ins Spiel übernommen)
@@ -137,6 +138,21 @@ class Bau:
         l, rr, boden = T.welt_x(cx0), T.welt_x(cx1 + 1), self.y(r)
         self.platforms.append({'x': (l + rr) / 2, 'y': boden - hoehe / 2, 'w': rr - l, 'h': hoehe, 'color': 0x4a5238, 'kollision': True})
         self.wracks.append({'x': (l + rr) / 2, 'y': boden, 'w': rr - l, 'h': hoehe})
+
+    def plattform(self, cx0, cx1, r, farbe=0x6a6f73, hoch=0):
+        """Eine dünne Betonplatte zum Ausweichen (20 Pixel dick) über Spalten cx0..cx1 auf der Höhe der Oberseite von Zeile r."""
+        l, rr = T.welt_x(cx0), T.welt_x(cx1 + 1)
+        self.platforms.append({'x': (l + rr) / 2, 'y': self.y(r) - hoch + 10, 'w': rr - l, 'h': 20, 'color': farbe})   # hoch = Pixel über der Oberseite von Zeile r
+
+    def boss(self, cx, r, links, rechts, hp=70):
+        """Die starke Kreatur: steht schlafend auf der Fläche Zeile r, patrouilliert zwischen den Spalten links und rechts."""
+        cx, r = self.ort(cx, r)
+        self.boss_daten = {'x': self.x(cx), 'y': self.y(r) - 50, 'left': self.x(links), 'right': self.x(rechts), 'hp': hp, 'boden': self.y(r)}
+
+    def brut(self, cx, r, links, rechts):
+        """Ein schlafender Brutling (wird von der Kreatur in Phase 2 und 3 gerufen)."""
+        cx, r = self.ort(cx, r)
+        self.brutlinge.append({'x': self.x(cx), 'y': self.y(r) - 18, 'left': self.x(links), 'right': self.x(rechts), 'hp': 2})
 
     def rest(self, art, cx, r, **extra):
         """Ein Kriegsüberrest als reine Dekoration (kein Einfluss auf das Spiel): sperre, draht, tonne, hubschrauber, mauer, graeber, zelt, banner.
@@ -280,7 +296,7 @@ def main():
         'start': {'x': b.x(sx), 'y': b.y(sy) - 60},
         'goalX': b.x(b.ziel[0]), 'goalY': b.y(b.ziel[1]),
         'platforms': b.platforms, 'decor': b.decor, 'signs': b.signs,
-        'enemies': b.enemies, 'rangedEnemies': b.rangedEnemies, 'skelette': b.skelette, 'brutlinge': [],
+        'enemies': b.enemies, 'rangedEnemies': b.rangedEnemies, 'skelette': b.skelette, 'brutlinge': b.brutlinge, **({'boss': b.boss_daten} if b.boss_daten else {}),
         'haenge': T.haengebruecken(bloecke), 'flaggen': b.flaggen, 'pickups': b.pickups, 'faesser': b.faesser, 'bruecken': b.bruecken, 'treppen': [], 'wracks': b.wracks, 'reste': b.reste,
         'geruest': [], 'schachtkoepfe': [], 'leitern': b.leitern, 'tuerme': b.tuerme, 'huegelformen': [], 'hoehlen': b.hoehlen, 'lampen': b.lampen,
     }

@@ -13,10 +13,11 @@ import Fass from '../entities/Fass.js';
 import { sfx } from '../Sound.js';
 import { buildLandscape } from '../Landscape.js';
 import { buildDschungelHimmel, buildDschungelSchicht, buildBrandherde } from '../Dschungel.js';
+import { baueFortschritt, mehrfachAbschuss, berechneRang, hilfePaket } from '../Motivation.js';
 import { baueStimmung, baueLichtstrahlen, baueBodennebel, baueBodendetails } from '../Atmosphaere.js';
 import Mehrspieler, { SPIELERFARBEN } from '../Mehrspieler.js';
-import Effects, { buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves, buildHuegel, buildBerge } from '../Effects.js';
-import level from '../levels/Level01.js';  // die Leveldaten (Listen)
+import Effects, { setzeErdVerlauf, buildSky, buildSkyline, decoratePlatforms, buildVignette, buildEmbers, buildCaves, buildHuegel, buildBerge } from '../Effects.js';
+import level from '../levels/Auswahl.js';  // die Leveldaten (Listen); siehe Auswahl.js
 
 // Größe der Spielwelt. Das Fenster ist nur 960 breit, die Welt ist viel größer.
 // Die Breite kommt jetzt aus der Level-Datei.
@@ -77,7 +78,7 @@ export default class GameScene extends Phaser.Scene {
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.22, 0x194c34, 115, 85, 'j3', 9, 120, false, -24);
         buildDschungelSchicht(this, WORLD_WIDTH, BODEN, 0.32, 0x103a28, 85, 65, 'j4', 8, 150, false, -23);        // nahe, dunkle Palmen
         // Stimmung und Tiefe: Farbwechsel im Level, Lichtstrahlen und Bodennebel (der Vordergrund aus Blättern ist ausgebaut; baueVordergrund liegt noch in Atmosphaere.js)
-        this.stimmung = baueStimmung(this);
+        this.stimmung = baueStimmung(this, WORLD_WIDTH / (level.abschnitt ?? 1));   // abschnitt: welcher Anteil des ganzen Spiels dieses Level ist
         baueLichtstrahlen(this);
         baueBodennebel(this, WORLD_WIDTH, BODEN);
 
@@ -116,6 +117,7 @@ export default class GameScene extends Phaser.Scene {
                 wand.gruppe = p.gruppe;              // Zusammengehörige Teile (Stützen und Böden eines Turms)
                 wand.rolle = p.rolle;                // 'stuetze' trägt, 'boden' fällt herunter, wenn alle Stützen der Gruppe weg sind
             }
+            if (p.gras !== undefined) this.platforms[this.platforms.length - 1].gras = p.gras;     // neues Level: nur Schollen mit freier Oberseite bekommen Gras
             if (p.kollision) {                       // Stufenblock eines sanften Hügels: unsichtbar, nur zum Laufen
                 const block = this.platforms[this.platforms.length - 1];
                 block.setVisible(false);
@@ -126,6 +128,7 @@ export default class GameScene extends Phaser.Scene {
         buildHuegel(this, level.huegelformen, BODEN);   // Erdoberfläche der sanften Hügel
         buildCaves(this, level.hoehlen, level.lampen);  // Höhlenwände (statt schwarzer Flächen)
         this.add.rectangle(0, WORLD_HEIGHT - 4, WORLD_WIDTH, 900, 0x20180f).setOrigin(0, 0).setDepth(0.5);   // unter dem Weltende: dunkle Erde statt Dschungel
+        if (level.erdVerlauf) setzeErdVerlauf(level.erdVerlauf);   // Helligkeitsverlauf der Erde passend zu diesem Level
         decoratePlatforms(this, this.platforms, BODEN);  // Gras, Sprenkel, Kanten
         this.fx = new Effects(this);                       // Partikel
         // Testhilfe (nur mit ?shot=1): nach 6 Sekunden ein Bild des Spiels an einen lokalen Testserver schicken
@@ -139,7 +142,7 @@ export default class GameScene extends Phaser.Scene {
         // Eine Zeile statt vieler: Alles Wichtige steckt jetzt in Player.js.
         // Testhilfe: Mit http://localhost:8001/?x=3330&y=1000 startet man an einer anderen Stelle des Levels.
         const startParam = new URLSearchParams(window.location.search);
-        const startX = Number(startParam.get('x')) || 200, startY = Number(startParam.get('y')) || BODEN - 200;
+        const startX = Number(startParam.get('x')) || (level.start ? level.start.x : 200), startY = Number(startParam.get('y')) || (level.start ? level.start.y : BODEN - 200);
         this.player = new Player(this, startX + (this.meineNr - 1) * 48, startY);  // startet in der Luft und landet (Mitspieler daneben)
         this.physics.add.collider(this.player, this.platforms);
         if (startParam.get('shot')) this.player.invulnerableUntil = Infinity;     // Testhilfe: Bildaufnahmen ohne Tod
@@ -267,6 +270,8 @@ export default class GameScene extends Phaser.Scene {
         [this.hpBack, this.hpBar, this.hpText].forEach(obj => {
             obj.setScrollFactor(0).setDepth(20);
         });
+        this.fortschritt = baueFortschritt(this, level);   // Fortschrittsleiste oben
+        this.tode = 0; this.todeAnFahne = 0;                // Zähler für Rang und Hilfe
         this.hiebe = [];              // laufende Schwerthiebe aller Spieler
         this.sichere = [];            // zuletzt betretene sichere Stellen (für den Absturz ins Nichts)
         this.naechsteSichere = 0;
@@ -324,6 +329,7 @@ export default class GameScene extends Phaser.Scene {
         this.pauseBlockedUntil = 0;
         this.events.on('resume', () => { this.pauseBlockedUntil = Date.now() + 300; });
         if (this.modus === 'viewer') this.starteBetrachter();
+        else if (level.einstieg && !this.gameOver) this.time.delayedCall(600, () => this.showMessage(level.einstieg));   // Kapitelanfang: kurz sagen, worum es geht
     }
 
     // ---------- Kartenbetrachter (nur auf localhost im Menü): frei durch die Welt fliegen, ohne etwas zu berühren ----------
@@ -810,8 +816,9 @@ export default class GameScene extends Phaser.Scene {
         // damit 5 Sekunden als "05" erscheinen und nicht als "5".
         const sekunden = Math.floor((this.time.now - this.startTime) / 1000);
         const zeit = `${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')}`;
-        const statistik = statistikText ?? (`Time: ${zeit}     Enemies defeated: ${this.kills} / ${this.totalEnemies}     ` +
-                          `Health: ${this.player.health} / ${this.player.maxHealth}`);
+        const sieg = titel === 'EVACUATED!';
+        const rang = berechneRang(this.kills, this.totalEnemies, this.tode ?? 0);
+        const statistik = statistikText ?? (`Time: ${zeit}     Enemies defeated: ${this.kills} / ${this.totalEnemies}     Deaths: ${this.tode ?? 0}` + (sieg ? `     RANK: ${rang}` : ''));
         this.endeZeit = zeit;
 
         // Alle Texte: am Bildschirm festgehalten (ScrollFactor 0) und über dem Schleier (Depth 31).
@@ -1267,12 +1274,15 @@ export default class GameScene extends Phaser.Scene {
         if (!this.checkpoint || f.x > this.checkpoint.x) this.checkpoint = { x: f.x + 50, y: f.y - 40 };   // zählt immer die am weitesten erreichte Fahne
         sfx.play('win');
         this.fx.pickup(f.x, f.y - 60, 0x66ee88, 'CHECKPOINT');
-        this.showMessage(vomNetz ? 'The team reached a checkpoint!\nYou restart here after dying.' : 'Checkpoint reached!\nYou restart here after dying.');
+        this.todeAnFahne = 0;
+        const nr2 = this.flaggen.filter((x) => x.erreicht).length;
+        this.showMessage((vomNetz ? 'The team reached a checkpoint!' : 'Checkpoint reached!') + `  (${nr2} / ${this.flaggen.length})\nYou restart here after dying.`);
     }
 
     // Einzelspieler: Leben auf null, aber es gibt einen Checkpoint. Man liegt kurz am Boden und steht dann an der Fahne wieder auf.
     sterbeEinzel() {
         const p = this.player;
+        this.tode += 1; this.todeAnFahne += 1;
         p.loslassen(0, 0);
         p.tot = true;
         p.body.setVelocity(0, 0);
@@ -1302,6 +1312,7 @@ export default class GameScene extends Phaser.Scene {
         this.fx.pickup(p.x, p.y, 0x66ee88, '');
         sfx.play('heal');
         this.showMessage('Back at the checkpoint!');
+        hilfePaket(this, p);
         this.letzteHP = p.health;
         this.wipeSeit = 0;
         this.sichere = [];
@@ -1518,7 +1529,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Ein Gegner ist gestorben (Gastgeber/Einzelspieler): zählen, Leiche zeigen, den Gästen Bescheid sagen.
     gegnerStirbt(enemy) {
-        if (!enemy.brut) this.kills += 1;
+        if (!enemy.brut) { this.kills += 1; mehrfachAbschuss(this, enemy); }
         this.zeigeTod(enemy);
         if (this.istHost) this.mp.sendeAnAlle({ t: 'tot', id: enemy.id });
     }
@@ -1611,6 +1622,7 @@ export default class GameScene extends Phaser.Scene {
     // Leben auf null: Online scheidet man nicht aus, sondern liegt am Boden, bis ein Mitspieler einen wiederbelebt.
     geheNieder() {
         const p = this.player;
+        this.tode += 1;
         p.loslassen(0, 0);
         p.tot = true;
         p.body.setVelocity(0, 0);
@@ -1978,6 +1990,7 @@ export default class GameScene extends Phaser.Scene {
     update(zeit, delta) {
         if (this.betrachter) { this.betrachterUpdate(delta); return; }
         if (this.stimmung) this.stimmung.update(this.cameras.main.midPoint.x);
+        if (this.fortschritt && !this.gameOver) this.fortschritt.update(this.player.x);
         // Nach der Niederlage läuft nur noch die Abfrage der Neustart-Taste.
         if (this.gameOver) {
             if (this.mp) {                                    // Online: Enter startet (nur der Gastgeber) für alle neu, Esc zweimal verlässt
@@ -2162,7 +2175,7 @@ export default class GameScene extends Phaser.Scene {
             if (this.mp) {
                 if (this.mp.meldeSieg()) return;              // Online: meldet den Sieg dem ganzen Team (der Gastgeber zeigt ihn sofort)
             } else {
-                this.showEndScreen('EVACUATED!', '#66ff99', 'Level 01 complete: Abandoned Military Zone');
+                this.showEndScreen('EVACUATED!', '#66ff99', level.abschluss ?? 'Level 01 complete: Abandoned Military Zone', null, level.abschlussHinweis ?? 'Press Enter to restart');
                 return;
             }
         }

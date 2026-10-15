@@ -102,7 +102,10 @@ function backe(scene, schluessel, x0, y0, breite, hoehe, zeichne) {
 // Malt ein Stück Erde: l = linke Kante, t = Oberkante, w = Breite, tiefe = wie tief detailliert wird.
 // Einheitlicher Helligkeitsverlauf der Erde: Die Helligkeit hängt nur von der Höhe in der Welt ab (y). Oben ist die Erde am hellsten, nach unten wird sie
 // gleichmäßig dunkler. Alles, was auf derselben Höhe liegt (Erde, Kies, Steine, Adern, Säume), bekommt dieselbe Helligkeit.
-function erdHelligkeit(y) { return Math.max(0.15, 0.92 - 1.65 * (Math.max(0, Math.min(1500, y)) - 760) / 1500); }   // 0,92 an der Oberfläche; 1,65 pro Weltbreite (dreimal so stark wie vorher)
+// Der Verlauf ist pro Level einstellbar (setzeErdVerlauf): Höhe der Oberfläche, Helligkeit dort, Abnahme je 1500 Pixel Tiefe und Untergrenze.
+let ERD = { boden: 760, hell: 0.92, rate: 1.65, min: 0.15 };
+export function setzeErdVerlauf(o) { ERD = { ...ERD, ...o }; }
+function erdHelligkeit(y) { return Math.max(ERD.min, Math.min(1.4, ERD.hell - ERD.rate * (Math.min(4000, y) - ERD.boden) / 1500)); }
 function mitHelligkeit(r) {
     const skaliere = (c, f) => {
         const rr = Math.min(255, Math.round(((c >> 16) & 255) * f)), gg = Math.min(255, Math.round(((c >> 8) & 255) * f)), bb = Math.min(255, Math.round((c & 255) * f));
@@ -336,9 +339,10 @@ function zeichneErde(r, rnd, l, t, w, tiefe, grund, oberflaeche, istDecke, frei 
         }
         for (let i = 0; i < w / 200; i++) r.rect(0x7d776a, l + rnd.between(0, w - 8), t - 4, 8, 5);   // Steinchen auf dem Gras
     } else {
-        // Untergrund: heller Rand oben, Kiesel auf dem Boden
-        r.rect(0x8a7a64, l, t, w, 2);
-        for (let i = 0; i < w / 30; i++) r.rect(0x8c8474, l + rnd.between(0, Math.max(0, w - 4)), t - 3, rnd.between(2, 5), 3);
+        // Untergrund: heller Rand oben und Kiesel auf dem Boden, aber nur dort, wo die Oberseite wirklich frei liegt (nicht an Fugen zwischen Schollen)
+        const offen = (x) => !frei || frei.oben(x);
+        for (let x = l; x < l + w; x += 8) if (offen(x + 4)) r.rect(0x8a7a64, x, t, Math.min(8, l + w - x), 2);
+        for (let i = 0; i < w / 30; i++) { const kx = l + rnd.between(0, Math.max(0, w - 4)); if (offen(kx)) r.rect(0x8c8474, kx, t - 3, rnd.between(2, 5), 3); }
     }
 }
 
@@ -496,7 +500,7 @@ export function decoratePlatforms(scene, platforms, boden) {
         if (istErde) {
             if (t >= boden - 2) hinten.fillStyle(0x20180f).fillRect(l, t, p.width, p.height + (b >= 1490 ? 600 : 0));   // am Weltende ein Stück weiter nach unten
             p.setVisible(false);          // das einfarbige Rechteck verstecken: Es würde durch die ausgefransten Ränder der Erdtextur scheinen
-            const anOberflaeche = t <= boden + 1 && grundfarbe !== FELS;   // Fels trägt kein Gras
+            const anOberflaeche = (p.gras !== undefined ? p.gras : t <= boden + 1) && grundfarbe !== FELS;   // Fels trägt kein Gras; p.gras (neues Level) = Oberseite ist frei
             const istDecke = !anOberflaeche && p.height <= 180;
             const tiefe = Math.min(p.height, TIEFE);
             nr += 1;

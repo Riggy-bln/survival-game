@@ -77,6 +77,7 @@ export default class EditorScene extends Phaser.Scene {
         this.einfuegen = false;                     // Einfügemodus (Vorschau am Mauszeiger)
         this.verlaufListe = []; this.verlaufPos = -1;
         this.textObjekte = new Map();
+        this.lineal = [];                           // Beschriftung der Zellnummern am Rand (Lineal)
         this.meldung = { text: '', bis: 0 };
         this.maus = { x: 0, y: 0 };
         this.miniGrenzen = null; this.miniDirty = true;
@@ -89,6 +90,7 @@ export default class EditorScene extends Phaser.Scene {
         window.__editor = this;                     // Testhilfe
 
         if (param.get('ansicht')) { const [a, b, c] = param.get('ansicht').split(',').map(Number); this.camX = a * Z - 100; this.camY = BODEN + b * Z - 300; this.zoom = c || this.zoom; }
+        if (param.get('hilfe') === '0') this.hilfe = false;
         if (param.get('auswahl')) { const [a, b, c, d] = param.get('auswahl').split(',').map(Number); this.auswahl = { c0: a, r0: b, c1: c, r1: d }; }
         if (param.get('shot')) this.time.delayedCall(2500, () => this.game.renderer.snapshot((bild) => fetch('http://localhost:8002/', { method: 'POST', body: bild.src })));
         this.events.once('shutdown', () => { this.speichereLokal(); this.textObjekte.forEach((t) => t.destroy()); });
@@ -122,6 +124,7 @@ export default class EditorScene extends Phaser.Scene {
     ladeStart(param) {
         let geladen = false;
         if (param.get('demo') === '1') { this.vorlage(); this.demo(); return; }
+        if (param.get('datei') === '1') { this.vorlage(); fetch(SERVER).then((a) => a.json()).then((d) => { this.uebernimm(d); this.miniDirty = true; }); return; }
         try { const s = localStorage.getItem(SPEICHER); if (s) { this.uebernimm(JSON.parse(s)); geladen = true; } } catch (e) { /* egal */ }
         if (!geladen) this.vorlage();
     }
@@ -562,9 +565,20 @@ export default class EditorScene extends Phaser.Scene {
         this.zeichneAuswahl();
         this.zeichneVorschau();
         for (const [id, o] of this.textObjekte) if (!gesehen.has(id)) { o.destroy(); this.textObjekte.delete(id); }
+        this.zeichneLineal(c0, c1, r0, r1);
         this.zeichnePanel();
         this.zeichneMini();
         this.zeichneText();
+    }
+
+    // Lineal: Zellnummern am oberen und linken Rand der Karte (alle 5 bzw. 10 Zellen, je nach Zoom), damit man Orte benennen kann
+    zeichneLineal(c0, c1, r0, r1) {
+        const schritt = this.zoom >= 0.5 ? 5 : (this.zoom >= 0.22 ? 10 : 20), z = this.zoom;
+        const liste = [];
+        for (let c = Math.ceil(c0 / schritt) * schritt; c <= c1; c += schritt) { const x = (c * Z - this.camX) * z + 2; if (x > BREITE_PANEL + 4) liste.push({ t: String(c), x, y: KOPF + 2, f: '#9ad0b8' }); }
+        for (let r = Math.ceil(r0 / schritt) * schritt; r <= r1; r += schritt) { const y = (BODEN + r * Z - this.camY) * z + 1; if (y > KOPF + 14 && y < this.scale.height - FUSS - 14) liste.push({ t: String(r), x: BREITE_PANEL + 3, y, f: '#d8c890' }); }
+        while (this.lineal.length < liste.length) this.lineal.push(this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '11px', backgroundColor: '#00000088' }).setDepth(2));
+        this.lineal.forEach((o, i) => { const e = liste[i]; if (e) { o.setVisible(true).setText(e.t).setColor(e.f).setPosition(e.x, e.y); } else o.setVisible(false); });
     }
 
     zeichnePanel() {

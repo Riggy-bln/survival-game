@@ -30,14 +30,16 @@ const STIMMUNGEN = [
     { x: 17600, farbe: [150, 20, 5],  alpha: 0.24 },
 ];
 
-export function baueStimmung(scene) {
+export function baueStimmung(scene, breite = 17600) {
+    const skala = breite / 17600;               // die Orte in STIMMUNGEN gelten für ein 17600 breites Level
     const flaeche = scene.add.rectangle(0, 0, MAX_BREITE + 200, 2400, 0x000000, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(-22.9);
     return {
         update(kameraMitteX) {
             let i = 0;
-            while (i < STIMMUNGEN.length - 2 && kameraMitteX > STIMMUNGEN[i + 1].x) i++;
+            const x = kameraMitteX / skala;
+            while (i < STIMMUNGEN.length - 2 && x > STIMMUNGEN[i + 1].x) i++;
             const a = STIMMUNGEN[i], b = STIMMUNGEN[i + 1];
-            const t = klemme((kameraMitteX - a.x) / (b.x - a.x), 0, 1);
+            const t = klemme((x - a.x) / (b.x - a.x), 0, 1);
             const f = a.farbe.map((v, k) => Math.round(lerp(v, b.farbe[k], t)));
             flaeche.setFillStyle((f[0] << 16) | (f[1] << 8) | f[2], lerp(a.alpha, b.alpha, t));
         },

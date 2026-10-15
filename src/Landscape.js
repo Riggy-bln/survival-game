@@ -558,14 +558,14 @@ export function buildLandscape(scene, level) {
     const rnd = new Phaser.Math.RandomDataGenerator(['landschaft']);
     erzeugeTexturen(scene);
     const BODEN = level.boden;
-    const fest = level.platforms.filter(p => (p.h >= 40 || p.kollision) && p.y - p.h / 2 <= BODEN + 1);
+    const fest = level.platforms.filter(p => (p.h >= 40 || p.kollision) && (p.gras !== undefined ? p.gras : p.y - p.h / 2 <= BODEN + 1));
     const oben = (x) => {
         let y = Infinity;
         for (const p of fest) if (Math.abs(x - p.x) <= p.w / 2 - 3) y = Math.min(y, p.y - p.h / 2);
         return y;
     };
     // Bereiche mit wichtigen Bauwerken (Bunker, Hochhaus, Funkturm, Arena): hier nur kleine Pflanzen
-    const sperre = [[4250, 4900], [6300, 7300], [10150, 10700], [13850, 14850], [13440, 15640], [16050, 17050]];
+    const sperre = level.sperre ?? [[4250, 4900], [6300, 7300], [10150, 10700], [13850, 14850], [13440, 15640], [16050, 17050]];
     const gesperrt = (x) => sperre.some(([a, b]) => x >= a && x <= b);
     const bild = (key, x, y, tiefe, ursprungY = 1) => scene.add.image(x, y, key).setOrigin(0.5, ursprungY).setDepth(tiefe);
 

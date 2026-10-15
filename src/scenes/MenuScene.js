@@ -1,4 +1,5 @@
 import { sfx } from '../Sound.js';
+import level from '../levels/Auswahl.js';
 import { zentriere, baueHintergrund, baueTitel, pixelKnopf, pixelText, pixelLabel, oberKnopf, MITTE_X } from '../MenuStil.js';
 
 // Der Startbildschirm im Pixel-Retro-Stil: animierte Landschaft im Hintergrund (Sonnenuntergang, Bergketten, Lagerfeuer, Hubschrauber),
@@ -23,7 +24,7 @@ export default class MenuScene extends Phaser.Scene {
         band.fillStyle(0x000000, 0.45).fillRect(MITTE_X - 215, 139, 430, 30);
         band.fillStyle(0xd9501c).fillRect(MITTE_X - 215, 136, 430, 28).fillStyle(0xff9a3c).fillRect(MITTE_X - 215, 136, 430, 5);
         band.fillStyle(0xd9501c).fillTriangle(MITTE_X - 215, 136, MITTE_X - 235, 150, MITTE_X - 215, 164).fillTriangle(MITTE_X + 215, 136, MITTE_X + 235, 150, MITTE_X + 215, 164);
-        pixelText(this, 'LEVEL 01 - ABANDONED MILITARY ZONE', 2, 0xfff3d0, 0x5a1e08).setPosition(MITTE_X, 150).setDepth(10);
+        pixelText(this, level.titel ?? 'LEVEL 01 - ABANDONED MILITARY ZONE', 2, 0xfff3d0, 0x5a1e08).setPosition(MITTE_X, 150).setDepth(10);
 
         this.untertitel = pixelLabel(this, MITTE_X, 196, 3, 0xffdd55);
         this.beschreibung = pixelLabel(this, MITTE_X, 428, 2, 0xe8dcc8);

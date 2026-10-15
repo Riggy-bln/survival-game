@@ -475,72 +475,80 @@ function autobahnReste(kappe, gelaender, rnd, stuecke) {
     }
 }
 
-// ---- Hängebrücken (aus den Holzböden der Skizze): an den Felswänden befestigt, ohne Stützen darunter ----
-// Eine Brücke, die an beiden Wänden hängt, ist ganz. Hängt sie nur an einer Wand, ist sie abgebrochen: Die letzten Bretter fehlen oder hängen schief,
-// und Seile baumeln herab. An jeder Wand sitzen Eisenplatten mit Ringen, an denen Handlauf und Tragseil befestigt sind.
+// ---- Holzbrücken (aus den Holzböden der Skizze), schlicht wie in Broforce ----
+// Ein Bretterdeck mit zwei Tragbalken, darunter ein einfaches Holzfachwerk (Balken mit gekreuzten Streben), das in den Felswänden an beiden Enden sitzt:
+// Es gibt keine Stützen darunter. Seitlich stehen Pfosten mit Handlauf und einem Seil dazwischen. Hängt die Brücke nur an einer Wand, ist sie
+// abgebrochen: Bretter fehlen, das Fachwerk endet zersplittert, Pfosten sind abgeknickt, ein Stück hängt an einem Seil herab.
 export function buildHaengebruecken(scene, level) {
-    const rnd = new Phaser.Math.RandomDataGenerator(['haengebruecken']);
+    const rnd = new Phaser.Math.RandomDataGenerator(['holzbruecken']);
     const g = scene.add.graphics().setDepth(2.45);
-    const HOLZ = [0x9a7a3c, 0x86652f, 0x74552a, 0x66491f], DUNKEL = 0x2e1f10, SEIL = [0x8a7348, 0x6b5a38], EISEN = [0x2a2a2a, 0x4a4a4a, 0x7a7a7a];
-    const px = (c, x, y, w = 4, h = 4) => g.fillStyle(c).fillRect(Math.round(x / 2) * 2, Math.round(y / 2) * 2, w, h);
-    const platte = (x, y) => {                                              // Eisenplatte an der Wand mit Ring und Schrauben
-        px(EISEN[0], x - 6, y - 6, 12, 12); px(EISEN[1], x - 5, y - 5, 10, 4); px(EISEN[2], x - 4, y - 4, 2, 2); px(EISEN[2], x + 2, y + 2, 2, 2);
-        px(0x1a1a1a, x - 2, y - 2, 4, 4); px(EISEN[2], x - 1, y - 1, 2, 2);
+    const HOLZ = [0x9a7a3c, 0x86652f, 0x74552a, 0x66491f], DUNKEL = 0x2e1f10, BALKEN = 0x4a3418, BALKEN_HELL = 0x6a4c26, SEIL = 0xb0a070, EISEN = 0x3a3a3a;
+    const px = (c, x, y, w, h) => g.fillStyle(c).fillRect(Math.round(x), Math.round(y), w, h);
+    // eine Strebe von (x0, y0) nach (x1, y1) aus kleinen Quadraten
+    const strebe = (x0, y0, x1, y1, c) => {
+        const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 3));
+        for (let i = 0; i <= n; i++) px(c, x0 + (x1 - x0) * i / n - 2, y0 + (y1 - y0) * i / n - 2, 4, 4);
     };
-    // Ein Seil von (x0, y0) nach (x1, y1) mit Durchhang (Pixel) in der Mitte
-    const seil = (x0, y0, x1, y1, haengt, dicke = 2) => {
-        const n = Math.max(1, Math.round(Math.abs(x1 - x0) / 4));
-        for (let i = 0; i <= n; i++) {
-            const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t + haengt * Math.sin(Math.PI * t);
-            px(SEIL[i % 2], x, y, 4, dicke + 2);
-        }
-    };
+    const TIEFE = 28;                                                           // Höhe des Fachwerks unter dem Deck
     for (const b of level.haenge ?? []) {
-        const { l, r, y } = b, w = r - l, ganz = b.links && b.rechts;
-        const links = b.links, rechts = b.rechts;
-        // Bretter (10 breit, 2 Lücke) auf zwei Tragbalken; bei abgebrochenen Enden fehlen Bretter und die letzten sind zersplittert
-        const frei = (x) => (!links && x < l + 28) || (!rechts && x > r - 28);       // in der Nähe eines freien Endes
-        for (let x = l; x < r; x += 12) {
-            const am_ende = (!links && x < l + 36) || (!rechts && x > r - 48);
-            if (am_ende && rnd.frac() < 0.35) continue;                                // fehlendes Brett
-            const hoch = am_ende ? rnd.pick([6, 8, 8]) : 8;                             // zersplitterte Bretter sind kürzer
-            const c = HOLZ[rnd.between(0, 3)];
-            px(c, x, y, 10, hoch); px(HOLZ[0], x, y, 10, 2); px(DUNKEL, x + 10, y, 2, hoch);
-            if (!am_ende && rnd.frac() < 0.2) px(DUNKEL, x + 3, y + 2, 2, 4);          // Astloch
+        const { l, r, y } = b, links = b.links, rechts = b.rechts, ganz = links && rechts;
+        const bruch = 44;                                                      // so weit reicht der beschädigte Bereich am freien Ende
+        const nahEnde = (x) => (!links && x < l + bruch) || (!rechts && x > r - bruch);
+        // --- Deck: Bretter (14 breit) mit Fugen; am freien Ende fehlen manche, die übrigen sind kürzer/zersplittert
+        for (let x = l; x < r; x += 14) {
+            const ende = nahEnde(x);
+            if (ende && rnd.frac() < 0.4) continue;
+            const hoeh = ende ? rnd.pick([6, 8, 10]) : 10;
+            px(HOLZ[rnd.between(0, 3)], x, y, 12, hoeh);
+            px(HOLZ[0], x, y, 12, 2);                                          // helle Oberkante
+            px(DUNKEL, x + 12, y, 2, hoeh);                                    // Fuge
+            if (!ende && rnd.frac() < 0.25) px(DUNKEL, x + 4, y + 4, 4, 2);    // Astloch
         }
-        // Tragbalken unter den Brettern (nur über durchgehende Teile)
-        const bx0 = links ? l : l + 30, bx1 = rechts ? r : r - 30;
-        if (bx1 > bx0) { px(DUNKEL, bx0, y + 8, bx1 - bx0, 4); px(0x4a3418, bx0, y + 8, bx1 - bx0, 2); }
-        // Handlauf: zwei Seile an den Wänden befestigt (Höhe 56 über den Brettern), mit Durchhang; hängende Halteseile zu den Brettern
-        const hoeheR = y - 56;
-        if (links) platte(l, hoeheR);
-        if (rechts) platte(r, hoeheR);
-        if (links) platte(l, y + 12);
-        if (rechts) platte(r, y + 12);
-        if (ganz) {
-            seil(l, hoeheR, r, hoeheR, 8);
-            seil(l, y + 12, r, y + 12, 16);                                            // Tragseil unter den Brettern
-            for (let x = l + 28; x < r - 14; x += 28) {                                // Halteseile: Handlauf -> Brett, Brett -> Tragseil
-                const t = (x - l) / w, sagR = 8 * Math.sin(Math.PI * t), sagT = 16 * Math.sin(Math.PI * t);
-                px(SEIL[1], x, hoeheR + sagR, 2, 56 - sagR - 2); px(SEIL[1], x, y + 10, 2, sagT + 2);
+        // --- Tragbalken unter dem Deck und Fachwerk (obere und untere Gurt, gekreuzte Streben)
+        const x0 = links ? l : l + bruch * 0.6, x1 = rechts ? r : r - bruch * 0.6;
+        if (x1 > x0) {
+            px(BALKEN, x0, y + 10, x1 - x0, 6); px(BALKEN_HELL, x0, y + 10, x1 - x0, 2);                       // oberer Gurt
+            px(BALKEN, x0, y + 10 + TIEFE, x1 - x0, 6); px(BALKEN_HELL, x0, y + 10 + TIEFE, x1 - x0, 2);       // unterer Gurt
+            const feld = Math.max(28, Math.round((x1 - x0) / Math.max(1, Math.round((x1 - x0) / 56))));
+            for (let fx = x0; fx + feld <= x1 + 1; fx += feld) {                                                // Streben: X in jedem Feld
+                strebe(fx, y + 16, fx + feld, y + 10 + TIEFE, BALKEN); strebe(fx + feld, y + 16, fx, y + 10 + TIEFE, BALKEN);
+                px(BALKEN, fx - 3, y + 16, 6, TIEFE - 6);                                                      // senkrechter Pfosten zwischen den Feldern
             }
-        } else {
-            // abgebrochen: Seile hängen von der Wand schräg herab und enden ausgefranst
-            const wand = links ? l : r, ende = links ? r : l, richt = links ? 1 : -1;
-            const laenge = Math.min(w, 96);
-            for (const [y0, tief] of [[hoeheR, 44], [y + 12, 64]]) {
-                const x1 = wand + richt * laenge, y1 = y0 + tief;
-                const n = Math.round(laenge / 4);
-                for (let i = 0; i <= n; i++) { const t = i / n; px(SEIL[i % 2], wand + richt * laenge * t, y0 + tief * t * t, 4, 4); }
-                for (let k = 0; k < 3; k++) px(SEIL[1], x1 + rnd.between(-6, 6), y1 + 4 + k * 4, 2, 4);     // Fransen
-            }
-            // einige Halteseile und ein hängendes Brett am freien Ende
-            for (let x = wand + richt * 28; Math.abs(x - wand) < laenge - 12; x += richt * 28) { const t = Math.abs(x - wand) / laenge; px(SEIL[1], x, y + 12 + 64 * t * t - 8, 2, 14); }
-            const bxx = ende - richt * 14; px(HOLZ[2], bxx, y + 8, 10, 4); px(HOLZ[2], bxx + 2, y + 12, 8, 14); px(DUNKEL, bxx + 8, y + 12, 2, 14);   // Brett baumelt herab
-            for (let k = 0; k < 4; k++) px(HOLZ[3], ende - richt * (10 + k * 6), y + 8, 4, 4 + rnd.between(0, 3));   // Splitter am Ende
+            px(BALKEN, x1 - 3, y + 16, 6, TIEFE - 6);
         }
-        // Ranken unter der Brücke
-        for (let x = l + 20; x < r - 10; x += rnd.between(60, 120)) { if (!frei(x)) for (let k = 0; k < rnd.between(3, 8); k++) px(rnd.pick([0x2c7a2e, 0x3e9a38]), x + (k % 2 ? 2 : 0), y + 14 + k * 4, 4, 4); }
+        // --- Wandanschluss: dicke Balken, die in die Felswand reichen, mit Eisenbeschlag
+        for (const [istAnker, wand, richt] of [[links, l, -1], [rechts, r, 1]]) {
+            if (!istAnker) continue;
+            px(BALKEN, wand - (richt < 0 ? 0 : 0) + (richt < 0 ? -6 : 0), y + 8, 6, TIEFE + 12);                // Auflagebalken an der Wand
+            px(BALKEN_HELL, wand + (richt < 0 ? -6 : 0), y + 8, 2, TIEFE + 12);
+            for (const yy of [y + 12, y + 10 + TIEFE]) { px(EISEN, wand - 4 + (richt < 0 ? -4 : 2), yy, 10, 6); px(0x7a7a7a, wand - 2 + (richt < 0 ? -4 : 2), yy + 2, 2, 2); }
+        }
+        // --- Geländer: Pfosten alle ~56 Pixel (auch an den Enden), oben ein Handlauf, dazwischen ein durchhängendes Seil
+        const pfosten = [];
+        for (let x = l + 6; x <= r - 6; x += 56) pfosten.push(x);
+        if (pfosten[pfosten.length - 1] < r - 12) pfosten.push(r - 6);
+        const stehtNoch = (x) => !nahEnde(x) || rnd.frac() < 0.3;
+        let vorher = null;
+        for (const x of pfosten) {
+            if (!stehtNoch(x)) { vorher = null; continue; }
+            const hoch = nahEnde(x) ? rnd.between(18, 26) : 38;                // abgeknickte Pfosten am freien Ende
+            px(HOLZ[2], x - 3, y - hoch, 6, hoch); px(HOLZ[0], x - 3, y - hoch, 2, hoch); px(DUNKEL, x + 1, y - hoch, 2, hoch);
+            px(HOLZ[1], x - 4, y - hoch - 2, 8, 4);                            // Pfostenkappe
+            if (vorher && Math.abs(x - vorher.x) < 80) {                       // Seil zwischen den Pfosten, in der Mitte durchhängend
+                const n = Math.round((x - vorher.x) / 4);
+                for (let i = 0; i <= n; i++) { const t = i / n, yy = vorher.y + (y - hoch - vorher.y) * t + 7 * Math.sin(Math.PI * t) + 6; px(SEIL, vorher.x + (x - vorher.x) * t, yy, 4, 3); }
+            }
+            vorher = { x, y: y - hoch };
+        }
+        // --- Abbruch: ein Brett baumelt an einem Seil, Splitter am Ende
+        if (!ganz) {
+            const richt = links ? 1 : -1, ende = links ? r : l;
+            px(HOLZ[2], ende - richt * 18, y + 10, 10, 6); px(HOLZ[2], ende - richt * 16, y + 16, 10, 16); px(DUNKEL, ende - richt * 8, y + 16, 2, 16);
+            px(SEIL, ende - richt * 12, y + 8, 2, 8);
+            for (let k = 0; k < 4; k++) px(HOLZ[3], ende - richt * (6 + k * 8), y + 10 + TIEFE * 0.4, 4, 6 + rnd.between(0, 8));    // zersplitterte Balkenenden
+        }
+        // Ranken am Fachwerk
+        for (let x = l + 20; x < r - 10; x += rnd.between(70, 140)) if (!nahEnde(x)) for (let k = 0; k < rnd.between(3, 7); k++) px(rnd.pick([0x2c7a2e, 0x3e9a38]), x + (k % 2 ? 2 : 0), y + 16 + k * 4, 4, 4);
     }
 }
 

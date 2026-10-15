@@ -85,9 +85,7 @@ def akt1(b):
     b.item('health', 7, 8); b.item('grenade', 9, 8); b.item('ammo', 8, 8)
     # Der erste Hof: Belohnung zuerst, dann der Kampf
     b.item('ammo', 16, 5)
-    b.schild(17, 5, 'Ladders: W / S\nClimb the tower!', hoch=190)
-    x, oben = b.wachturm(15, 5, 224, +1)                                                   # der erste Wachturm: ein Bogenschütze oben, man kann sein Bein wegschießen
-    b.gegner_xy(b.skelette, x, oben, x - 40, x + 40, 2)
+    # (der erste Wachturm am Hof wurde entfernt)
     b.soldat(22, 5, hp=2, links=19, rechts=23)             # zwei SCHWACHE Soldaten, ein Fass genau dazwischen:
     b.fass(24, 5)                                          # die erste Explosion erledigt beide und fühlt sich großartig an
     b.soldat(26, 5, hp=2, links=25, rechts=28)

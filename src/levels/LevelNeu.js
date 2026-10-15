@@ -1608,53 +1608,6 @@ export default {
 "color": 6183509
 },
 {
-"x": 928.0,
-"y": 1178.0,
-"w": 22,
-"h": 204,
-"brechbar": true,
-"hp": 5,
-"art": "turm",
-"color": 8018478,
-"gruppe": "turm980",
-"rolle": "stuetze"
-},
-{
-"x": 1032.0,
-"y": 1178.0,
-"w": 22,
-"h": 204,
-"brechbar": true,
-"hp": 5,
-"art": "turm",
-"color": 8018478,
-"gruppe": "turm980",
-"rolle": "stuetze"
-},
-{
-"x": 980.0,
-"y": 1066.0,
-"w": 140,
-"h": 20,
-"brechbar": true,
-"hp": 9999,
-"art": "turm",
-"color": 8018478,
-"gruppe": "turm980",
-"rolle": "boden"
-},
-{
-"x": 930.0,
-"y": 1042.0,
-"w": 40,
-"h": 28,
-"brechbar": true,
-"hp": 4,
-"art": "sand",
-"color": 11902826,
-"deckung": true
-},
-{
 "x": 1792.0,
 "y": 1266.0,
 "w": 112,
@@ -1773,11 +1726,6 @@ export default {
 "x": 588,
 "y": 910,
 "text": "Aim with the mouse\nShoot: left click"
-},
-{
-"x": 1092,
-"y": 1090,
-"text": "Ladders: W / S\nClimb the tower!"
 },
 {
 "x": 3052,
@@ -2123,13 +2071,6 @@ export default {
 }
 ],
 "skelette": [
-{
-"x": 980,
-"y": 1026,
-"left": 940,
-"right": 1020,
-"hp": 2
-},
 {
 "x": 2772,
 "y": 1194,
@@ -2945,15 +2886,6 @@ export default {
 "breite": 56
 },
 {
-"x": 1072,
-"oben": 1056,
-"unten": 1280,
-"seite": -1,
-"art": "holz",
-"ausX": 56,
-"breite": 56
-},
-{
 "x": 7624,
 "oben": 664,
 "unten": 888,
@@ -2964,14 +2896,6 @@ export default {
 }
 ],
 "tuerme": [
-{
-"gruppe": "turm980",
-"x": 980,
-"oben": 1056,
-"bl": 1280,
-"br": 1280,
-"ladeSeite": 1
-},
 {
 "gruppe": "turm7532",
 "x": 7532,

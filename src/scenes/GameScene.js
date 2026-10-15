@@ -175,8 +175,10 @@ export default class GameScene extends Phaser.Scene {
                 gegner.istGeist = true;
                 gegner.update = () => {};
             }
+            gegner.spawn = { Klasse, e };            // merkt sich, wie er gebaut wurde: Nach einem Respawn erwacht er so wieder
             return gegner;
         };
+        this.baueGegner = baue;
         const b = level.boss;
         const haupt = [
             ...level.enemies.map(e => baue(Enemy, e)),
@@ -1296,6 +1298,23 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Zurück an die Fahne: volles Leben, etwas Munition, kurzer Schutz.
+    // Nach einem Respawn leben alle getöteten Wachen wieder, an ihren Startplätzen (nicht die Kreatur und die Brut). Sie bekommen die alte Nummer,
+    // damit Online alle Geräte dieselben Gegner meinen.
+    erwecheGegner() {
+        let n = 0;
+        this.gegnerNachId.forEach((g, i) => {
+            if (!g.spawn || g.active || g.brut || g === this.boss) return;
+            const neu = this.baueGegner(g.spawn.Klasse, g.spawn.e);
+            neu.id = i; this.gegnerNachId[i] = neu; this.enemies.push(neu);
+            if (this.rechnet) this.physics.add.collider(neu, this.platforms);
+            neu.setVisible(false);                      // gezeichnet wird über die gemeinsame Zeichenfläche
+            this.fx.pickup(neu.x, neu.y - 20, 0xff8a6a, '');
+            n++;
+        });
+        this.kills = Math.max(0, this.kills - n);
+        return n;
+    }
+
     respawnAnCheckpoint() {
         if (!this.checkpoint) return;
         const p = this.player;
@@ -1314,8 +1333,9 @@ export default class GameScene extends Phaser.Scene {
         this.cameras.main.flash(400, 200, 255, 220);
         this.fx.pickup(p.x, p.y, 0x66ee88, '');
         sfx.play('heal');
-        this.showMessage('Back at the checkpoint!');
         hilfePaket(this, p);
+        const zurueck = this.erwecheGegner();
+        this.showMessage('Back at the checkpoint!' + (zurueck ? `\n${zurueck} enemies are back` : ''));
         this.letzteHP = p.health;
         this.wipeSeit = 0;
         this.sichere = [];

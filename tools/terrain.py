@@ -70,7 +70,24 @@ def planken(bloecke):
         for c in cs[1:] + [None]:
             if c is None or c != p + 1:
                 l, rr = welt_x(a), welt_x(p + 1)
-                liste.append({'x': (l + rr) / 2, 'y': welt_y(r) + 10, 'w': rr - l, 'h': 20, 'color': 0x6b4a2a})
+                liste.append({'x': (l + rr) / 2, 'y': welt_y(r) + 10, 'w': rr - l, 'h': 20, 'color': 0x6b4a2a, 'bruecke': True})
+                if c is not None: a = c
+            if c is not None: p = c
+    return liste
+
+def haengebruecken(bloecke):
+    """Beschreibung der Holzböden für die Zeichnung: l, r = Enden in Weltkoordinaten, y = Oberseite, links/rechts = hängt dort an einer Wand
+    (feste Zelle direkt neben dem Ende). Hängt eine Planke nur an einer Seite, ist die andere Seite abgebrochen (kaputte Brücke)."""
+    byrow = {}
+    for (c, r), t in bloecke.items():
+        if t == 'h': byrow.setdefault(r, []).append(c)
+    liste = []
+    fest = lambda c, r: bloecke.get((c, r)) in ('e', 's')
+    for r, cs in sorted(byrow.items()):
+        cs.sort(); a = p = cs[0]
+        for c in cs[1:] + [None]:
+            if c is None or c != p + 1:
+                liste.append({'l': welt_x(a), 'r': welt_x(p + 1), 'y': welt_y(r), 'links': fest(a - 1, r), 'rechts': fest(p + 1, r)})
                 if c is not None: a = c
             if c is not None: p = c
     return liste

@@ -30,12 +30,29 @@ class Bau:
         self.leitern, self.signs, self.decor, self.flaggen, self.bruecken = [], [], [], [], []
         self.hoehlen, self.lampen = [], []
         self.fehler = []
+        self.verschoben = []
         self.notizen = []                                   # Hinweise für die Dokumentation (werden nicht ins Spiel übernommen)
         self.start = None; self.ziel = None
 
     # --- Koordinaten ---
     def x(self, cx): return T.welt_x(cx) + Z // 2
     def y(self, r): return T.welt_y(r)                      # y der Oberseite von Zeile r
+    def ort(self, cx, r):
+        """Wohin mit etwas, das bei (cx, r) stehen soll? Gibt es dort keine Oberfläche (weil das Gelände im Editor verändert wurde), wandert es zur
+        nächsten: erst in der gleichen Spalte auf-/abwärts, dann in Nachbarspalten. Jede Verschiebung wird gemeldet."""
+        def da(c, rr): return any(rr == z and a <= c <= b for a, b, z in self.flaechen)
+        if da(cx, r): return cx, r
+        beste = None
+        for dc in range(0, 9):
+            for dr in range(0, 13):
+                for c2 in {cx - dc, cx + dc}:
+                    for r2 in {r - dr, r + dr}:
+                        if da(c2, r2):
+                            kosten = dc * 1.0 + dr * 1.3
+                            if beste is None or kosten < beste[0]: beste = (kosten, c2, r2)
+        if beste is None: raise ValueError(f'Keine Oberfläche bei Spalte {cx}, Zeile {r}')
+        self.verschoben.append(f'({cx},{r}) -> ({beste[1]},{beste[2]})')
+        return beste[1], beste[2]
     def flaeche(self, cx, r):
         for a, b, rr in self.flaechen:
             if rr == r and a <= cx <= b: return a, b
@@ -50,6 +67,11 @@ class Bau:
 
     # --- Gegner ---
     def _gegner(self, liste, cx, r, links, rechts, hp, dx=0):
+        if links is not None or rechts is not None:
+            cx2, r2 = self.ort(cx, r)
+            if (cx2, r2) != (cx, r): links = rechts = None          # Patrouille der alten Stelle passt nicht mehr: ganze Fläche
+            cx, r = cx2, r2
+        else: cx, r = self.ort(cx, r)
         l, rr = self.patrouille(cx, r, links, rechts)
         liste.append({'x': self.x(cx) + dx, 'y': self.y(r) - 30, 'left': l, 'right': rr, 'hp': hp})
     @_sicher
@@ -64,11 +86,11 @@ class Bau:
     # --- Gegenstände ---
     @_sicher
     def item(self, typ, cx, r, dx=0):
-        self.flaeche(cx, r)
+        cx, r = self.ort(cx, r)
         self.pickups.append({'x': self.x(cx) + dx, 'y': self.y(r) - (12 if typ == 'sword' else 10), 'type': typ})
     @_sicher
     def fass(self, cx, r, dx=0):
-        self.flaeche(cx, r)
+        cx, r = self.ort(cx, r)
         self.faesser.append({'x': self.x(cx) + dx, 'y': self.y(r) - 19})
 
     # --- Klettern, Hinweise, Fahnen ---
@@ -206,6 +228,7 @@ def main():
     uebernehme_skizze(b, daten, bloecke)
     if os.environ.get('OHNE_ENTWURF'): b.ziel = b.ziel or (daten['dinge'][0]['cx'] + 3, 0)      # Testhilfe: nur die Skizze, ohne das Spieldesign
     else: entwurf.entwerfe(b)
+    if b.verschoben: print(f'{len(b.verschoben)} Platzierungen an die nächste Oberfläche verschoben (Gelände wurde verändert):', ', '.join(b.verschoben[:40]))
     if b.fehler:
         print('\n'.join(b.fehler)); raise SystemExit(f'{len(b.fehler)} Platzierungen ohne passende Oberfläche (siehe oben)')
     zonen = [d for d in daten['dinge'] if d['t'] == 'hintergrund']
@@ -222,7 +245,7 @@ def main():
         'goalX': b.x(b.ziel[0]), 'goalY': b.y(b.ziel[1]),
         'platforms': b.platforms, 'decor': b.decor, 'signs': b.signs,
         'enemies': b.enemies, 'rangedEnemies': b.rangedEnemies, 'skelette': b.skelette, 'brutlinge': [],
-        'flaggen': b.flaggen, 'pickups': b.pickups, 'faesser': b.faesser, 'bruecken': b.bruecken, 'treppen': [], 'wracks': [],
+        'haenge': T.haengebruecken(bloecke), 'flaggen': b.flaggen, 'pickups': b.pickups, 'faesser': b.faesser, 'bruecken': b.bruecken, 'treppen': [], 'wracks': [],
         'geruest': [], 'schachtkoepfe': [], 'leitern': b.leitern, 'tuerme': [], 'huegelformen': [], 'hoehlen': b.hoehlen, 'lampen': b.lampen,
     }
     kopf = ('// AUTOMATISCH ERZEUGT von tools/level_aus_karte.py (aus editor/karte.json und tools/entwurf.py). Nicht von Hand ändern:\n'

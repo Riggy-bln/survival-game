@@ -492,6 +492,7 @@ export function decoratePlatforms(scene, platforms, boden) {
 
     for (const p of platforms) {
         if (p.kollisionNur) continue;      // Hügel-Stufenblöcke sind unsichtbar: ihre Optik malt buildHuegel
+        if (p.bruecke) { p.setVisible(false); continue; }   // Hängebrücke: Aussehen kommt aus Landscape.js (buildHaengebruecken)
         if (p.brechbar) { p.deko = zeichneBroeckelig(scene, p); p.setVisible(false); continue; }   // brüchige Wand: eigenes, entfernbares Bild (das einfarbige Rechteck darunter wird versteckt)
         const l = p.x - p.width / 2, t = p.y - p.height / 2, b = t + p.height;
         const grundfarbe = p.fillColor;

@@ -76,7 +76,7 @@ def akt1(b):
     b.deckung(29, 5, breite=2, art='sand')
     b.schuetze(31, 5, hp=2, links=31, rechts=32)           # ein Schütze hinter Sandsäcken
     b.item('health', 28, 5)
-    b.fahne(33, 5)                                         # erste Fahne am Ende des Hofes (nach dem Kampf)
+    pass  # Fahne (33, 5) entfernt: Checkpoints stehen dort, wo sie in der Skizze eingezeichnet sind
     b.item('grenade', 32, 5)
 
 # ---------------------------------------------------------------- Akt 2: Schluchten
@@ -87,7 +87,7 @@ def akt2(b):
 
 # ---------------------------------------------------------------- Akt 3: Das Feld
 def akt3(b):
-    b.fahne(50, 3)
+    pass  # Fahne (50, 3) entfernt: Checkpoints stehen dort, wo sie in der Skizze eingezeichnet sind
     b.item('ammo', 51, 3)
     b.schild(52, 3, 'Barrels explode:\nshoot them from a distance', hoch=110)
     b.soldat(54, 3, links=53, rechts=56); b.fass(55, 3); b.soldat(57, 3, links=56, rechts=57)
@@ -105,7 +105,7 @@ def akt4(b):
     b.item('health', 82, 9); b.item('ammo', 83, 9)
     b.soldat(86, 11, links=85, rechts=87); b.schuetze(89, 11, links=88, rechts=91)
     b.item('ammo', 93, 12)
-    b.fahne(95, 12)                                        # Fahne am Fuß der Treppe
+    pass  # Fahne (95, 12) entfernt: Checkpoints stehen dort, wo sie in der Skizze eingezeichnet sind
     b.item('health', 96, 12)
 
 # ---------------------------------------------------------------- Akt 5: Aufstieg unter Beschuss
@@ -158,7 +158,7 @@ def akt7(b):
 
 # ---------------------------------------------------------------- Akt 8: Die Festung
 def akt8(b):
-    b.fahne(149, -2)
+    pass  # Fahne (149, -2) entfernt: Checkpoints stehen dort, wo sie in der Skizze eingezeichnet sind
     b.item('ammo', 150, -2); b.item('health', 151, -2)
     b.schild(152, -2, 'Three ways on:\nsurface, tunnel or sky', hoch=120)
     # Oberfläche: die Außenwerke
@@ -179,7 +179,7 @@ def akt8(b):
 
 # ---------------------------------------------------------------- Akt 9: Der Kessel
 def akt9(b):
-    b.fahne(199, 3)
+    pass  # Fahne (199, 3) entfernt: Checkpoints stehen dort, wo sie in der Skizze eingezeichnet sind
     b.item('ammo', 198, 3); b.item('health', 200, 3)
     b.schuetze(203, 3, links=201, rechts=205)
     b.soldat(208, 4, links=206, rechts=212); b.fass(210, 4); b.soldat(213, 4, links=211, rechts=216)

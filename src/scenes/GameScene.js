@@ -1094,29 +1094,45 @@ export default class GameScene extends Phaser.Scene {
     // ---------- Leitern ----------
 
     // Malt alle Leitern (fest): zwei Holm-Schienen mit Sprossen. Holz oder Stahl.
+    // Leitern: einen Erdblock (56) breit, aus zwei Holmen mit Sprossen im halben Blockabstand. Sie hängen an der Kante der Fläche, auf die sie führen:
+    // oben ragen die Holme ein Stück über die Kante (zum Festhalten), an der Wandseite sitzen Haken in der Wand, unten steht ein Fußbrett.
     baueLeitern() {
         const g = this.add.graphics().setDepth(2.4);
+        const rnd = new Phaser.Math.RandomDataGenerator(['leitern']);
         for (const l of this.leitern) {
-            const stahl = l.art === 'stahl';
-            const holm = stahl ? 0x59626a : 0x7a5a2a, dunkel = stahl ? 0x3a4046 : 0x4a331d, spr = stahl ? 0x7a848c : 0x8a6a38;
-            for (const dx of [-10, 7]) {
-                g.fillStyle(dunkel).fillRect(l.x + dx, l.oben, 4, l.unten - l.oben);
-                g.fillStyle(holm).fillRect(l.x + dx, l.oben, 3, l.unten - l.oben);
+            const stahl = l.art === 'stahl', B = l.breite ?? 56, links = l.x - B / 2, rechts = l.x + B / 2;
+            const holz = stahl ? [0x2c3338, 0x4a545c, 0x6c7880, 0x8a949c] : [0x2e1f10, 0x4a3320, 0x6a4a2a, 0x8a6a3c];
+            const holmX = [links + 8, rechts - 14];                      // zwei Holme, 6 breit, mit Abstand zum Rand
+            const oberKante = l.oben - 24, hoehe = l.unten - oberKante;
+            for (const hx of holmX) {                                    // Holm: dunkle Kante, Mittelton, Licht, mit Maserung / Nieten
+                g.fillStyle(holz[0]).fillRect(hx, oberKante, 6, hoehe);
+                g.fillStyle(holz[2]).fillRect(hx + 1, oberKante, 3, hoehe);
+                g.fillStyle(holz[3]).fillRect(hx + 1, oberKante, 1, hoehe);
+                for (let y = oberKante + 6; y < l.unten - 4; y += rnd.between(14, 30)) g.fillStyle(holz[1]).fillRect(hx + 1, y, 3, rnd.between(2, 6));
+                g.fillStyle(holz[3]).fillRect(hx, oberKante, 6, 2);      // Holmspitze oben
             }
-            for (let y = l.oben + 6; y < l.unten - 2; y += 14) {
-                g.fillStyle(dunkel).fillRect(l.x - 10, y + 2, 21, 4);
-                g.fillStyle(spr).fillRect(l.x - 10, y, 21, 3);
+            for (let y = l.unten - 14; y > l.oben - 8; y -= 28) {        // Sprossen: zwei pro Block, vom Boden aus gezählt
+                g.fillStyle(holz[0]).fillRect(holmX[0] - 2, y + 2, holmX[1] - holmX[0] + 10, 5);
+                g.fillStyle(holz[2]).fillRect(holmX[0] - 2, y, holmX[1] - holmX[0] + 10, 4);
+                g.fillStyle(holz[3]).fillRect(holmX[0] - 2, y, holmX[1] - holmX[0] + 10, 1);
+                if (stahl) { g.fillStyle(0x1a1e22).fillRect(holmX[0] + 1, y + 1, 2, 2).fillRect(holmX[1] + 3, y + 1, 2, 2); }
             }
-            g.fillStyle(0x2a2a2a).fillRect(l.x - 13, l.oben - 2, 5, 4).fillRect(l.x + 9, l.oben - 2, 5, 4);   // Halterungen oben
+            // Haken in der Wand (auf der Seite, an der die Fläche liegt), alle zwei Blöcke und ganz oben
+            const wandX = l.seite > 0 ? rechts : links;
+            for (let y = l.oben + 20; y < l.unten - 20; y += 112) {
+                g.fillStyle(0x1a1a1a).fillRect(wandX - (l.seite > 0 ? 8 : 0), y, 8, 6);
+                g.fillStyle(0x6a6a6a).fillRect(wandX - (l.seite > 0 ? 8 : 0), y, 8, 2);
+            }
+            g.fillStyle(0x1a1a1a).fillRect(wandX - (l.seite > 0 ? 10 : 0), l.oben + 2, 10, 6).fillStyle(0x6a6a6a).fillRect(wandX - (l.seite > 0 ? 10 : 0), l.oben + 2, 10, 2);
+            // Fußbrett unten
+            g.fillStyle(holz[0]).fillRect(links + 2, l.unten - 3, B - 4, 3).fillStyle(holz[1]).fillRect(links + 2, l.unten - 3, B - 4, 1);
         }
     }
-
-    // Steht der Spieler so, dass er an eine Leiter greifen kann? richtung -1 = nach oben, 1 = nach unten.
     leiterFuer(p, richtung) {
         const fuss = p.body.bottom;
         for (const l of this.leitern) {
             const dx = Math.abs(p.x - l.x);
-            const reichweite = Math.max(26, (l.ausX ?? 22) + 6);                       // auch dort, wo man nach dem Ausstieg steht
+            const reichweite = (l.breite ?? 32) / 2 + 8;                               // etwas mehr als die halbe Leiterbreite
             const aufLeiter = dx < reichweite && fuss > l.oben + 2 && fuss <= l.unten + 8;
             if (richtung < 0 && aufLeiter) return l;
             if (richtung > 0) {

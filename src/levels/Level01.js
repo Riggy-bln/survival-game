@@ -1232,11 +1232,53 @@ for (const pk of pickups) {
     if (f) pk.y = f.t - (pk.type === 'sword' ? 12 : 10);
 }
 for (const fa of faesser) { const f = standflaeche(fa.x, fa.y + 19); if (f) fa.y = f.t - 19; }
-for (const ld of leitern) {
-    const sucheOben = standflaeche(ld.x + ld.seite * (ld.ausX ?? 22), ld.oben, 60) ?? standflaeche(ld.x, ld.oben, 60);
-    if (sucheOben) ld.oben = sucheOben.t;
-    const sucheUnten = standflaeche(ld.x, ld.unten, 60) ?? standflaeche(ld.x - ld.seite * 30, ld.unten, 60);
-    if (sucheUnten) ld.unten = sucheUnten.t;
+// ---- Leitern: so breit wie ein Erdblock und an einer Wand befestigt ----
+// Jede Leiter hängt an der Kante der Fläche, auf die sie führt (Boden, Plattform, Kuppe, Insel), und steht mit ihrem Fuß auf dem ersten festen
+// Boden darunter. Der Abstand zur Kante beträgt eine halbe Blockbreite, die Leiter ist einen ganzen Block (56) breit. Sie liegt also direkt an der
+// Wand der Fläche, statt im Raum zu schweben. Sehr kurze Leitern (unter 60 Pixel) braucht man nicht und werden entfernt.
+{
+    const alle = platforms.filter((q) => !q.kollisionNur && (!q.brechbar || q.rolle === 'boden'));
+    const fest = platforms.filter((q) => !q.kollisionNur && !q.brechbar);
+    const oben = (q) => q.y - q.h / 2;
+    for (let i = leitern.length - 1; i >= 0; i--) {
+        const ld = leitern[i], s = ld.seite;
+        // Die Fläche, auf die die Leiter führt: die Kante in Steigrichtung, die der alten Stelle am nächsten liegt
+        let best = null;
+        for (const q of alle) {
+            if (Math.abs(oben(q) - ld.oben) > 70) continue;
+            const kante = s > 0 ? q.x - q.w / 2 : q.x + q.w / 2;
+            if (Math.abs(kante - ld.x) > 110) continue;
+            const d = Math.abs(kante - ld.x) + Math.abs(oben(q) - ld.oben) * 0.5;
+            if (!best || d < best.d) best = { d, q };
+        }
+        if (!best) continue;
+        const t = oben(best.q);
+        // zusammenhängende ebene Fläche: wo endet sie zur Leiter hin?
+        let rl = best.q.x - best.q.w / 2, rr = best.q.x + best.q.w / 2, wachsen = true;
+        while (wachsen) {
+            wachsen = false;
+            for (const q of alle) {
+                if (Math.abs(oben(q) - t) > 1) continue;
+                const ql = q.x - q.w / 2, qr = q.x + q.w / 2;
+                if (ql <= rr + 1 && qr > rr) { rr = qr; wachsen = true; }
+                if (qr >= rl - 1 && ql < rl) { rl = ql; wachsen = true; }
+            }
+        }
+        const wand = s > 0 ? rl : rr;
+        const cx = wand - s * BLOCK / 2;
+        // Fuß: die höchste feste Fläche unter der Leiterspalte (die Spalte etwas schmaler messen, damit eine berührende Kante nicht zählt)
+        let unten = Infinity;
+        for (const q of fest) {
+            if (q.x - q.w / 2 >= cx + 12 || q.x + q.w / 2 <= cx - 12) continue;
+            if (oben(q) > t + 40 && oben(q) < unten) unten = oben(q);
+        }
+        if (!isFinite(unten) || unten - t < 60) { leitern.splice(i, 1); continue; }
+        ld.x = cx; ld.oben = t; ld.unten = unten; ld.ausX = BLOCK; ld.breite = BLOCK;
+    }
+    // Zwei Leitern dicht nebeneinander, die auf gleicher Höhe enden, sind doppelt: die zweite (später gebaute) entfällt
+    for (let i = leitern.length - 1; i > 0; i--) {
+        if (leitern.slice(0, i).some((o) => Math.abs(o.oben - leitern[i].oben) <= 8 && Math.abs(o.x - leitern[i].x) < 130)) leitern.splice(i, 1);
+    }
 }
 
 export default {

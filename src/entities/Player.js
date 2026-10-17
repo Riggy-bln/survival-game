@@ -1,17 +1,14 @@
 import { sfx } from '../Sound.js';
 import { stufenHilfe } from '../Stufen.js';
+import { WAFFEN, START, NACHSCHUB } from '../WaffenKonfig.js';
 
 const KLETTERN = 170;   // Klettertempo auf der Leiter (Pixel pro Sekunde)
 const WAND_RUTSCH = 90; // so schnell rutscht man an einer Wand hinunter (Pixel pro Sekunde)
 
-// Alle Waffen als Tabelle: Name, Pause zwischen Schüssen (ms), Magazingröße, Nachladezeit (ms).
-// Eine neue Waffe ist später nur ein weiterer Eintrag. Der Rest des Spiels liest diese Werte.
-const WAFFEN = {
-    pistol: { name: 'Pistol',     fireDelay: 150, magSize: 12, reloadTime: 1200 },
-    rifle:  { name: 'Assault rifle', fireDelay: 85,  magSize: 30, reloadTime: 1700 },
-    // Schrotflinte: pellets = Schrotkugeln pro Schuss, spread = Streuung (Bogenmaß), range = Reichweite (ms Flugzeit)
-    shotgun:{ name: 'Shotgun', fireDelay: 700, magSize: 6, reloadTime: 2000, pellets: 6, spread: 0.3, range: 330 },
-};
+// Die Waffentabelle (Schaden, Munition, Feuerrate ...) steht in WaffenKonfig.js.
+// Plätze der Inventarleiste (Tasten 1 bis 5, Mausrad): Wurfmesser, EINE Schusswaffe, Nahkampf (Faust/Schwert), Granate, Verbandskasten.
+// Man trägt immer höchstens eine Schusswaffe (this.fernwaffe). Eine neue tauscht man gegen die alte (Waffentausch in GameScene): Die alte bleibt am Boden liegen.
+export const SLOTS = ['knife', 'ranged', 'melee', 'grenade', 'medkit'];
 
 // Der Spieler: ein grünes Rechteck, das sich selbst steuern kann.
 export default class Player extends Phaser.GameObjects.Rectangle {
@@ -36,19 +33,23 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         this.grenades = 2;         // Granaten im Rucksack (Taste G wirft eine)
         this.maxGrenades = 4;
 
-        // Munition in zwei Teilen, wie bei echten Waffen:
-        //   magAmmo = Kugeln im Magazin (die kann man sofort verschießen)
-        //   ammo    = Reserve im Rucksack (die kommt beim Nachladen ins Magazin)
-        this.maxAmmo = 60;       // größte Reserve, die man tragen kann
-        this.reloadingUntil = 0; // 0 = lädt gerade nicht nach
-        // Magazingröße, Nachladezeit und Feuerrate kommen aus der Waffentabelle (oben).
-        // equip() füllt das Magazin aus der Reserve, deshalb setzen wir die Reserve erst danach.
-        this.ammo = 0;
-        this.magAmmo = 0;
-        this.equip('pistol');    // Startwaffe
+        // Munition: jede Waffe hat ihr eigenes Magazin und ihre eigene Reserve (muni[waffe].mag / .res). Getragen wird aber immer nur EINE
+        // Schusswaffe (fernwaffe). Legt man eine ab, nimmt ihr Zustand (Magazin und Reserve) den Weg auf den Boden mit (siehe laesstWaffeFallen).
+        //   mag = Kugeln im Magazin (sofort verschießbar), res = Reserve im Rucksack (kommt beim Nachladen ins Magazin).
+        //   Beim Flammenwerfer ist mag der Treibstoff (Prozent) und res bleibt 0. magAmmo, ammo und magSize gelten für die Waffe in der Hand.
+        this.muni = {};
+        for (const name of Object.keys(WAFFEN)) this.muni[name] = { mag: 0, res: 0 };
+        this.fernwaffe = null;        // die getragene Schusswaffe ('pistol', 'rifle', 'shotgun', 'rocket', 'flame') oder null
+        this.eingefroren = false;     // true, solange die Waffentausch-Anzeige offen ist: keine Bewegung, kein Schießen
+        this.messer = START.messer;   // Wurfmesser im Rucksack
+        this.reloadingUntil = 0;      // 0 = lädt gerade nicht nach
+        this.weapon = 'pistol';       // Werte der zuletzt getragenen Waffe (Platzhalter, solange man keine hat; siehe equip)
+        this.equip('pistol');
+        // Zum Testen: ?waffe=rocket (oder pistol, rifle, shotgun, flame) beginnt das Spiel mit dieser Schusswaffe
+        try { const t = new URLSearchParams(window.location.search).get('waffe'); if (t && WAFFEN[t]) this.nimmWaffe(t, null, false); } catch (e) { /* kein Browser */ }
 
-        // Inventarleiste: 1 = Schusswaffe, 2 = Nahkampfwaffe (Schwert), 3 = Granaten, 4 = Verbandskasten.
-        // "auswahl" ist der gewählte Platz; mit der linken Maustaste benutzt man den gewählten Gegenstand.
+        // Inventarleiste (siehe SLOTS oben). "auswahl" ist der gewählte Platz (1 bis 9); mit der linken Maustaste benutzt man den gewählten Gegenstand.
+        // Am Anfang hat man nur Wurfmesser und Fäuste.
         this.auswahl = 1;
         this.hatSchwert = false;   // das Schwert muss man erst finden
         this.seil = null;          // fährt gerade auf der Seilbahn? (sonst null)
@@ -67,8 +68,6 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         this.wand = 0;             // -1 = hängt an einer Wand links, 1 = rechts, 0 = nicht
         this.wandPause = 0;        // kurze Pause zwischen zwei Wandsprüngen
         this.wandKickBis = 0;      // so lange gilt die Eingabe zur Seite nicht (der Absprung)
-        this.magAmmo = this.magSize;  // Start: volles Magazin
-        this.ammo = 30;               // Start-Reserve
 
         // Zeitpunkte (in Millisekunden seit Spielstart), bis zu denen etwas gilt.
         // 0 heißt: gilt gerade nicht, denn die Zeit ist schon vorbei.
@@ -78,7 +77,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
 
         // Tasten, die der Spieler abfragt
         this.cursors = scene.input.keyboard.createCursorKeys();
-        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G,E,ONE,TWO,THREE,FOUR,W,S');
+        this.keys = scene.input.keyboard.addKeys('A,D,SPACE,R,H,G,E,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,NINE,W,S');
     }
 
     // Benutzt einen Verbandskasten, aber nur wenn es sinnvoll ist:
@@ -91,20 +90,102 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         return true;
     }
 
-    // Wählt einen Platz der Inventarleiste (1 bis 4). Platz 2 ist die Nahkampfwaffe: erst die Faust, mit dem gefundenen Schwert stärker.
-    waehle(platz) {
-        this.auswahl = platz;
+    // Munition der Waffe in der Hand (für Anzeige und Schießen): magAmmo = Magazin (beim Flammenwerfer: Treibstoff), ammo = Reserve.
+    get magAmmo() { return this.muni?.[this.weapon]?.mag ?? 0; }
+    set magAmmo(v) { if (this.muni?.[this.weapon]) this.muni[this.weapon].mag = v; }
+    get ammo() { return this.muni?.[this.weapon]?.res ?? 0; }
+    set ammo(v) { if (this.muni?.[this.weapon]) this.muni[this.weapon].res = v; }
+    get maxAmmo() { return WAFFEN[this.weapon]?.maxReserve ?? 0; }
+    // Welche Schusswaffe trägt man? (Abfrage wie früher: besitzt.pistol usw. Es ist immer höchstens eine wahr.)
+    get besitzt() { const o = {}; for (const n of Object.keys(WAFFEN)) o[n] = this.fernwaffe === n; return o; }
+
+    // Welche Art hat ein Platz der Leiste? ('knife', 'ranged', 'melee', 'grenade', 'medkit')
+    slotArt(platz = this.auswahl) { return SLOTS[platz - 1]; }
+    // Was ist gerade ausgewählt, mit dem Namen der Schusswaffe statt "ranged"? ('knife', 'pistol', ..., 'melee', 'grenade', 'medkit')
+    aktArt() { const a = this.slotArt(); return a === 'ranged' ? this.fernwaffe : a; }
+    // Welche Waffe aus der Tabelle hält der Spieler gerade? (null bei Messer, Nahkampf, Granate, Verbandskasten)
+    imHandWaffe() { return this.slotArt() === 'ranged' ? this.fernwaffe : null; }
+
+    // Kann man diesen Platz wählen? Die Schusswaffe nur, wenn man eine trägt; Wurfmesser nur, solange welche da sind.
+    verfuegbar(platz) {
+        const art = SLOTS[platz - 1];
+        if (art === 'ranged') return this.fernwaffe !== null;
+        if (art === 'knife') return this.messer > 0;
         return true;
     }
 
-    // Mausrad: zum nächsten bzw. vorigen Platz.
+    // Wählt einen Platz der Inventarleiste (1 bis 5). Gibt false zurück, wenn er (noch) nicht verfügbar ist.
+    waehle(platz) {
+        if (platz < 1 || platz > SLOTS.length || !this.verfuegbar(platz)) return false;
+        if (platz !== this.auswahl) sfx.schleifeStopp('flame.schleife');          // Waffe gewechselt: der Flammenwerfer-Ton endet sofort
+        this.auswahl = platz;
+        if (SLOTS[platz - 1] === 'ranged') this.equip(this.fernwaffe);
+        return true;
+    }
+
+    // Mausrad: zum nächsten bzw. vorigen verfügbaren Platz (gesperrte Plätze werden übersprungen).
     naechster(richtung) {
-        this.auswahl = ((this.auswahl - 1 + richtung + 4) % 4) + 1;
+        let platz = this.auswahl;
+        for (let i = 0; i < SLOTS.length; i++) {
+            platz = ((platz - 1 + richtung + SLOTS.length) % SLOTS.length) + 1;
+            if (this.verfuegbar(platz)) { this.waehle(platz); return; }
+        }
     }
 
     // Was hält die Figur gerade in der Hand? (Für die Zeichnung und für die Mitspieler.)
     inHand() {
-        return ['', this.weapon, this.hatSchwert ? 'sword' : 'fist', 'grenade', 'medkit'][this.auswahl];
+        const art = this.slotArt();
+        return art === 'ranged' ? (this.fernwaffe ?? 'fist') : art === 'melee' ? (this.hatSchwert ? 'sword' : 'fist') : art;
+    }
+
+    // Eine Schusswaffe in die Hand nehmen. zustand = { mag, res } einer abgelegten Waffe (sonst Startwerte aus der Tabelle).
+    // Die Regel "nur EINE Schusswaffe" gilt hier: Trägt man schon eine andere, wird nichts genommen (erst laesstWaffeFallen aufrufen).
+    nimmWaffe(name, zustand = null, auswaehlen = true) {
+        const w = WAFFEN[name];
+        if (!w || (this.fernwaffe && this.fernwaffe !== name)) return false;
+        this.fernwaffe = name;
+        const m = this.muni[name];
+        if (zustand) { m.mag = zustand.mag; m.res = zustand.res; }
+        else if (w.typ === 'flamme') { m.mag = w.startTreibstoff; m.res = 0; }
+        else { m.mag = w.magSize; m.res = w.startReserve; }
+        this.equip(name);
+        if (auswaehlen) this.waehle(SLOTS.indexOf('ranged') + 1);
+        return true;
+    }
+
+    // Die getragene Schusswaffe ablegen: Gibt ihren Zustand zurück ({ waffe, mag, res }) und leert die Hände (keine Munition bleibt zurück).
+    // Ist die Schusswaffe gerade ausgewählt, wechselt die Auswahl zum Nahkampf.
+    laesstWaffeFallen() {
+        const name = this.fernwaffe;
+        if (!name) return null;
+        const m = this.muni[name], zustand = { waffe: name, mag: m.mag, res: m.res };
+        m.mag = 0; m.res = 0;
+        this.fernwaffe = null;
+        if (this.reloadingUntil) sfx.stoppe('ak47.nachladen');
+        this.reloadingUntil = 0;
+        sfx.schleifeStopp('flame.schleife');
+        if (this.slotArt() === 'ranged') this.auswahl = SLOTS.indexOf('melee') + 1;
+        return zustand;
+    }
+
+    // Eine zweite Waffe derselben Sorte: ihre Munition dazu (gibt 'nachschub' oder 'voll' zurück)
+    nimmNachschub(name, zustand) {
+        const w = WAFFEN[name], m = this.muni[name];
+        if (this.fernwaffe !== name) return 'voll';
+        const plus = w.typ === 'flamme' ? (zustand ? zustand.mag : NACHSCHUB.treibstoff) : (zustand ? zustand.mag + zustand.res : (name === 'rocket' ? NACHSCHUB.raketen : w.magSize));
+        if (w.typ === 'flamme') { if (m.mag >= w.maxTreibstoff) return 'voll'; m.mag = Math.min(w.maxTreibstoff, m.mag + plus); }
+        else { if (m.res >= w.maxReserve) return 'voll'; m.res = Math.min(w.maxReserve, m.res + plus); }
+        return 'nachschub';
+    }
+
+    // Munition aus einer Munitionskiste: nur für die getragene Kugelwaffe (Pistole, Maschinengewehr, Schrotflinte).
+    gibMunition(menge) {
+        const n = this.fernwaffe;
+        if (!n || WAFFEN[n].typ !== 'kugel') return 'keine';
+        const m = this.muni[n], max = WAFFEN[n].maxReserve;
+        if (m.res >= max) return 'voll';
+        m.res = Math.min(max, m.res + menge);
+        return n;
     }
 
     // An die Leiter greifen: Die Figur hängt in der Mitte der Leiter, ohne Schwerkraft.
@@ -145,23 +226,32 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         }
     }
 
-    // Rüstet eine Waffe aus der Tabelle aus: Werte übernehmen und das Magazin
-    // sofort aus der Reserve füllen. Gibt es die Waffe nicht, passiert nichts.
+    // Nimmt eine Waffe aus der Tabelle in die Hand: Feuerrate, Magazingröße usw. werden übernommen. Ein laufendes Nachladen wird abgebrochen.
     equip(waffe) {
         const w = WAFFEN[waffe];
         if (!w) return;
         this.weapon = waffe;
         this.weaponName = w.name;
         this.fireDelay = w.fireDelay;
-        this.magSize = w.magSize;
-        this.reloadTime = w.reloadTime;
+        this.magSize = w.magSize ?? 0;
+        this.reloadTime = w.reloadTime ?? 0;
         this.pellets = w.pellets ?? 1;   // normale Waffen schießen eine Kugel
         this.spread = w.spread ?? 0;
         this.range = w.range ?? 0;       // 0 = unbegrenzt
-        this.reloadingUntil = 0;  // laufendes Nachladen abbrechen
-        const kugeln = Math.min(this.magSize - this.magAmmo, this.ammo);
-        this.magAmmo += kugeln;
-        this.ammo -= kugeln;
+        if (this.reloadingUntil) sfx.stoppe('ak47.nachladen');   // laufendes Nachladen abbrechen: auch der Ton
+        this.reloadingUntil = 0;
+    }
+
+    // Nach dem Wiederbeleben am Checkpoint: Magazin voll und eine kleine Reserve für die getragene Waffe (mindestens 3 Wurfmesser).
+    fuelleAuf() {
+        const name = this.fernwaffe;
+        if (name) {
+            const w = WAFFEN[name], m = this.muni[name];
+            if (w.typ === 'flamme') m.mag = Math.max(m.mag, w.maxTreibstoff / 2);
+            else { m.mag = w.magSize; m.res = Math.max(m.res, Math.min(w.maxReserve, w.typ === 'rakete' ? 2 : 30)); }
+        }
+        this.messer = Math.max(this.messer, 3);
+        this.reloadingUntil = 0;
     }
 
     // Lädt gerade nach?
@@ -174,17 +264,23 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         return this.magAmmo > 0 && !this.isReloading();
     }
 
+    // Lädt die Waffe in der Hand mit Magazin (also keine Flammen)? Nur dann gibt es Nachladen.
+    hatMagazin() {
+        const n = this.imHandWaffe();
+        return !!n && WAFFEN[n].typ !== 'flamme';
+    }
+
     // Beginnt das Nachladen, aber nur wenn es sinnvoll ist:
     // nicht doppelt, nicht bei vollem Magazin, nicht ohne Reserve.
     startReload() {
-        if (this.isReloading() || this.magAmmo >= this.magSize || this.ammo <= 0) return;
+        if (!this.hatMagazin() || this.isReloading() || this.magAmmo >= this.magSize || this.ammo <= 0) return;
         this.reloadingUntil = this.scene.time.now + this.reloadTime;
-        sfx.play('reload');
+        if (!sfx.muted) sfx.nachladen(this.weapon, this.reloadTime);
     }
 
     // Wenn die Nachladezeit vorbei ist, wandern Kugeln aus der Reserve ins Magazin.
     updateReload() {
-        if (!this.isReloading() || this.scene.time.now < this.reloadingUntil) return;
+        if (!this.hatMagazin() || !this.isReloading() || this.scene.time.now < this.reloadingUntil) return;
         const benoetigt = this.magSize - this.magAmmo;   // so viele fehlen im Magazin
         const kugeln = Math.min(benoetigt, this.ammo);   // mehr als die Reserve gibt es nicht
         this.magAmmo += kugeln;
@@ -227,8 +323,12 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         const geschuetzt = now < this.invulnerableUntil;
         this.setAlpha(geschuetzt && Math.floor(now / 100) % 2 === 0 ? 0.3 : 1);
 
-        // Zahlentasten 1 bis 4 wählen den Platz in der Inventarleiste.
-        ['ONE', 'TWO', 'THREE', 'FOUR'].forEach((name, i) => { if (Phaser.Input.Keyboard.JustDown(this.keys[name])) this.waehle(i + 1); });
+        // Beim Waffentausch (Anzeige offen) bleibt die Figur stehen und tut sonst nichts.
+        if (this.eingefroren) { body.setVelocityX(0); return; }
+        // Zahlentasten 1 bis 5 wählen den Platz in der Inventarleiste (die Schusswaffe nur, wenn man eine trägt).
+        ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'].forEach((name, i) => {
+            if (Phaser.Input.Keyboard.JustDown(this.keys[name]) && !this.waehle(i + 1)) this.scene.zeigeGesperrt(i + 1);
+        });
         // Nachladen: Taste R startet es. JustDown ist nur im Moment des Drückens wahr.
         if (Phaser.Input.Keyboard.JustDown(this.keys.R) || this.touchEin.nachladen) this.startReload();
         this.touchEin.nachladen = false;
@@ -243,7 +343,7 @@ export default class Player extends Phaser.GameObjects.Rectangle {
         }
         this.touchEin.granate = false;
         // Ist das Magazin leer, aber noch Reserve da? Dann automatisch nachladen.
-        if (this.magAmmo === 0) this.startReload();
+        if (this.hatMagazin() && this.magAmmo === 0) this.startReload();
         this.updateReload();
 
         if (this.seil) return;   // auf der Seilbahn steuert die Szene die Bewegung

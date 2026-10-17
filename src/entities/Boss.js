@@ -64,13 +64,13 @@ export default class Boss extends Enemy {
     }
 
     // Im erschöpften Zustand zählt jeder Treffer doppelt. Mit Schild prallt alles ab.
-    takeDamage(amount) {
+    takeDamage(amount, art = 'kugel') {
         if (this.schild) {
             sfx.play('schwertHit');
             this.scene.zeigeEffekt('muendung', this.x, this.y - 20, Math.random() * 6.28, 0.6, 0x88ddff);
             return false;
         }
-        const tot = super.takeDamage(this.state === 'tired' ? amount * 2 : amount);
+        const tot = super.takeDamage(this.state === 'tired' ? amount * 2 : amount, art);
         if (!tot && this.stufeErledigt < this.phase() && this.state !== 'summon') this.beginneBrut();   // Grenze zu Phase 2 oder 3 überschritten
         return tot;
     }

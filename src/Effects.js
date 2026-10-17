@@ -1200,7 +1200,13 @@ export default class Effects {
         scene.tweens.add({ targets: t, y: y - 52, alpha: 0, duration: 950, ease: 'Sine.easeOut', onComplete: () => t.destroy() });
     }
 
-    blood(x, y, anzahl = 8) { this.blutE.explode(anzahl, x, y); }
+    // Blut: Ohne winkel (oder mit winkel > 7) ein einfacher Spritzer nach oben. Mit winkel (Flugrichtung des Geschosses, im Bogenmaß)
+    // übernimmt Treffer.js (Strahl nach vorn, Schwall zurück, Nebel, Brocken ...).
+    blood(x, y, anzahl = 8, winkel = 99) {
+        // Mit Richtung: das gemeinsame Treffer-System (Treffer.js) übernimmt, ohne pro Treffer neue Teilchen-Emitter zu bauen.
+        if (Math.abs(winkel) <= 7 && this.scene.treffer) { this.scene.treffer.zeige(x, y, winkel, 'pistol', Math.max(1, anzahl / 6)); return; }
+        this.blutE.explode(anzahl, x, y);
+    }
     sparks(x, y, anzahl = 5) { this.funkenE.explode(anzahl, x, y); }
     dust(x, y) { this.staubE.explode(6, x, y); }
     muzzle(x, y) { this.funkenE.explode(4, x, y); }

@@ -1,4 +1,7 @@
 import { sfx } from './Sound.js';
+import Flammenwerfer from './Flammenwerfer.js';
+import { baueRaketenBild, raketenSpur } from './entities/Rakete.js';
+import { WAFFEN } from './WaffenKonfig.js';
 
 // Mehrspieler im Spiel.
 //
@@ -13,6 +16,10 @@ import { sfx } from './Sound.js';
 //   z        Zustand einer Spielerfigur             alle -> alle (über den Gastgeber)
 //   w        Weltzustand                            Gastgeber -> Gäste
 //   sg / gr  Schuss / Granatwurf eines Gastes       Gast -> Gastgeber
+//   mw / rk  Messerwurf / Raketenschuss eines Gastes Gast -> Gastgeber (der Gastgeber erzeugt Messer und Rakete)
+//   fl       Flammenwerfer an/aus + Richtung        Gast -> Gastgeber -> andere Gäste, und Gastgeber -> Gäste
+//   wd       eine Waffe wurde abgelegt (Waffentausch)  Gast -> Gastgeber -> andere, und Gastgeber -> Gäste
+//   mauf/mok Gast will ein Messer aufheben / darf   Gast -> Gastgeber / Gastgeber -> Gast (der Gastgeber entscheidet: nie doppelt)
 //   fx       Effekt (Mündungsfeuer, Explosion ...)  Gastgeber -> Gäste
 //   tot      ein Gegner ist gestorben               Gastgeber -> Gäste
 //   schaden  du hast Schaden genommen               Gastgeber -> betroffener Gast
@@ -31,6 +38,13 @@ export default class Mehrspieler {
         this.fern = new Map();             // nr -> Zustand einer fremden Figur
         this.kugelBilder = new Map();      // Gäste: Kugeln anderer, nur als Bild
         this.granatenBilder = new Map();
+        this.messerBilder = new Map();     // Gäste: alle Messer der Welt als Bild (der Gastgeber rechnet sie)
+        this.raketenBilder = new Map();    // Gäste: alle Raketen der Welt als Bild
+        this.fremdeFlammen = new Map();    // nr -> { an, a, bis, lief }: wer gerade einen Flammenwerfer benutzt
+        this.flammenBilder = new Map();    // nr -> Flammenwerfer (Teilchen und beim Gastgeber auch der Schaden) für fremde Spieler
+        this.naechsteFlammenMeldung = 0;
+        this.letzteFlammeAn = false;
+        this.messerAnfragen = new Map();   // Gast: Messer-ID -> Zeit der letzten Anfrage zum Aufheben
         this.naechsteSendung = 0;
         this.naechsteBelebenMeldung = 0;
         this.escBis = 0;
@@ -170,7 +184,11 @@ export default class Mehrspieler {
         for (const k of sz.bullets) if (k.active) kugel(k, k.owner ?? 1);
         for (const k of sz.enemyBullets) if (k.active) kugel(k, k.gross ? 9 : (k.pfeil ? 8 : 0));   // Besitzer 0 = Gegner, 8 = Pfeil, 9 = Felsbrocken
         const g = sz.grenadeList.filter((x) => x.active).map((x) => [x.id, Math.round(x.x), Math.round(x.y), x.owner ?? 1]);
-        this.netz.sende({ t: 'w', e, b, g, k: sz.kills });
+        // Messer: [id, x, y, Drehung, Zustand (0 fliegt, 1 fällt, 2 steckt, 3 liegt), aufhebbar, Besitzer]; Raketen: [id, x, y, Richtung, Besitzer]
+        const ZUSTAND = { flug: 0, fall: 1, steckt: 2, liegt: 3 };
+        const m = sz.messerListe.filter((k) => k.active).map((k) => [k.id, Math.round(k.x), Math.round(k.y), Math.round(k.rotation * 100) / 100, ZUSTAND[k.zustand] ?? 0, k.liegtBereit() ? 1 : 0, k.owner ?? 1]);
+        const r = sz.raketenListe.filter((x) => x.active && !x.explodiert).map((x) => [x.id, Math.round(x.x), Math.round(x.y), Math.round(x.winkel * 100) / 100, x.owner ?? 1]);
+        this.netz.sende({ t: 'w', e, b, g, m, r, k: sz.kills });
     }
 
     // ---------- Weltzustand anzeigen (nur Gäste) ----------
@@ -220,6 +238,33 @@ export default class Mehrspieler {
             else { bild.x = x; bild.y = y; }
         }
         for (const [id, bild] of this.granatenBilder) if (!gesehenG.has(id)) { bild.destroy(); this.granatenBilder.delete(id); }
+        // Messer: stecken in der Wand oder liegen auf dem Boden, bis jemand sie aufhebt
+        const gesehenM = new Set();
+        for (const [id, x, y, rot, zustand, bereit] of d.m ?? []) {
+            gesehenM.add(id);
+            let bild = this.messerBilder.get(id);
+            if (!bild) {
+                bild = { klinge: sz.add.rectangle(x, y, 22, 5, 0xdfe6ee).setStrokeStyle(1, 0x8a96a2).setDepth(6), griff: sz.add.rectangle(x, y, 9, 6, 0x5a3d22).setDepth(6) };
+                bild.destroy = () => { bild.klinge.destroy(); bild.griff.destroy(); };
+                this.messerBilder.set(id, bild);
+            }
+            bild.x = x; bild.y = y; bild.zustand = zustand; bild.bereit = !!bereit;
+            bild.klinge.setPosition(x, y).setRotation(rot);
+            bild.griff.setPosition(x - Math.cos(rot) * 14, y - Math.sin(rot) * 14).setRotation(rot);
+        }
+        for (const [id, bild] of this.messerBilder) if (!gesehenM.has(id)) { bild.destroy(); this.messerBilder.delete(id); }
+        // Raketen: fliegen auf dem Gerät des Gastes selbst ein Stück weiter, bis die nächste Meldung kommt
+        const gesehenR = new Set();
+        for (const [id, x, y, winkel] of d.r ?? []) {
+            gesehenR.add(id);
+            let bild = this.raketenBilder.get(id);
+            if (!bild) {
+                bild = baueRaketenBild(sz, x, y, winkel);
+                bild.vx = Math.cos(winkel) * WAFFEN.rocket.tempo; bild.vy = Math.sin(winkel) * WAFFEN.rocket.tempo; bild.winkel = winkel;
+                this.raketenBilder.set(id, bild);
+            } else { bild.x = x; bild.y = y; }
+        }
+        for (const [id, bild] of this.raketenBilder) if (!gesehenR.has(id)) { bild.destroy(); this.raketenBilder.delete(id); }
     }
 
     // Jedes Bild bei Gästen: Gegner weich ans Ziel führen, fremde Kugeln weiterfliegen lassen.
@@ -234,6 +279,48 @@ export default class Mehrspieler {
         for (const k of this.kugelBilder.values()) {
             k.x += k.vx * dt; k.y += k.vy * dt;
             sz.fx.spur(k.x, k.y, !k.vonGegner);
+        }
+        for (const r of this.raketenBilder.values()) {
+            r.x += r.vx * dt; r.y += r.vy * dt;
+            raketenSpur(sz, r.x, r.y, r.winkel);
+        }
+        // Messer aufheben: Der Gast fragt den Gastgeber (der entscheidet, damit niemand dasselbe Messer doppelt bekommt)
+        const p = sz.player, jetzt = sz.time.now;
+        if (!p.tot) {
+            for (const [id, b] of this.messerBilder) {
+                if (!b.bereit || Math.abs(b.x - p.x) > 40 || Math.abs(b.y - p.y) > 50) continue;
+                if (!Phaser.Geom.Intersects.RectangleToRectangle(b.klinge.getBounds(), p.getBounds())) continue;
+                if (jetzt - (this.messerAnfragen.get(id) ?? -999) < 500) continue;
+                this.messerAnfragen.set(id, jetzt);
+                this.sendeAnHost({ t: 'mauf', id });
+            }
+        }
+    }
+
+    // ---------- Flammenwerfer anderer Spieler ----------
+    // Jeder Spieler meldet höchstens 10-mal pro Sekunde (und sofort beim Starten und Beenden), ob und wohin er feuert. Alle anderen zeigen
+    // die Flamme an der Figur dieses Spielers; der Gastgeber rechnet zusätzlich Schaden und Brennen (schadenRechnen).
+    meldeFlamme(an, winkel) {
+        const jetzt = this.scene.time.now;
+        if (an === this.letzteFlammeAn && (!an || jetzt < this.naechsteFlammenMeldung)) return;
+        this.letzteFlammeAn = an;
+        this.naechsteFlammenMeldung = jetzt + 100;
+        const nachricht = { t: 'fl', an: an ? 1 : 0, a: Math.round(winkel * 100) / 100 };
+        if (this.istHost) this.sendeAnAlle({ ...nachricht, n: this.netz.meineNr }); else this.sendeAnHost(nachricht);
+    }
+
+    // Jedes Bild: alle fremden Flammenwerfer weiterbrennen lassen
+    aktualisiereFlammen(delta) {
+        const sz = this.scene, jetzt = sz.time.now;
+        for (const [nr, f] of this.fremdeFlammen) {
+            const figur = this.fern.get(nr);
+            if (!figur) continue;
+            let w = this.flammenBilder.get(nr);
+            if (!w) { w = new Flammenwerfer(sz); this.flammenBilder.set(nr, w); }
+            const an = f.an && jetzt < f.bis && !figur.tot;
+            if (an && !f.lief) sfx.play('flammeStart');
+            f.lief = an;
+            w.update(an, figur, f.a, delta, this.istHost);
         }
     }
 
@@ -253,6 +340,10 @@ export default class Mehrspieler {
     sendeAnAlleAusser(nr, daten) { if (this.istHost) this.netz.sendeAnAlleAusser(nr, daten); }
 
     meldeGranate(x, y, vx, vy) { this.sendeAnHost({ t: 'gr', x, y, vx, vy }); }
+    // Eine Waffe wurde abgelegt (Waffentausch): alle anderen legen sie auch in ihre Welt
+    meldeAbwurf(d) { if (this.istHost) this.sendeAnAlle({ t: 'wd', ...d }); else this.sendeAnHost({ t: 'wd', ...d }); }
+    meldeMesser(x, y, a) { this.sendeAnHost({ t: 'mw', x, y, a: Math.round(a * 1000) / 1000 }); }
+    meldeRakete(x, y, a) { this.sendeAnHost({ t: 'rk', x, y, a: Math.round(a * 1000) / 1000 }); }
 
     // Gegenstand eingesammelt: Die anderen entfernen ihn auch.
     meldePickup(id) {
@@ -325,6 +416,21 @@ export default class Mehrspieler {
             case 'sg': if (this.istHost) sz.fremderSchuss(von, daten); return;
             case 'gr': if (this.istHost) sz.fremdeGranate(von, daten); return;
             case 'hb': if (this.istHost) sz.fremderHieb(von, daten); return;
+            case 'mw': if (this.istHost) sz.fremdesMesser(von, daten); return;
+            case 'rk': if (this.istHost) sz.fremdeRakete(von, daten); return;
+            case 'mauf': if (this.istHost) sz.fremdesMesserAufheben(von, daten); return;
+            case 'mok': sz.messerErhalten(); return;
+            case 'wd':
+                sz.abgelegtEmpfangen(daten);
+                if (this.istHost) this.netz.sendeAnAlleAusser(von, daten);
+                return;
+            case 'fl': {
+                const nr = this.istHost ? von : daten.n;
+                if (nr === this.netz.meineNr) return;
+                this.fremdeFlammen.set(nr, { an: !!daten.an, a: daten.a, bis: sz.time.now + 400, lief: this.fremdeFlammen.get(nr)?.lief ?? false });
+                if (this.istHost) this.netz.sendeAnAlleAusser(von, { ...daten, n: von });     // an die anderen Gäste weitergeben
+                return;
+            }
             case 'fx': if (!this.istHost) sz.effektEmpfangen(daten); return;
             case 'tot': if (!this.istHost) sz.gegnerTotEmpfangen(daten); return;
             case 'schaden': if (!sz.player.tot) sz.player.takeDamage(daten.m, daten.x); return;

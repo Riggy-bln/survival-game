@@ -3,6 +3,7 @@ import GameScene from './scenes/GameScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import LobbyScene from './scenes/LobbyScene.js';
 import EditorScene from './scenes/EditorScene.js';
+import { sfx } from './Sound.js';
 import { breiteFuerFenster, haltePassend, SPIEL_HOEHE } from './Anpassung.js';
 
 // Die Konfiguration beschreibt unser Spiel: Größe, Physik und welche Szenen es gibt.
@@ -23,5 +24,8 @@ const config = {
     scene: [MenuScene, GameScene, PauseScene, LobbyScene, EditorScene]  // die erste (Menü) startet automatisch
 };
 
+sfx.vorladen();   // echte Aufnahmen schon beim Start laden (der Ton selbst startet erst nach dem ersten Klick)
 const game = new Phaser.Game(config);
 haltePassend(game);
+window.spiel = game;   // zum Testen in der Konsole (z. B. spiel.scene.getScene('GameScene'), sfx.schleifen)
+window.sfx = sfx;

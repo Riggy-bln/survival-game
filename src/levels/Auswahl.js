@@ -8,3 +8,5 @@ import kombi from './Kombi.js';
 
 const wahl = (() => { try { return new URLSearchParams(window.location.search).get('level'); } catch (e) { return null; } })();
 export default wahl === 'alt' ? alt : (wahl === 'neu' ? neu : kombi);
+// Name des gewählten Levels (für WaffenPlatzierung.js: jedes Level hat seine eigene Liste)
+export const levelName = wahl === 'alt' ? 'alt' : (wahl === 'neu' ? 'neu' : 'kombi');

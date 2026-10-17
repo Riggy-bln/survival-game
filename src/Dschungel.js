@@ -19,10 +19,10 @@ function rauchTextur(scene) {
     g.destroy();
 }
 
-// Der Himmel: von finsterem Blaugrün über giftigen Dunst zu glühendem Orange am Horizont, dazu eine blasse Sonne und ziehende Rauchwolken.
+// Der Himmel: ein schöner blauer Himmel, oben satt, zum Horizont hin hell, dazu eine strahlende Sonne und ziehende weiße Wolken.
 export function buildDschungelHimmel(scene) {
     const g = scene.add.graphics().setScrollFactor(0).setDepth(-30);
-    const farben = [[0, 0x0a2a32], [0.32, 0x14604c], [0.58, 0x6e9a46], [0.78, 0xdcaa3a], [1, 0xf4702c]];
+    const farben = [[0, 0x1f67c9], [0.35, 0x3f93e6], [0.65, 0x7cc4f4], [0.85, 0xb4e2fb], [1, 0xdaf2fd]];
     const B = MAX_BREITE, H = scene.scale.height, streifen = 40;
     for (let i = 0; i < streifen; i++) {
         const t = i / (streifen - 1);
@@ -50,26 +50,26 @@ export function buildDschungelHimmel(scene) {
             const d = Math.hypot(x + 2, y + 2) / R;
             if (d >= 1) continue;
             const schein = Math.pow(1 - d, 2.2) * 0.42, kern = d < 0.3 ? 0.5 * (1 - d / 0.3) + 0.12 : 0;
-            sg.fillStyle(d < 0.3 ? 0xfff0c0 : 0xffd890, Math.min(0.62, Math.round((schein + kern) * 40) / 40)).fillRect(R + x, R + y, 4, 4);
+            sg.fillStyle(d < 0.3 ? 0xfff0c0 : 0xffd890, Math.min(0.9, Math.round((schein * 1.5 + kern) * 40) / 40)).fillRect(R + x, R + y, 4, 4);
         }
         sg.generateTexture('dschungel_sonne', R * 2, R * 2);
         sg.destroy();
     }
     scene.add.image(900, H * 0.5, 'dschungel_sonne').setScrollFactor(0.03).setDepth(-29);
 
-    // Rauchwolken: weiche, dunkle Haufen aus vielen übereinanderliegenden Pixelkreisen (je Wolke einmal gebacken), die langsam hin- und herziehen
+    // Wolken: weiche, weiße Haufen aus vielen übereinanderliegenden Pixelkreisen (je Wolke einmal gebacken), die langsam hin- und herziehen
     const rnd = new Phaser.Math.RandomDataGenerator(['rauchwolken']);
     for (let i = 0; i < 9; i++) {
         const w = rnd.between(320, 560), h = rnd.between(90, 170), key = 'dschungel_wolke_' + i;
         if (!scene.textures.exists(key)) {
-            const wg = scene.add.graphics(), farbe = rnd.pick([0x141a12, 0x1f2018, 0x2a2018]);
+            const wg = scene.add.graphics(), farbe = rnd.pick([0xffffff, 0xf4f9ff, 0xe6f1fc]);
             const kugeln = rnd.between(10, 16);
             for (let k = 0; k < kugeln; k++) {
                 const cx = rnd.between(w * 0.15, w * 0.85), cy = rnd.between(h * 0.3, h * 0.7), r = rnd.between(30, 70);
                 for (let y = -r; y < r; y += 8) for (let x = -r; x < r; x += 8) {
                     const d = Math.hypot(x + 4, (y + 4) * 1.5) / r;
                     if (d >= 1 || cx + x < 0 || cx + x > w - 8 || cy + y < 0 || cy + y > h - 8) continue;
-                    wg.fillStyle(farbe, Math.round((1 - d) * 0.16 * 100) / 100).fillRect(cx + x, cy + y, 8, 8);
+                    wg.fillStyle(farbe, Math.round((1 - d) * 0.26 * 100) / 100).fillRect(cx + x, cy + y, 8, 8);
                 }
             }
             wg.generateTexture(key, w, h);

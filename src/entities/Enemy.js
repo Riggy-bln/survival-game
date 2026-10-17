@@ -60,16 +60,17 @@ export default class Enemy extends Phaser.GameObjects.Rectangle {
     }
 
     // Zieht Lebenspunkte ab. Gibt true zurück, wenn der Gegner dadurch gestorben ist.
-    takeDamage(amount) {
+    // art: 'kugel' (Standard), 'feuer' (Flammenwerfer: kein Treffer-Klang). Der nasse Klang kommt aus Sound.js.
+    takeDamage(amount, art = 'kugel') {
         this.health -= amount;
 
         if (this.health <= 0) {
-            sfx.play('kill');
+            sfx.gegnerTod(art);
             this.destroy();
             return true;
         }
 
-        sfx.play('hit');
+        sfx.gegnerTreffer(amount, art);
         // Kurz weiß aufblitzen, damit man den Treffer sieht.
         this.setFillStyle(0xffffff);
         // delayedCall führt eine Funktion nach 80 Millisekunden aus.

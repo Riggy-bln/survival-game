@@ -41,7 +41,7 @@ export function baueStimmung(scene, breite = 17600) {
             const a = STIMMUNGEN[i], b = STIMMUNGEN[i + 1];
             const t = klemme((x - a.x) / (b.x - a.x), 0, 1);
             const f = a.farbe.map((v, k) => Math.round(lerp(v, b.farbe[k], t)));
-            flaeche.setFillStyle((f[0] << 16) | (f[1] << 8) | f[2], lerp(a.alpha, b.alpha, t));
+            flaeche.setFillStyle((f[0] << 16) | (f[1] << 8) | f[2], lerp(a.alpha, b.alpha, t) * 0.4);   // dezent, damit der blaue Himmel blau bleibt
         },
     };
 }
